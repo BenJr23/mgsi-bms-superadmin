@@ -15,10 +15,11 @@ export async function POST(req: NextRequest) {
         // 1. Reset the password using BetterAuth API
         const response = await auth.api.resetPassword({
             body: { newPassword, token },
+            headers: req.headers,
         });
 
-        // 2. Return the response (handling session cookies if successful)
-        return response;
+        // 2. Always return a valid Next.js Response object
+        return NextResponse.json(response);
         
     } catch (error: any) {
         console.error("Password reset error:", error);
