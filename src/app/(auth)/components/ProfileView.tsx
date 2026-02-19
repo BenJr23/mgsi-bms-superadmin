@@ -25,7 +25,7 @@ type ProfileViewProps = {
   userPhone: string;
   userCreatedAt: string | null;
   lastLogin: string | null;
-  onProfileUpdate?: (updates: { name?: string; image?: string }) => void;
+  onProfileUpdate?: (updates: { name?: string; image?: string; phoneNumber?: string }) => void;
 };
 
 export function ProfileView({ userName, userEmail, userRole, userImage, userPhone, userCreatedAt, lastLogin, onProfileUpdate }: ProfileViewProps) {
@@ -138,7 +138,10 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
       
       // Notify parent of profile update
       if (onProfileUpdate) {
-        onProfileUpdate({ name: formData.name });
+        onProfileUpdate({
+          name: formData.name,
+          phoneNumber: `+63${phoneDigitsOnly}`
+        });
       }
       
       // Clear success message after 3 seconds

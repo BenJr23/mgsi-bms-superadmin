@@ -21,6 +21,7 @@ export default function DashboardPage() {
   const [lastLogin, setLastLogin] = useState<string | null>(null);
   const [localUserName, setLocalUserName] = useState<string>('');
   const [localUserImage, setLocalUserImage] = useState<string | null>(null);
+  const [localUserPhone, setLocalUserPhone] = useState<string>('');
   const { data: session } = useSession();
   const sessionUser = session?.user as
   | {
@@ -37,7 +38,7 @@ export default function DashboardPage() {
   const userName = localUserName || sessionUser?.name?.trim() || (userRole === 'SUPERADMIN' ? 'Super Admin' : 'Admin User');
   const userEmail = sessionUser?.email || `${userRole.toLowerCase()}@company.com`;
   const userImage = localUserImage || sessionUser?.image || null;
-  const userPhone = sessionUser?.phoneNumber || '';
+  const userPhone = localUserPhone || sessionUser?.phoneNumber || '';
   const userCreatedAt = sessionUser?.createdAt || null;
   const userInitials =
   userName
@@ -55,14 +56,20 @@ export default function DashboardPage() {
     if (sessionUser?.image && !localUserImage) {
       setLocalUserImage(sessionUser.image);
     }
-  }, [sessionUser?.name, sessionUser?.image, localUserName, localUserImage]);
+    if (sessionUser?.phoneNumber && !localUserPhone) {
+      setLocalUserPhone(sessionUser.phoneNumber);
+    }
+  }, [sessionUser?.name, sessionUser?.image, sessionUser?.phoneNumber, localUserName, localUserImage, localUserPhone]);
 
-  const handleProfileUpdate = (updates: { name?: string; image?: string }) => {
+  const handleProfileUpdate = (updates: { name?: string; image?: string; phoneNumber?: string }) => {
     if (updates.name) {
       setLocalUserName(updates.name);
     }
     if (updates.image) {
       setLocalUserImage(updates.image);
+    }
+    if (updates.phoneNumber !== undefined) {
+      setLocalUserPhone(updates.phoneNumber);
     }
   };
 
