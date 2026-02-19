@@ -1,0 +1,213 @@
+generator client {
+  provider      = "prisma-client"
+  output        = "../src/generated/prisma"
+  binaryTargets = ["native", "linux-musl", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DIRECT_URL")
+}
+
+model User {
+  id                String      @id @default(uuid())
+  name              String
+  email             String      @unique
+  emailVerified     Boolean     @default(false)
+  image             String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  role              UserRole    @default(CLIENT)
+  companyName       String?
+  phoneNumber       String?
+  contractEndDate   DateTime?
+  createdById       String?
+  passwordVerified  Boolean     @default(false)
+  accounts          Account[]
+  submittedBookings Booking[]   @relation("SubmittedBookings")
+  updatedBookings   Booking[]   @relation("UpdatedBookings")
+  createdBuildings  Building[]
+  rejectedBookings  Rejection[]
+  createdRooms      Room[]
+  sessions          Session[]
+  createdBy         User?       @relation("UserCreator", fields: [createdById], references: [id])
+  createdUsers      User[]      @relation("UserCreator")
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("accounts")
+}
+
+model Verification {
+  id         String    @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  @@map("verifications")
+}
+
+model Building {
+  id           String         @id @default(uuid())
+  buildingName String
+  buildingCode String         @unique
+  description  String?
+  imageUrl     String?
+  status       BuildingStatus
+  createdById  String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  bookings     Booking[]
+  createdBy    User           @relation(fields: [createdById], references: [id])
+  rooms        Room[]
+
+  @@map("buildings")
+}
+
+model Room {
+  id          String     @id @default(uuid())
+  roomName    String
+  roomCode    String?
+  description String?
+  imageUrl    String?
+  capacity    Int
+  amenities   Json?
+  status      RoomStatus
+  buildingId  String
+  createdById String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  bookings    Booking[]
+  building    Building   @relation(fields: [buildingId], references: [id])
+  createdBy   User       @relation(fields: [createdById], references: [id])
+
+  @@index([buildingId])
+  @@map("rooms")
+}
+
+model Booking {
+  id                   String         @id @default(uuid())
+  bookingReference     String         @unique
+  startDate            DateTime
+  endDate              DateTime
+  dailyTimeStart       DateTime?
+  dailyTimeEnd         DateTime?
+  bookingType          BookingType
+  clientStatus         ClientStatus
+  approvalStatus       ApprovalStatus
+  submittedAt          DateTime       @default(now())
+  approvalDate         DateTime?
+  cancellationDeadline DateTime?
+  message              String?
+  attendeeCount        Int?
+  buildingId           String
+  roomId               String
+  submittedById        String
+  updatedById          String?
+  isActive             Boolean        @default(true)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  building             Building       @relation(fields: [buildingId], references: [id])
+  room                 Room           @relation(fields: [roomId], references: [id])
+  submittedBy          User           @relation("SubmittedBookings", fields: [submittedById], references: [id])
+  updatedBy            User?          @relation("UpdatedBookings", fields: [updatedById], references: [id])
+  rejections           Rejection[]
+
+  @@index([roomId, startDate, endDate])
+  @@index([buildingId])
+  @@index([approvalStatus])
+  @@map("bookings")
+}
+
+model Rejection {
+  id              String        @id @default(uuid())
+  rejectionType   RejectionType
+  rejectionReason String
+  rejectedAt      DateTime      @default(now())
+  bookingId       String
+  rejectedById    String
+  booking         Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  rejectedBy      User          @relation(fields: [rejectedById], references: [id])
+
+  @@index([bookingId])
+  @@map("rejections")
+}
+
+enum UserRole {
+  CLIENT
+  ADMIN
+  SUPERADMIN
+}
+
+enum BuildingStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+}
+
+enum RoomStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+  INACTIVE
+}
+
+enum BookingType {
+  HOURLY
+  DAILY
+  MONTHLY
+}
+
+enum ClientStatus {
+  SUBMITTED
+  CANCELLED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RejectionType {
+  CAPACITY_EXCEEDED
+  SCHEDULE_CONFLICT
+  MAINTENANCE
+  POLICY_VIOLATION
+  INVALID_REQUEST
+  CONTRACT_EXPIRED
+  OTHER
+}
