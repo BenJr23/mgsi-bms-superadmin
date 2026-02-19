@@ -1,7 +1,11 @@
 
+'use client'
+
 import React, { useEffect, useState } from 'react'
-import { X, ImageIcon, AlertCircle } from 'lucide-react'
+import { X, ImageIcon, AlertCircle, Loader } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { useSession } from '@/lib/auth-client'
+import { createBuilding } from '@/app/actions/buildings'
 
 interface ModalProps {
   isOpen: boolean
@@ -109,11 +113,16 @@ const emptyForm: BuildingFormData = {
 interface AddBuildingModalProps {
   isOpen: boolean
   onClose: () => void
+  onSuccess?: () => void
 }
 
-export function AddBuildingModal({ isOpen, onClose }: AddBuildingModalProps) {
+export function AddBuildingModal({ isOpen, onClose, onSuccess }: AddBuildingModalProps) {
+  const { data: session } = useSession()
   const [form, setForm] = useState<BuildingFormData>(emptyForm)
   const [errors, setErrors] = useState<Partial<BuildingFormData>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string>('')
+  const [submitSuccess, setSubmitSuccess] = useState<string>('')
 
   const validate = (): boolean => {
     const newErrors: Partial<BuildingFormData> = {}
@@ -125,17 +134,49 @@ export function AddBuildingModal({ isOpen, onClose }: AddBuildingModalProps) {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validate()) return
-    // TODO: wire to API
-    console.log('New building:', form)
-    handleClose()
+
+    if (!session?.user?.id) {
+      setSubmitError('User not authenticated.')
+      return
+    }
+
+    setIsSubmitting(true)
+    setSubmitError('')
+    setSubmitSuccess('')
+
+    try {
+      const result = await createBuilding(form, session.user.id)
+
+      if (result.success) {
+        setSubmitSuccess(`Building "${result.data?.buildingName}" created successfully!`)
+        setForm(emptyForm)
+        setErrors({})
+        
+        // Clear success message after 2 seconds and close
+        setTimeout(() => {
+          setSubmitSuccess('')
+          onClose()
+          onSuccess?.()
+        }, 2000)
+      } else {
+        setSubmitError(result.error || 'Failed to create building.')
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.'
+      setSubmitError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleClose = () => {
     setForm(emptyForm)
     setErrors({})
+    setSubmitError('')
+    setSubmitSuccess('')
     onClose()
   }
 
@@ -157,6 +198,22 @@ export function AddBuildingModal({ isOpen, onClose }: AddBuildingModalProps) {
       size="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Error Message */}
+        {submitError && (
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-md flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-rose-700">{submitError}</p>
+          </div>
+        )}
+
+        {/* Success Message */}
+        {submitSuccess && (
+          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-md flex items-start gap-2">
+            <div className="w-4 h-4 bg-emerald-600 rounded-full mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-emerald-700">{submitSuccess}</p>
+          </div>
+        )}
+
         {/* Row 1: Name + Code */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
@@ -283,10 +340,19 @@ export function AddBuildingModal({ isOpen, onClose }: AddBuildingModalProps) {
 
         {/* Footer Actions */}
         <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
-          <Button type="button" variant="outline" onClick={handleClose}>
+          <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button type="submit">Create Building</Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader className="w-4 h-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              'Create Building'
+            )}
+          </Button>
         </div>
       </form>
     </Modal>
