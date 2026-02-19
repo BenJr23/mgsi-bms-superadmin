@@ -1,68 +1,77 @@
-import React from 'react';
-import { Card } from './ui/Card';
-import { Badge } from './ui/Badge';
-import { Button } from './ui/Button';
-import { Search, Filter, Users, Wifi, Monitor, Coffee } from 'lucide-react';
+import React, { useState } from 'react'
+import { Card } from './ui/Card'
+import { Badge } from './ui/Badge'
+import { Button } from './ui/Button'
+import { AddRoomModal } from './Modals/AddRoomModal'
+import { Search, Filter, Users, Wifi, Monitor, Coffee } from 'lucide-react'
+type RoomStatus = 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE' | 'INACTIVE'
 export function RoomsView() {
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const rooms = [
-  {
-    id: 1,
-    name: 'Conference Room A',
-    code: 'RM-101',
-    building: 'Innovation Hub',
-    capacity: 12,
-    status: 'AVAILABLE',
-    amenities: ['wifi', 'screen', 'coffee']
-  },
-  {
-    id: 2,
-    name: 'Auditorium',
-    code: 'RM-102',
-    building: 'Innovation Hub',
-    capacity: 200,
-    status: 'OCCUPIED',
-    amenities: ['wifi', 'screen', 'mic']
-  },
-  {
-    id: 3,
-    name: 'Huddle Room 1',
-    code: 'RM-201',
-    building: 'Downtown Center',
-    capacity: 4,
-    status: 'AVAILABLE',
-    amenities: ['wifi', 'whiteboard']
-  },
-  {
-    id: 4,
-    name: 'Executive Suite',
-    code: 'RM-505',
-    building: 'Executive Tower',
-    capacity: 8,
-    status: 'MAINTENANCE',
-    amenities: ['wifi', 'screen', 'coffee', 'video']
-  },
-  {
-    id: 5,
-    name: 'Training Lab',
-    code: 'RM-303',
-    building: 'West Wing Annex',
-    capacity: 30,
-    status: 'INACTIVE',
-    amenities: ['wifi', 'computers']
-  }];
-
+    {
+      id: 1,
+      name: 'Conference Room A',
+      code: 'RM-101',
+      building: 'Innovation Hub',
+      capacity: 12,
+      status: 'AVAILABLE',
+      amenities: ['wifi', 'screen', 'coffee'],
+    },
+    {
+      id: 2,
+      name: 'Auditorium',
+      code: 'RM-102',
+      building: 'Innovation Hub',
+      capacity: 200,
+      status: 'OCCUPIED',
+      amenities: ['wifi', 'screen', 'mic'],
+    },
+    {
+      id: 3,
+      name: 'Huddle Room 1',
+      code: 'RM-201',
+      building: 'Downtown Center',
+      capacity: 4,
+      status: 'AVAILABLE',
+      amenities: ['wifi', 'whiteboard'],
+    },
+    {
+      id: 4,
+      name: 'Executive Suite',
+      code: 'RM-505',
+      building: 'Executive Tower',
+      capacity: 8,
+      status: 'MAINTENANCE',
+      amenities: ['wifi', 'screen', 'coffee', 'video'],
+    },
+    {
+      id: 5,
+      name: 'Training Lab',
+      code: 'RM-303',
+      building: 'West Wing Annex',
+      capacity: 30,
+      status: 'INACTIVE',
+      amenities: ['wifi', 'computers'],
+    },
+  ]
+  const openModal = () => {
+    setIsModalOpen(true)
+  }
+  const closeModal = () => {
+    setIsModalOpen(false)
+  }
   const renderAmenityIcon = (amenity: string) => {
     switch (amenity) {
       case 'wifi':
-        return <Wifi className="w-3 h-3" />;
+        return <Wifi className="w-3 h-3" />
       case 'screen':
-        return <Monitor className="w-3 h-3" />;
+        return <Monitor className="w-3 h-3" />
       case 'coffee':
-        return <Coffee className="w-3 h-3" />;
+        return <Coffee className="w-3 h-3" />
       default:
-        return null;
+        return null
     }
-  };
+  }
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -72,7 +81,7 @@ export function RoomsView() {
             Manage individual rooms and their amenities.
           </p>
         </div>
-        <Button>+ Add Room</Button>
+        <Button onClick={openModal}>+ Add Room</Button>
       </div>
 
       <Card noPadding>
@@ -82,19 +91,17 @@ export function RoomsView() {
             <input
               type="text"
               placeholder="Search rooms..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
-
+              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
           </div>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2">
-
-              <Filter className="w-4 h-4" />
-              Filter by Building
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2 w-full sm:w-auto"
+          >
+            <Filter className="w-4 h-4" />
+            Filter by Building
+          </Button>
         </div>
 
         <div className="overflow-x-auto">
@@ -110,11 +117,11 @@ export function RoomsView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rooms.map((room) =>
-              <tr
-                key={room.id}
-                className="hover:bg-slate-50 transition-colors">
-
+              {rooms.map((room) => (
+                <tr
+                  key={room.id}
+                  className="hover:bg-slate-50 transition-colors"
+                >
                   <td className="px-6 py-4">
                     <div className="font-medium text-slate-900">
                       {room.name}
@@ -132,34 +139,34 @@ export function RoomsView() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex gap-1">
-                      {room.amenities.slice(0, 3).map((a, i) =>
-                    <span
-                      key={i}
-                      className="p-1 bg-slate-100 rounded text-slate-500"
-                      title={a}>
-
+                      {room.amenities.slice(0, 3).map((a, i) => (
+                        <span
+                          key={i}
+                          className="p-1 bg-slate-100 rounded text-slate-500"
+                          title={a}
+                        >
                           {renderAmenityIcon(a)}
                         </span>
-                    )}
-                      {room.amenities.length > 3 &&
-                    <span className="text-xs text-slate-400 flex items-center">
+                      ))}
+                      {room.amenities.length > 3 && (
+                        <span className="text-xs text-slate-400 flex items-center">
                           +{room.amenities.length - 3}
                         </span>
-                    }
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <Badge
-                    variant={
-                    room.status === 'AVAILABLE' ?
-                    'success' :
-                    room.status === 'OCCUPIED' ?
-                    'warning' :
-                    room.status === 'MAINTENANCE' ?
-                    'danger' :
-                    'neutral'
-                    }>
-
+                      variant={
+                        room.status === 'AVAILABLE'
+                          ? 'success'
+                          : room.status === 'OCCUPIED'
+                            ? 'warning'
+                            : room.status === 'MAINTENANCE'
+                              ? 'danger'
+                              : 'neutral'
+                      }
+                    >
                       {room.status}
                     </Badge>
                   </td>
@@ -169,11 +176,13 @@ export function RoomsView() {
                     </button>
                   </td>
                 </tr>
-              )}
+              ))}
             </tbody>
           </table>
         </div>
       </Card>
-    </div>);
 
+      <AddRoomModal isOpen={isModalOpen} onClose={closeModal} />
+    </div>
+  )
 }
