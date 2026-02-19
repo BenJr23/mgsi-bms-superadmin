@@ -84,6 +84,7 @@ model Building {
   id           String         @id @default(uuid())
   buildingName String
   buildingCode String         @unique
+  address      String?
   description  String?
   imageUrl     String?
   status       BuildingStatus
