@@ -152,7 +152,7 @@ export function Sidebar({
           <button
             type="button"
             onClick={() => onTabChange('profile')}
-            className={`flex-1 flex items-center gap-3 px-2 py-2 rounded-md transition-colors text-left ${activeTab === 'profile' ? 'bg-red-50 text-red-900' : 'hover:bg-slate-100'}`}>
+            className={`flex-1 flex items-center gap-3 px-2 py-2 rounded-md transition-all duration-200 text-left ${activeTab === 'profile' ? 'bg-red-900 text-white shadow-md shadow-red-900/20' : 'hover:bg-slate-100'}`}>
 
             <div className="w-8 h-8 rounded-full bg-red-900 flex items-center justify-center text-xs text-white font-medium overflow-hidden">
               {userImage ?
@@ -167,10 +167,10 @@ export function Sidebar({
               }
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">
+              <p className={`text-sm font-medium truncate ${activeTab === 'profile' ? 'text-white' : 'text-slate-900'}`}>
                 {userName}
               </p>
-              <p className="text-xs text-slate-500 truncate">
+              <p className={`text-xs truncate ${activeTab === 'profile' ? 'text-red-100' : 'text-slate-500'}`}>
                 {userEmail}
               </p>
             </div>
