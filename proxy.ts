@@ -14,7 +14,7 @@ const isPublicPath = (pathname: string) =>
     pathname === "/" ||
     publicPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
     const isApiPath = pathname.startsWith("/api");
 
@@ -39,7 +39,7 @@ export async function middleware(request: NextRequest) {
 
             // Only redirect to dashboard if user has ADMIN or SUPERADMIN role
             if (hasAllowedRole(session.user.role)) {
-                return NextResponse.redirect(new URL("/auth/dashboard", request.url));
+                return NextResponse.redirect(new URL("/dashboard", request.url));
             }
         }
         return NextResponse.next();
