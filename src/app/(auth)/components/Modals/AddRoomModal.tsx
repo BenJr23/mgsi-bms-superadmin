@@ -16,8 +16,8 @@ import {
   ImageIcon,
 } from 'lucide-react'
 import { Button } from '../ui/Button'
-import { getBuildings } from '@/app/actions/buildings'
-import { createRoom } from '@/app/actions/rooms'
+import { getBuildings } from '@/app/_actions/buildings'
+import { createRoom } from '@/app/_actions/rooms'
 interface ModalProps {
   isOpen: boolean
   onClose: () => void

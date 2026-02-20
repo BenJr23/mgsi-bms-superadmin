@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react'
 import { X, ImageIcon, AlertCircle, Loader } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { useSession } from '@/lib/auth-client'
-import { createBuilding } from '@/app/actions/buildings'
+import { createBuilding } from '@/app/_actions/buildings'
 
 interface ModalProps {
   isOpen: boolean

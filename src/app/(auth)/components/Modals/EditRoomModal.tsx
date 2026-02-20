@@ -16,8 +16,8 @@ import {
   Wind,
 } from 'lucide-react'
 import { Button } from '../ui/Button'
-import { getRoomById, updateRoom } from '@/app/actions/rooms'
-import { getBuildings } from '@/app/actions/buildings'
+import { getRoomById, updateRoom } from '@/app/_actions/rooms'
+import { getBuildings } from '@/app/_actions/buildings'
 
 interface ModalProps {
   isOpen: boolean

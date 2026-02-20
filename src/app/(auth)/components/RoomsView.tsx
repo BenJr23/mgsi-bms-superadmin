@@ -19,7 +19,7 @@ import {
   PcCase,
   Wind,
 } from 'lucide-react'
-import { getAllRooms } from '@/app/actions/rooms'
+import { getAllRooms } from '@/app/_actions/rooms'
 
 type RoomStatus = 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE' | 'INACTIVE'
 

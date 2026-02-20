@@ -7,7 +7,7 @@ import { Button } from './ui/Button'
 import { AddBuildingModal } from './Modals/AddBuildingModal'
 import { EditBuildingModal } from './Modals/EditBuildingModal'
 import { MapPin, Building, MoreVertical } from 'lucide-react'
-import { getAllBuildings } from '@/app/actions/buildings'
+import { getAllBuildings } from '@/app/_actions/buildings'
 
 export function BuildingsView() {
   const [isModalOpen, setIsModalOpen] = useState(false)
