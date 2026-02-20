@@ -24,11 +24,13 @@ interface SidebarProps {
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
   userRole: UserRole;
+  showingSpecialView?: boolean;
 }
 export function Sidebar({
   activeTab,
   onTabChange,
-  userRole
+  userRole,
+  showingSpecialView
 }: SidebarProps) {
 
   const menuItems = [
@@ -101,7 +103,7 @@ export function Sidebar({
         </div>
         {filteredItems.map((item) => {
           const Icon = item.icon;
-          const isActive = activeTab === item.id;
+          const isActive = activeTab === item.id && !showingSpecialView;
           return (
             <button
               key={item.id}

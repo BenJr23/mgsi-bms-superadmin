@@ -85,14 +85,12 @@ export default function DashboardPage() {
   };
 
   const showProfile = () => {
-    setActiveTab('dashboard');
     setDropdownOpen(false);
     setShowSettingsView(false);
     setShowProfileView(true);
   };
 
   const showSettings = () => {
-    setActiveTab('dashboard');
     setDropdownOpen(false);
     setShowProfileView(false);
     setShowSettingsView(true);
@@ -176,7 +174,8 @@ export default function DashboardPage() {
             setShowSettingsView(false);
             if (window.innerWidth < 1024) setSidebarOpen(false);
           }}
-          userRole={userRole} />
+          userRole={userRole}
+          showingSpecialView={showProfileView || showSettingsView} />
 
       </div>
 
