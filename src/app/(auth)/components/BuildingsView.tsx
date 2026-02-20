@@ -1,64 +1,55 @@
-import React, { useState } from 'react';
-import { Card } from './ui/Card';
-import { Badge } from './ui/Badge';
-import { Button } from './ui/Button';
-import { AddBuildingModal } from './Modals/AddBuildingModal';
+'use client'
+
+import React, { useState, useEffect } from 'react'
+import { Card } from './ui/Card'
+import { Badge } from './ui/Badge'
+import { Button } from './ui/Button'
+import { AddBuildingModal } from './Modals/AddBuildingModal'
+import { EditBuildingModal } from './Modals/EditBuildingModal'
 import { MapPin, Building, MoreVertical } from 'lucide-react'
+import { getAllBuildings } from '@/app/actions/buildings'
 
 export function BuildingsView() {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const buildings = [
-    {
-      id: 1,
-      name: 'Innovation Hub',
-      code: 'BLD-001',
-      status: 'ACTIVE',
-      rooms: 42,
-      address: '123 Tech Blvd, Silicon Valley',
-      image:
-        'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=800',
-    },
-    {
-      id: 2,
-      name: 'Downtown Center',
-      code: 'BLD-002',
-      status: 'ACTIVE',
-      rooms: 28,
-      address: '45 Main St, Downtown',
-      image:
-        'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=800',
-    },
-    {
-      id: 3,
-      name: 'West Wing Annex',
-      code: 'BLD-003',
-      status: 'MAINTENANCE',
-      rooms: 15,
-      address: '789 West Ave, Business District',
-      image:
-        'https://images.unsplash.com/photo-1554469384-e58fac16e23a?auto=format&fit=crop&q=80&w=800',
-    },
-    {
-      id: 4,
-      name: 'Creative Lofts',
-      code: 'BLD-004',
-      status: 'INACTIVE',
-      rooms: 12,
-      address: '101 Art Way, Design District',
-      image:
-        'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&q=80&w=800',
-    },
-    {
-      id: 5,
-      name: 'Executive Tower',
-      code: 'BLD-005',
-      status: 'ACTIVE',
-      rooms: 56,
-      address: '500 Corporate Dr, Financial District',
-      image:
-        'https://images.unsplash.com/photo-1577495508048-b635879837f1?auto=format&fit=crop&q=80&w=800',
-    },
-  ]
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string | undefined>()
+  const [buildings, setBuildings] = useState<Array<{
+    id: string
+    buildingName: string
+    buildingCode: string
+    address: string | null
+    imageUrl: string | null
+    status: string
+    roomCount: number
+    createdAt: Date
+  }>>([]);
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadBuildings = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const result = await getAllBuildings()
+      if (result.success) {
+        setBuildings(result.data ?? [])
+      } else {
+        setError(result.error || 'Failed to load buildings')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void loadBuildings()
+  }, [])
+
+  const handleAddBuildingSuccess = () => {
+    void loadBuildings()
+  }
 
   const openModal = () => {
     setIsModalOpen(true)
@@ -66,6 +57,42 @@ export function BuildingsView() {
 
   const closeModal = () => {
     setIsModalOpen(false)
+  }
+
+  const openEditModal = (buildingId: string) => {
+    setSelectedBuildingId(buildingId)
+    setIsEditModalOpen(true)
+  }
+
+  const closeEditModal = () => {
+    setIsEditModalOpen(false)
+    setSelectedBuildingId(undefined)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Buildings</h1>
+          <p className="text-slate-500">Manage your properties and facilities.</p>
+        </div>
+        <div className="text-center text-slate-500">Loading buildings...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Buildings</h1>
+          <p className="text-slate-500">Manage your properties and facilities.</p>
+        </div>
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-md">
+          <p className="text-sm text-rose-700">{error}</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -81,67 +108,84 @@ export function BuildingsView() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {buildings.map((building) => (
-          <Card
-            key={building.id}
-            noPadding
-            className="group hover:shadow-md transition-shadow"
-          >
-            <div className="relative h-48 overflow-hidden bg-slate-200">
-              <img
-                src={building.image}
-                alt={building.name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute top-3 right-3">
-                <Badge
-                  variant={
-                    building.status === 'ACTIVE'
-                      ? 'success'
-                      : building.status === 'MAINTENANCE'
-                        ? 'warning'
-                        : 'neutral'
-                  }
-                >
-                  {building.status}
-                </Badge>
-              </div>
-            </div>
-            <div className="p-5">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h3 className="font-bold text-lg text-slate-900">
-                    {building.name}
-                  </h3>
-                  <p className="text-xs font-mono text-slate-500">
-                    {building.code}
-                  </p>
-                </div>
-                <button className="text-slate-400 hover:text-slate-600">
-                  <MoreVertical className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="space-y-2 mt-4">
-                <div className="flex items-start gap-2 text-sm text-slate-600">
-                  <MapPin className="w-4 h-4 mt-0.5 text-slate-400" />
-                  <span>{building.address}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                  <Building className="w-4 h-4 text-slate-400" />
-                  <span>{building.rooms} Rooms available</span>
+        {buildings.length > 0 ? (
+          buildings.map((building) => (
+            <Card
+              key={building.id}
+              noPadding
+              className="group hover:shadow-md transition-shadow"
+            >
+              <div className="relative h-48 overflow-hidden bg-slate-200">
+                <img
+                  src={building.imageUrl || 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=800'}
+                  alt={building.buildingName}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  onError={(e) => {
+                    ;(e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=800'
+                  }}
+                />
+                <div className="absolute top-3 right-3">
+                  <Badge
+                    variant={
+                      building.status === 'ACTIVE'
+                        ? 'success'
+                        : building.status === 'MAINTENANCE'
+                          ? 'warning'
+                          : 'neutral'
+                    }
+                  >
+                    {building.status}
+                  </Badge>
                 </div>
               </div>
-              <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center">
-                <span className="text-xs text-slate-500">
-                  Last updated 2 days ago
-                </span>
-                <Button variant="outline" size="sm">
-                  Manage
-                </Button>
+              <div className="p-5">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <h3 className="font-bold text-lg text-slate-900">
+                      {building.buildingName}
+                    </h3>
+                    <p className="text-xs font-mono text-slate-500">
+                      {building.buildingCode}
+                    </p>
+                  </div>
+                  <button className="text-slate-400 hover:text-slate-600">
+                    <MoreVertical className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="space-y-2 mt-4">
+                  {building.address && (
+                    <div className="flex items-start gap-2 text-sm text-slate-600">
+                      <MapPin className="w-4 h-4 mt-0.5 text-slate-400" />
+                      <span>{building.address}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <Building className="w-4 h-4 text-slate-400" />
+                    <span>{building.roomCount} Rooms available</span>
+                  </div>
+                </div>
+                <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center">
+                  <span className="text-xs text-slate-500">
+                    {building.createdAt && 
+                      `Created ${new Date(building.createdAt).toLocaleDateString()}`
+                    }
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openEditModal(building.id)}
+                  >
+                    Manage
+                  </Button>
+                </div>
               </div>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          ))
+        ) : (
+          <div className="col-span-full text-center py-12">
+            <p className="text-slate-500">No buildings found</p>
+          </div>
+        )}
 
         {/* Add New Placeholder */}
         <button
@@ -156,7 +200,15 @@ export function BuildingsView() {
       </div>
 
       {/* Add Building Modal */}
-      <AddBuildingModal isOpen={isModalOpen} onClose={closeModal} />
+      <AddBuildingModal isOpen={isModalOpen} onClose={closeModal} onSuccess={handleAddBuildingSuccess} />
+
+      {/* Edit Building Modal */}
+      <EditBuildingModal
+        isOpen={isEditModalOpen}
+        onClose={closeEditModal}
+        buildingId={selectedBuildingId}
+        onSuccess={handleAddBuildingSuccess}
+      />
     </div>
   )
 }

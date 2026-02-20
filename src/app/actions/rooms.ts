@@ -89,3 +89,60 @@ export async function createRoom(
     }
   }
 }
+
+interface GetAllRoomsResult {
+  success: boolean
+  data?: Array<{
+    id: string
+    roomName: string
+    roomCode: string | null
+    capacity: number
+    status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE' | 'INACTIVE'
+    amenities: string[] | null
+    building: {
+      id: string
+      buildingName: string
+    }
+  }>
+  error?: string
+}
+
+export async function getAllRooms(): Promise<GetAllRoomsResult> {
+  try {
+    const session = await getServerSession()
+
+    if (!session?.user?.id) {
+      return { success: false, error: 'Not authenticated.' }
+    }
+
+    const rooms = await prisma.room.findMany({
+      select: {
+        id: true,
+        roomName: true,
+        roomCode: true,
+        capacity: true,
+        status: true,
+        amenities: true,
+        building: {
+          select: {
+            id: true,
+            buildingName: true,
+          },
+        },
+      },
+      orderBy: {
+        roomName: 'asc',
+      },
+    })
+
+    return { success: true, data: rooms as GetAllRoomsResult['data'] }
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : 'Failed to fetch rooms.'
+    console.error('Get all rooms error:', message)
+    return {
+      success: false,
+      error: message,
+    }
+  }
+}

@@ -1,65 +1,90 @@
-import React, { useState } from 'react'
+'use client'
+
+import React, { useState, useEffect } from 'react'
 import { Card } from './ui/Card'
 import { Badge } from './ui/Badge'
 import { Button } from './ui/Button'
 import { AddRoomModal } from './Modals/AddRoomModal'
 import { Search, Filter, Users, Wifi, Monitor, Coffee } from 'lucide-react'
+import { getAllRooms } from '@/app/actions/rooms'
+
 type RoomStatus = 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE' | 'INACTIVE'
+
+interface Room {
+  id: string
+  roomName: string
+  roomCode: string | null
+  capacity: number
+  status: RoomStatus
+  amenities: string[] | null
+  building: {
+    id: string
+    buildingName: string
+  }
+}
+
+interface Building {
+  id: string
+  buildingName: string
+}
+
 export function RoomsView() {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const rooms = [
-    {
-      id: 1,
-      name: 'Conference Room A',
-      code: 'RM-101',
-      building: 'Innovation Hub',
-      capacity: 12,
-      status: 'AVAILABLE',
-      amenities: ['wifi', 'screen', 'coffee'],
-    },
-    {
-      id: 2,
-      name: 'Auditorium',
-      code: 'RM-102',
-      building: 'Innovation Hub',
-      capacity: 200,
-      status: 'OCCUPIED',
-      amenities: ['wifi', 'screen', 'mic'],
-    },
-    {
-      id: 3,
-      name: 'Huddle Room 1',
-      code: 'RM-201',
-      building: 'Downtown Center',
-      capacity: 4,
-      status: 'AVAILABLE',
-      amenities: ['wifi', 'whiteboard'],
-    },
-    {
-      id: 4,
-      name: 'Executive Suite',
-      code: 'RM-505',
-      building: 'Executive Tower',
-      capacity: 8,
-      status: 'MAINTENANCE',
-      amenities: ['wifi', 'screen', 'coffee', 'video'],
-    },
-    {
-      id: 5,
-      name: 'Training Lab',
-      code: 'RM-303',
-      building: 'West Wing Annex',
-      capacity: 30,
-      status: 'INACTIVE',
-      amenities: ['wifi', 'computers'],
-    },
-  ]
+  const [rooms, setRooms] = useState<Room[]>([])
+  const [buildings, setBuildings] = useState<Building[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedBuilding, setSelectedBuilding] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadRooms = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const result = await getAllRooms()
+      if (result.success && result.data) {
+        setRooms(result.data)
+        // Extract unique buildings from rooms
+        const uniqueBuildings = Array.from(
+          new Map(
+            result.data.map((room) => [room.building.id, room.building])
+          ).values()
+        )
+        setBuildings(uniqueBuildings)
+      } else {
+        setError(result.error || 'Failed to load rooms')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void loadRooms()
+  }, [])
+
+  const handleAddRoomSuccess = () => {
+    void loadRooms()
+  }
+
+  // Filter rooms based on search and building filter
+  const filteredRooms = rooms.filter((room) => {
+    const matchesSearch =
+      room.roomName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (room.roomCode?.toLowerCase().includes(searchQuery.toLowerCase()) || false)
+    const matchesBuilding = !selectedBuilding || room.building.id === selectedBuilding
+    return matchesSearch && matchesBuilding
+  })
   const openModal = () => {
     setIsModalOpen(true)
   }
+
   const closeModal = () => {
     setIsModalOpen(false)
   }
+
   const renderAmenityIcon = (amenity: string) => {
     switch (amenity) {
       case 'wifi':
@@ -71,6 +96,36 @@ export function RoomsView() {
       default:
         return null
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Rooms</h1>
+          <p className="text-slate-500">
+            Manage individual rooms and their amenities.
+          </p>
+        </div>
+        <div className="text-center text-slate-500">Loading rooms...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Rooms</h1>
+          <p className="text-slate-500">
+            Manage individual rooms and their amenities.
+          </p>
+        </div>
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-md">
+          <p className="text-sm text-rose-700">{error}</p>
+        </div>
+      </div>
+    )
   }
   return (
     <div className="space-y-6">
@@ -90,18 +145,24 @@ export function RoomsView() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
             <input
               type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search rooms..."
               className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2 w-full sm:w-auto"
+          <select
+            value={selectedBuilding}
+            onChange={(e) => setSelectedBuilding(e.target.value)}
+            className="px-4 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-full sm:w-auto"
           >
-            <Filter className="w-4 h-4" />
-            Filter by Building
-          </Button>
+            <option value="">All Buildings</option>
+            {buildings.map((building) => (
+              <option key={building.id} value={building.id}>
+                {building.buildingName}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="overflow-x-auto">
@@ -117,66 +178,94 @@ export function RoomsView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rooms.map((room) => (
-                <tr
-                  key={room.id}
-                  className="hover:bg-slate-50 transition-colors"
-                >
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-slate-900">
-                      {room.name}
-                    </div>
-                    <div className="text-xs text-slate-500 font-mono">
-                      {room.code}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-slate-600">{room.building}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-1 text-slate-600">
-                      <Users className="w-3 h-3" />
-                      <span>{room.capacity}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-1">
-                      {room.amenities.slice(0, 3).map((a, i) => (
-                        <span
-                          key={i}
-                          className="p-1 bg-slate-100 rounded text-slate-500"
-                          title={a}
-                        >
-                          {renderAmenityIcon(a)}
-                        </span>
-                      ))}
-                      {room.amenities.length > 3 && (
-                        <span className="text-xs text-slate-400 flex items-center">
-                          +{room.amenities.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge
-                      variant={
-                        room.status === 'AVAILABLE'
-                          ? 'success'
-                          : room.status === 'OCCUPIED'
-                            ? 'warning'
-                            : room.status === 'MAINTENANCE'
-                              ? 'danger'
-                              : 'neutral'
-                      }
-                    >
-                      {room.status}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button className="text-indigo-600 hover:text-indigo-800 font-medium text-xs">
-                      Edit
-                    </button>
+              {filteredRooms.length > 0 ? (
+                filteredRooms.map((room) => (
+                  <tr
+                    key={room.id}
+                    className="hover:bg-slate-50 transition-colors"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-slate-900">
+                        {room.roomName}
+                      </div>
+                      <div className="text-xs text-slate-500 font-mono">
+                        {room.roomCode}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-slate-600">
+                      {room.building.buildingName}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1 text-slate-600">
+                        <Users className="w-3 h-3" />
+                        <span>{room.capacity}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex gap-1">
+                        {room.amenities && room.amenities.length > 0 ? (
+                          <>
+                            {(typeof room.amenities === 'string'
+                              ? JSON.parse(room.amenities)
+                              : room.amenities
+                            )
+                              .slice(0, 3)
+                              .map((a: string, i: number) => (
+                                <span
+                                  key={i}
+                                  className="p-1 bg-slate-100 rounded text-slate-500"
+                                  title={a}
+                                >
+                                  {renderAmenityIcon(a)}
+                                </span>
+                              ))}
+                            {(typeof room.amenities === 'string'
+                              ? JSON.parse(room.amenities)
+                              : room.amenities
+                            ).length > 3 && (
+                              <span className="text-xs text-slate-400 flex items-center">
+                                +
+                                {(typeof room.amenities === 'string'
+                                  ? JSON.parse(room.amenities)
+                                  : room.amenities
+                                ).length - 3}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-slate-400 text-xs">None</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge
+                        variant={
+                          room.status === 'AVAILABLE'
+                            ? 'success'
+                            : room.status === 'OCCUPIED'
+                              ? 'warning'
+                              : room.status === 'MAINTENANCE'
+                                ? 'danger'
+                                : 'neutral'
+                        }
+                      >
+                        {room.status}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button className="text-indigo-600 hover:text-indigo-800 font-medium text-xs">
+                        Edit
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                    No rooms found
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
