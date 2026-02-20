@@ -3,6 +3,12 @@
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from '@/lib/get-server'
 
+const normalizeAmenities = (amenities: unknown): string[] | null => {
+  if (!Array.isArray(amenities)) return null
+  const values = amenities.filter((a): a is string => typeof a === 'string')
+  return values.length > 0 ? values : null
+}
+
 interface CreateRoomInput {
   roomName: string
   roomCode?: string
@@ -135,7 +141,12 @@ export async function getAllRooms(): Promise<GetAllRoomsResult> {
       },
     })
 
-    return { success: true, data: rooms as GetAllRoomsResult['data'] }
+    const normalizedRooms = rooms.map((room) => ({
+      ...room,
+      amenities: normalizeAmenities(room.amenities),
+    }))
+
+    return { success: true, data: normalizedRooms }
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : 'Failed to fetch rooms.'
@@ -200,7 +211,13 @@ export async function getRoomById(roomId: string): Promise<GetRoomByIdResult> {
       return { success: false, error: 'Room not found.' }
     }
 
-    return { success: true, data: room }
+    return {
+      success: true,
+      data: {
+        ...room,
+        amenities: normalizeAmenities(room.amenities),
+      },
+    }
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : 'Failed to fetch room.'
