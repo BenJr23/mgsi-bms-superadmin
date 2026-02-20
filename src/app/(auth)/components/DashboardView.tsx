@@ -145,7 +145,7 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Activity */}
         <Card className="lg:col-span-2" noPadding>
-          <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+          <div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex justify-between items-center">
             <h3 className="font-semibold text-slate-900">Recent Bookings</h3>
             <button
               type="button"
@@ -155,7 +155,9 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
               View all
             </button>
           </div>
-          <div className="overflow-x-auto">
+          
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-50 text-slate-500 font-medium">
                 <tr>
@@ -195,6 +197,35 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden divide-y divide-slate-100">
+            {recentBookings.map((booking) => (
+              <div key={booking.id} className="px-4 py-3 hover:bg-slate-50 transition-colors">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <div className="text-sm font-medium text-slate-900">{booking.id}</div>
+                    <div className="text-sm text-slate-600">{booking.user}</div>
+                  </div>
+                  <Badge
+                    variant={
+                      booking.status === 'APPROVED'
+                        ? 'success'
+                        : booking.status === 'PENDING'
+                          ? 'warning'
+                          : 'danger'
+                    }
+                  >
+                    {booking.status}
+                  </Badge>
+                </div>
+                <div className="flex justify-between text-xs text-slate-500">
+                  <span>{booking.room}</span>
+                  <span>{booking.date}</span>
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
 

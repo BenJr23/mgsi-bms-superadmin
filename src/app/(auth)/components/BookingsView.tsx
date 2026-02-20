@@ -102,8 +102,8 @@ export function BookingsView() {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
               <tr>
@@ -192,14 +192,81 @@ export function BookingsView() {
           </table>
         </div>
 
+        {/* Mobile Cards */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {bookings.map((booking) => (
+            <div key={booking.id} className="p-4 hover:bg-slate-50 transition-colors">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <div className="font-medium text-slate-900 mb-1">{booking.id}</div>
+                  <div className="text-sm text-slate-600">{booking.client}</div>
+                </div>
+                <Badge
+                  variant={
+                    booking.status === 'APPROVED'
+                      ? 'success'
+                      : booking.status === 'PENDING'
+                        ? 'warning'
+                        : booking.status === 'REJECTED'
+                          ? 'danger'
+                          : 'neutral'
+                  }
+                >
+                  {booking.status}
+                </Badge>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Location:</span>
+                  <span className="text-slate-900 font-medium text-right">{booking.room}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Building:</span>
+                  <span className="text-slate-600 text-right">{booking.building}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Date:</span>
+                  <span className="text-slate-600">{booking.start.split(' ')[0]}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Time:</span>
+                  <span className="text-slate-600">
+                    {booking.type === 'MONTHLY'
+                      ? 'All Month'
+                      : `${booking.start.split(' ')[1] || ''} - ${booking.end.split(' ')[1] || ''}`}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Type:</span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                    {booking.type}
+                  </span>
+                </div>
+              </div>
+              {booking.status === 'PENDING' && (
+                <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100">
+                  <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-md hover:bg-emerald-100 transition-colors">
+                    <Check className="w-4 h-4" />
+                    <span className="text-sm font-medium">Approve</span>
+                  </button>
+                  <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-rose-50 text-rose-600 rounded-md hover:bg-rose-100 transition-colors">
+                    <X className="w-4 h-4" />
+                    <span className="text-sm font-medium">Reject</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
         {/* Pagination */}
-        <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-sm text-slate-500">Showing 1-6 of 24 results</p>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button variant="outline" size="sm" disabled className="flex-1 sm:flex-none">
               Previous
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
               Next
             </Button>
           </div>

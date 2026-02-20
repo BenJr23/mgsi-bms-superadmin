@@ -71,7 +71,7 @@ export function UsersView() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
               <tr>
@@ -133,6 +133,53 @@ export function UsersView() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {users.map((user) => (
+            <div key={user.id} className="p-4 hover:bg-slate-50 transition-colors">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-medium text-sm flex-shrink-0">
+                  {user.name.split(' ').map((n) => n[0]).join('')}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-slate-900 truncate">{user.name}</div>
+                  <div className="text-sm text-slate-500 truncate">{user.email}</div>
+                </div>
+              </div>
+              <div className="space-y-2 text-sm mb-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Role:</span>
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                      user.role === 'SUPERADMIN'
+                        ? 'bg-purple-50 text-purple-700 border-purple-200'
+                        : user.role === 'ADMIN'
+                          ? 'bg-blue-50 text-blue-700 border-blue-200'
+                          : 'bg-slate-50 text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    {user.role === 'SUPERADMIN' && <Shield className="w-3 h-3" />}
+                    {user.role}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Status:</span>
+                  <Badge variant={user.status === 'ACTIVE' ? 'success' : 'neutral'}>
+                    {user.status}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Joined:</span>
+                  <span className="text-slate-900">{user.joined}</span>
+                </div>
+              </div>
+              <button className="w-full px-4 py-2 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition-colors text-sm font-medium">
+                Edit User
+              </button>
+            </div>
+          ))}
         </div>
       </Card>
     </div>);

@@ -295,10 +295,10 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
 
       {/* Header Card */}
       <Card className="relative overflow-visible">
-        <div className="h-32 bg-gradient-to-r from-red-900 to-red-950 rounded-t-xl -mx-6 -mt-6 mb-16"></div>
-        <div className="absolute top-16 left-6">
+        <div className="h-24 sm:h-32 bg-gradient-to-r from-red-900 to-red-950 rounded-t-xl -mx-6 -mt-6 mb-12 sm:mb-16"></div>
+        <div className="absolute top-12 sm:top-16 left-4 sm:left-6">
           <div className="relative group">
-            <div className="w-24 h-24 rounded-full bg-white p-1 shadow-lg">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white p-1 shadow-lg">
               {localImageUrl ?
               <Image
                 src={localImageUrl}
@@ -307,40 +307,42 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
                 height={96}
                 className="w-full h-full rounded-full object-cover border-2 border-white" /> :
 
-              <div className="w-full h-full rounded-full bg-red-100 flex items-center justify-center text-red-900 text-3xl font-bold border-2 border-white">
+              <div className="w-full h-full rounded-full bg-red-100 flex items-center justify-center text-red-900 text-2xl sm:text-3xl font-bold border-2 border-white">
                   {userInitials}
                 </div>
               }
             </div>
             <button
-              className="absolute bottom-0 right-0 p-2 bg-white rounded-full shadow-md border border-slate-200 text-slate-600 hover:text-red-900 transition-colors"
+              className="absolute bottom-0 right-0 p-1.5 sm:p-2 bg-white rounded-full shadow-md border border-slate-200 text-slate-600 hover:text-red-900 transition-colors"
               onClick={() => setIsProfilePicOpen(true)}>
-              <Camera className="w-4 h-4" />
+              <Camera className="w-3 h-3 sm:w-4 sm:h-4" />
             </button>
           </div>
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pt-2">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
               {formData.name}
             </h2>
-            <div className="flex items-center gap-2 mt-1 text-slate-500">
-              <Mail className="w-4 h-4" />
-              <span>{formData.email}</span>
-              <span className="mx-1">•</span>
+            <div className="flex flex-wrap items-center gap-2 mt-1 text-sm sm:text-base text-slate-500">
+              <div className="flex items-center gap-1">
+                <Mail className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="truncate max-w-[250px]">{formData.email}</span>
+              </div>
+              <span className="hidden sm:inline">•</span>
               <Badge variant="info" className="ml-0">
                 {userRole}
               </Badge>
             </div>
           </div>
-          <div className="flex gap-4 text-sm text-slate-500">
+          <div className="flex flex-wrap gap-3 sm:gap-4 text-xs sm:text-sm text-slate-500">
             <div className="flex items-center gap-1">
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
               <span>Joined {formatJoinDate(userCreatedAt)}</span>
             </div>
             <div className="flex items-center gap-1">
-              <Shield className="w-4 h-4" />
+              <Shield className="w-3 h-3 sm:w-4 sm:h-4" />
               <span>2FA Enabled</span>
             </div>
           </div>

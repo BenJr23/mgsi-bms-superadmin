@@ -17,7 +17,8 @@ import Image from 'next/image';
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [lastLogin, setLastLogin] = useState<string | null>(null);
   const [localUserName, setLocalUserName] = useState<string>('');
@@ -154,17 +155,17 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-900">
-      {/* Mobile Sidebar Overlay */}
-      {!sidebarOpen &&
-      <div
-        className="fixed inset-0 bg-black/50 z-20 lg:hidden"
-        onClick={() => setSidebarOpen(true)} />
-
-      }
+      {/* Mobile Sidebar Overlay Backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
       {/* Sidebar */}
       <div
-        className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-30 transition-transform duration-300 ease-in-out`}>
+        className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:relative inset-y-0 left-0 z-30 lg:z-auto transition-transform duration-300 ease-in-out`}>
 
         <Sidebar
           activeTab={activeTab}
@@ -175,12 +176,14 @@ export default function DashboardPage() {
             if (window.innerWidth < 1024) setSidebarOpen(false);
           }}
           userRole={userRole}
-          showingSpecialView={showProfileView || showSettingsView} />
+          showingSpecialView={showProfileView || showSettingsView}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />
 
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden ml-0 lg:ml-64 transition-all duration-300">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Header */}
         <header className="h-16 bg-white border-b-2 border-red-900 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-10 shadow-sm">
           <div className="flex items-center gap-4">

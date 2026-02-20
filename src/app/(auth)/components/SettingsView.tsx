@@ -16,7 +16,7 @@ export function SettingsView() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Sidebar Navigation for Settings */}
         <Card className="lg:col-span-1 h-fit">
           <nav className="space-y-1">
@@ -40,9 +40,9 @@ export function SettingsView() {
         </Card>
 
         {/* Content Area */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           <Card>
-            <h3 className="text-lg font-medium text-slate-900 mb-4 pb-4 border-b border-slate-100">
+            <h3 className="text-base sm:text-lg font-medium text-slate-900 mb-4 pb-4 border-b border-slate-100">
               General Configuration
             </h3>
 
@@ -54,16 +54,16 @@ export function SettingsView() {
                 <input
                   type="text"
                   defaultValue="BookingOS Enterprise"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
 
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
                     Time Zone
                   </label>
-                  <select className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                  <select className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                     <option>UTC (GMT+0)</option>
                     <option>EST (GMT-5)</option>
                     <option>PST (GMT-8)</option>
@@ -73,7 +73,7 @@ export function SettingsView() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">
                     Currency
                   </label>
-                  <select className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                  <select className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                     <option>USD ($)</option>
                     <option>EUR (€)</option>
                     <option>GBP (£)</option>
@@ -98,12 +98,12 @@ export function SettingsView() {
           </Card>
 
           <Card>
-            <h3 className="text-lg font-medium text-slate-900 mb-4 pb-4 border-b border-slate-100">
+            <h3 className="text-base sm:text-lg font-medium text-slate-900 mb-4 pb-4 border-b border-slate-100">
               Booking Policies
             </h3>
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
                   <p className="text-sm font-medium text-slate-900">
                     Auto-approve Bookings
                   </p>
@@ -116,8 +116,8 @@ export function SettingsView() {
                 </button>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
                   <p className="text-sm font-medium text-slate-900">
                     Weekend Bookings
                   </p>

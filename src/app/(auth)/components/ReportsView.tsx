@@ -16,15 +16,15 @@ export function ReportsView() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="p-6">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-indigo-100 rounded-lg text-indigo-600">
-              <TrendingUp className="w-6 h-6" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+        <Card className="p-4 sm:p-6">
+          <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
+            <div className="p-2 sm:p-3 bg-indigo-100 rounded-lg text-indigo-600">
+              <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <p className="text-sm text-slate-500">Total Bookings</p>
-              <h3 className="text-2xl font-bold text-slate-900">1,248</h3>
+              <p className="text-xs sm:text-sm text-slate-500">Total Bookings</p>
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900">1,248</h3>
             </div>
           </div>
           <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -33,14 +33,14 @@ export function ReportsView() {
           <p className="text-xs text-slate-500 mt-2">+12% from last month</p>
         </Card>
 
-        <Card className="p-6">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-emerald-100 rounded-lg text-emerald-600">
-              <DollarSign className="w-6 h-6" />
+        <Card className="p-4 sm:p-6">
+          <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
+            <div className="p-2 sm:p-3 bg-emerald-100 rounded-lg text-emerald-600">
+              <DollarSign className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <p className="text-sm text-slate-500">Revenue (Est.)</p>
-              <h3 className="text-2xl font-bold text-slate-900">$42,500</h3>
+              <p className="text-xs sm:text-sm text-slate-500">Revenue (Est.)</p>
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900">$42,500</h3>
             </div>
           </div>
           <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -49,14 +49,14 @@ export function ReportsView() {
           <p className="text-xs text-slate-500 mt-2">+5% from last month</p>
         </Card>
 
-        <Card className="p-6">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-amber-100 rounded-lg text-amber-600">
-              <Clock className="w-6 h-6" />
+        <Card className="p-4 sm:p-6">
+          <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
+            <div className="p-2 sm:p-3 bg-amber-100 rounded-lg text-amber-600">
+              <Clock className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <p className="text-sm text-slate-500">Avg. Duration</p>
-              <h3 className="text-2xl font-bold text-slate-900">2.5 hrs</h3>
+              <p className="text-xs sm:text-sm text-slate-500">Avg. Duration</p>
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900">2.5 hrs</h3>
             </div>
           </div>
           <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -66,12 +66,12 @@ export function ReportsView() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <Card>
-          <h3 className="font-semibold text-slate-900 mb-6">
+          <h3 className="font-semibold text-slate-900 mb-4 sm:mb-6 text-sm sm:text-base">
             Booking Volume by Month
           </h3>
-          <div className="h-64 flex items-end justify-between gap-2 px-2">
+          <div className="h-48 sm:h-56 lg:h-64 flex items-end justify-between gap-1 sm:gap-2 px-1 sm:px-2">
             {[35, 45, 30, 60, 75, 50, 65, 80, 70, 55, 90, 85].map((h, i) =>
             <div
               key={i}
@@ -80,33 +80,33 @@ export function ReportsView() {
                 height: `${h}%`
               }}>
 
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute -top-6 sm:-top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                   {h * 10}
                 </div>
               </div>
             )}
           </div>
-          <div className="flex justify-between mt-4 text-xs text-slate-400 uppercase">
-            <span>Jan</span>
-            <span>Feb</span>
-            <span>Mar</span>
-            <span>Apr</span>
-            <span>May</span>
-            <span>Jun</span>
-            <span>Jul</span>
-            <span>Aug</span>
-            <span>Sep</span>
-            <span>Oct</span>
-            <span>Nov</span>
-            <span>Dec</span>
+          <div className="grid grid-cols-12 mt-3 sm:mt-4 text-[10px] sm:text-xs text-slate-400 uppercase">
+            <span className="text-center">J</span>
+            <span className="text-center">F</span>
+            <span className="text-center">M</span>
+            <span className="text-center">A</span>
+            <span className="text-center">M</span>
+            <span className="text-center">J</span>
+            <span className="text-center">J</span>
+            <span className="text-center">A</span>
+            <span className="text-center">S</span>
+            <span className="text-center">O</span>
+            <span className="text-center">N</span>
+            <span className="text-center">D</span>
           </div>
         </Card>
 
         <Card>
-          <h3 className="font-semibold text-slate-900 mb-6">
+          <h3 className="font-semibold text-slate-900 mb-4 sm:mb-6 text-sm sm:text-base">
             Room Usage Distribution
           </h3>
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {[
             {
               label: 'Conference Room A',
@@ -135,9 +135,9 @@ export function ReportsView() {
             }].
             map((item, i) =>
             <div key={i}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-slate-600">{item.label}</span>
-                  <span className="font-medium text-slate-900">
+                <div className="flex justify-between text-xs sm:text-sm mb-1">
+                  <span className="text-slate-600 truncate mr-2">{item.label}</span>
+                  <span className="font-medium text-slate-900 flex-shrink-0">
                     {item.val}%
                   </span>
                 </div>
