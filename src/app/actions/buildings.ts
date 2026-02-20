@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { BuildingStatus } from '@/generated/prisma/client'
+import { getServerSession } from '@/lib/get-server'
 
 interface CreateBuildingInput {
   buildingName: string
@@ -19,6 +20,15 @@ interface CreateBuildingResult {
     buildingName: string
     buildingCode: string
   }
+  error?: string
+}
+
+interface GetBuildingsResult {
+  success: boolean
+  data?: Array<{
+    id: string
+    buildingName: string
+  }>
   error?: string
 }
 
@@ -75,6 +85,36 @@ export async function createBuilding(
     const message =
       error instanceof Error ? error.message : 'Failed to create building.'
     console.error('Create building error:', message)
+    return {
+      success: false,
+      error: message,
+    }
+  }
+}
+
+export async function getBuildings(): Promise<GetBuildingsResult> {
+  try {
+    const session = await getServerSession()
+
+    if (!session?.user?.id) {
+      return { success: false, error: 'Not authenticated.' }
+    }
+
+    const buildings = await prisma.building.findMany({
+      select: {
+        id: true,
+        buildingName: true,
+      },
+      orderBy: {
+        buildingName: 'asc',
+      },
+    })
+
+    return { success: true, data: buildings }
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : 'Failed to fetch buildings.'
+    console.error('Get buildings error:', message)
     return {
       success: false,
       error: message,

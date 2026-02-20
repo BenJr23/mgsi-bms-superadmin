@@ -16,6 +16,7 @@ import {
   ImageIcon,
 } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { getBuildings } from '@/app/actions/buildings'
 interface ModalProps {
   isOpen: boolean
   onClose: () => void
@@ -111,6 +112,11 @@ interface RoomFormData {
   amenities: string[]
 }
 
+interface BuildingOption {
+  id: string
+  buildingName: string
+}
+
 const emptyForm: RoomFormData = {
   roomName: '',
   roomCode: '',
@@ -165,29 +171,6 @@ const AMENITY_OPTIONS = [
   },
 ]
 
-const BUILDINGS = [
-  {
-    id: 'bld-001',
-    name: 'Innovation Hub',
-  },
-  {
-    id: 'bld-002',
-    name: 'Downtown Center',
-  },
-  {
-    id: 'bld-003',
-    name: 'West Wing Annex',
-  },
-  {
-    id: 'bld-004',
-    name: 'Creative Lofts',
-  },
-  {
-    id: 'bld-005',
-    name: 'Executive Tower',
-  },
-]
-
 interface AddRoomModalProps {
   isOpen: boolean
   onClose: () => void
@@ -198,6 +181,34 @@ export function AddRoomModal({ isOpen, onClose }: AddRoomModalProps) {
   const [errors, setErrors] = useState<
     Partial<Record<keyof RoomFormData, string>>
   >({})
+  const [buildings, setBuildings] = useState<BuildingOption[]>([])
+  const [isLoadingBuildings, setIsLoadingBuildings] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    let isMounted = true
+
+    const loadBuildings = async () => {
+      setIsLoadingBuildings(true)
+      try {
+        const result = await getBuildings()
+        if (isMounted) {
+          setBuildings(result.success ? result.data ?? [] : [])
+        }
+      } catch {
+        if (isMounted) setBuildings([])
+      } finally {
+        if (isMounted) setIsLoadingBuildings(false)
+      }
+    }
+
+    void loadBuildings()
+
+    return () => {
+      isMounted = false
+    }
+  }, [isOpen])
 
   const handleClose = () => {
     setForm(emptyForm)
@@ -339,11 +350,14 @@ export function AddRoomModal({ isOpen, onClose }: AddRoomModalProps) {
               value={form.buildingId}
               onChange={(e) => field('buildingId', e.target.value)}
               className={inputClass(errors.buildingId)}
+              disabled={isLoadingBuildings}
             >
-              <option value="">Select a building…</option>
-              {BUILDINGS.map((b) => (
+              <option value="">
+                {isLoadingBuildings ? 'Loading buildings…' : 'Select a building…'}
+              </option>
+              {buildings.map((b) => (
                 <option key={b.id} value={b.id}>
-                  {b.name}
+                  {b.buildingName}
                 </option>
               ))}
             </select>
