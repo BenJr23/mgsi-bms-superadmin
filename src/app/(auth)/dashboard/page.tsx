@@ -11,13 +11,14 @@ import { ReportsView } from '../components/ReportsView';
 import { UsersView } from '../components/UsersView';
 import { SettingsView } from '../components/SettingsView';
 import { ProfileView } from '../components/ProfileView';
-import { Menu, Bell } from 'lucide-react';
-import { useSession } from '@/lib/auth-client';
+import { Menu, Bell, ChevronDown, User, Settings as SettingsIcon, LogOut } from 'lucide-react';
+import { useSession, signOut } from '@/lib/auth-client';
 import Image from 'next/image';
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [lastLogin, setLastLogin] = useState<string | null>(null);
   const [localUserName, setLocalUserName] = useState<string>('');
   const [localUserImage, setLocalUserImage] = useState<string | null>(null);
@@ -73,8 +74,35 @@ export default function DashboardPage() {
     }
   };
 
+  const handleLogout = async () => {
+    await signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          window.location.href = '/sign-in';
+        }
+      }
+    });
+  };
+
+  const showProfile = () => {
+    setActiveTab('dashboard');
+    setDropdownOpen(false);
+    setShowSettingsView(false);
+    setShowProfileView(true);
+  };
+
+  const showSettings = () => {
+    setActiveTab('dashboard');
+    setDropdownOpen(false);
+    setShowProfileView(false);
+    setShowSettingsView(true);
+  };
+
+  const [showProfileView, setShowProfileView] = useState(false);
+  const [showSettingsView, setShowSettingsView] = useState(false);
+
   useEffect(() => {
-    if (userRole === 'ADMIN' && (activeTab === 'users' || activeTab === 'settings')) {
+    if (userRole === 'ADMIN' && activeTab === 'users') {
       setActiveTab('dashboard');
     }
   }, [activeTab, userRole]);
@@ -98,6 +126,14 @@ export default function DashboardPage() {
   }, [session?.user]);
 
   const renderContent = () => {
+    if (showProfileView) {
+      return <ProfileView userName={userName} userEmail={userEmail} userRole={userRole} userImage={userImage} userPhone={userPhone} userCreatedAt={userCreatedAt} lastLogin={lastLogin} onProfileUpdate={handleProfileUpdate} />;
+    }
+
+    if (showSettingsView) {
+      return <SettingsView />;
+    }
+
     switch (activeTab) {
       case 'dashboard':
         return <DashboardView onViewAllBookings={() => setActiveTab('bookings')} />;
@@ -113,10 +149,6 @@ export default function DashboardPage() {
         return <ReportsView />;
       case 'users':
         return <UsersView />;
-      case 'settings':
-        return <SettingsView />;
-      case 'profile':
-        return <ProfileView userName={userName} userEmail={userEmail} userRole={userRole} userImage={userImage} userPhone={userPhone} userCreatedAt={userCreatedAt} lastLogin={lastLogin} onProfileUpdate={handleProfileUpdate} />;
       default:
         return <DashboardView />;
     }
@@ -140,13 +172,11 @@ export default function DashboardPage() {
           activeTab={activeTab}
           onTabChange={(tab) => {
             setActiveTab(tab);
+            setShowProfileView(false);
+            setShowSettingsView(false);
             if (window.innerWidth < 1024) setSidebarOpen(false);
           }}
-          userRole={userRole}
-          userName={userName}
-          userEmail={userEmail}
-          userImage={userImage}
-          userInitials={userInitials} />
+          userRole={userRole} />
 
       </div>
 
@@ -175,22 +205,63 @@ export default function DashboardPage() {
               <Bell className="w-5 h-5" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-900 rounded-full border-2 border-white"></span>
             </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('profile')}
-              className="w-8 h-8 rounded-full bg-red-900 flex items-center justify-center text-white font-bold text-xs border border-red-900 hover:opacity-90 transition-opacity overflow-hidden">
 
-              {userImage ?
-              <Image
-                src={userImage}
-                alt={userName}
-                width={32}
-                height={32}
-                className="w-full h-full object-cover" /> :
+            {/* User Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="flex items-center gap-2 hover:opacity-90 transition-opacity"
+              >
+                <div className="w-8 h-8 rounded-full bg-red-900 flex items-center justify-center text-white font-bold text-xs border border-red-900 overflow-hidden">
+                  {userImage ?
+                  <Image
+                    src={userImage}
+                    alt={userName}
+                    width={32}
+                    height={32}
+                    className="w-full h-full object-cover" /> :
 
-              userInitials
-              }
-            </button>
+                  userInitials
+                  }
+                </div>
+                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Dropdown Menu */}
+              {dropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setDropdownOpen(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-slate-200 py-2 z-20">
+                    <button
+                      onClick={showProfile}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                    >
+                      <User className="w-4 h-4" />
+                      Profile
+                    </button>
+                    <button
+                      onClick={showSettings}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                    >
+                      <SettingsIcon className="w-4 h-4" />
+                      Settings
+                    </button>
+                    <div className="my-1 border-t border-slate-200" />
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </header>
 

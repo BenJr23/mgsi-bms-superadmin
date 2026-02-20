@@ -2,7 +2,6 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { signOut } from '@/lib/auth-client';
 import {
   LayoutDashboard,
   CalendarCheck,
@@ -10,9 +9,7 @@ import {
   DoorOpen,
   Calendar,
   BarChart3,
-  Users,
-  Settings,
-  LogOut } from
+  Users } from
 'lucide-react';
 export type UserRole = 'ADMIN' | 'SUPERADMIN';
 export type TabId =
@@ -22,36 +19,17 @@ export type TabId =
 'rooms' |
 'calendar' |
 'reports' |
-'users' |
-'settings' |
-'profile';
+'users';
 interface SidebarProps {
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
   userRole: UserRole;
-  userName: string;
-  userEmail: string;
-  userImage: string | null;
-  userInitials: string;
 }
 export function Sidebar({
   activeTab,
   onTabChange,
-  userRole,
-  userName,
-  userEmail,
-  userImage,
-  userInitials
+  userRole
 }: SidebarProps) {
-  const handleLogout = async () => {
-    await signOut({
-      fetchOptions: {
-        onSuccess: () => {
-          window.location.href = '/sign-in';
-        }
-      }
-    });
-  };
 
   const menuItems = [
   {
@@ -94,12 +72,6 @@ export function Sidebar({
     id: 'users',
     label: 'Users',
     icon: Users,
-    roles: ['SUPERADMIN']
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    icon: Settings,
     roles: ['SUPERADMIN']
   }];
 
@@ -145,47 +117,6 @@ export function Sidebar({
 
         })}
       </nav>
-
-      {/* User Profile / Footer */}
-      <div className="p-4 border-t border-slate-200">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => onTabChange('profile')}
-            className={`flex-1 flex items-center gap-3 px-2 py-2 rounded-md transition-all duration-200 text-left ${activeTab === 'profile' ? 'bg-red-900 text-white shadow-md shadow-red-900/20' : 'hover:bg-slate-100'}`}>
-
-            <div className="w-8 h-8 rounded-full bg-red-900 flex items-center justify-center text-xs text-white font-medium overflow-hidden">
-              {userImage ?
-              <Image
-                src={userImage}
-                alt={userName}
-                width={32}
-                height={32}
-                className="w-full h-full object-cover" /> :
-
-              userInitials
-              }
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className={`text-sm font-medium truncate ${activeTab === 'profile' ? 'text-white' : 'text-slate-900'}`}>
-                {userName}
-              </p>
-              <p className={`text-xs truncate ${activeTab === 'profile' ? 'text-red-100' : 'text-slate-500'}`}>
-                {userEmail}
-              </p>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleLogout}
-            aria-label="Log out"
-            className="p-2 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
-
-            <LogOut size={16} />
-          </button>
-        </div>
-      </div>
     </aside>);
 
 }
