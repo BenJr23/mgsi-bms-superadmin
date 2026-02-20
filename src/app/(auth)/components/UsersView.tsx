@@ -1,12 +1,40 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Card } from './ui/Card'
 import { Badge } from './ui/Badge'
 import { Button } from './ui/Button'
 import { AddUserModal } from './Modals/AddUserModal'
 import { Search, UserPlus, Shield } from 'lucide-react'
+import { getUsers } from '@/app/_actions/users'
+
+interface UserRow {
+  id: string
+  name: string
+  email: string
+  role: 'CLIENT' | 'ADMIN' | 'SUPERADMIN'
+  createdAt: string
+  deletedAt: string | null
+}
 
 export function UsersView() {
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [users, setUsers] = useState<UserRow[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const loadUsers = async (query: string = '') => {
+    setIsLoading(true)
+    const result = await getUsers(query)
+    if (result.success) {
+      setUsers(result.users)
+    } else {
+      setUsers([])
+    }
+    setIsLoading(false)
+  }
+
+  useEffect(() => {
+    loadUsers()
+  }, [])
 
   const openModal = () => {
     setIsModalOpen(true)
@@ -17,49 +45,18 @@ export function UsersView() {
   }
 
   const handleAddUserSuccess = () => {
-    // TODO: Reload users data from server
+    loadUsers(searchQuery)
   }
-  const users = [
-  {
-    id: 'USR-001',
-    name: 'Alice Johnson',
-    email: 'alice@company.com',
-    role: 'SUPERADMIN',
-    status: 'ACTIVE',
-    joined: 'Jan 12, 2023'
-  },
-  {
-    id: 'USR-002',
-    name: 'Bob Smith',
-    email: 'bob@company.com',
-    role: 'ADMIN',
-    status: 'ACTIVE',
-    joined: 'Feb 05, 2023'
-  },
-  {
-    id: 'USR-003',
-    name: 'Charlie Brown',
-    email: 'charlie@client.com',
-    role: 'CLIENT',
-    status: 'ACTIVE',
-    joined: 'Mar 20, 2023'
-  },
-  {
-    id: 'USR-004',
-    name: 'Diana Prince',
-    email: 'diana@client.com',
-    role: 'CLIENT',
-    status: 'INACTIVE',
-    joined: 'Apr 10, 2023'
-  },
-  {
-    id: 'USR-005',
-    name: 'Evan Wright',
-    email: 'evan@company.com',
-    role: 'ADMIN',
-    status: 'ACTIVE',
-    joined: 'May 15, 2023'
-  }];
+
+  const formatJoinedDate = (value: string) => {
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return '-'
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -81,6 +78,12 @@ export function UsersView() {
             <input
               type="text"
               placeholder="Search users..."
+              value={searchQuery}
+              onChange={(event) => {
+                const value = event.target.value
+                setSearchQuery(value)
+                loadUsers(value)
+              }}
               className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
 
           </div>
@@ -106,10 +109,10 @@ export function UsersView() {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-medium text-xs">
-                        {user.name.
-                      split(' ').
-                      map((n) => n[0]).
-                      join('')}
+                        {user.name
+                          .split(' ')
+                          .map((n) => n[0])
+                          .join('')}
                       </div>
                       <div>
                         <div className="font-medium text-slate-900">
@@ -132,17 +135,29 @@ export function UsersView() {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <Badge
-                    variant={user.status === 'ACTIVE' ? 'success' : 'neutral'}>
-
-                      {user.status}
+                    <Badge variant={user.deletedAt ? 'neutral' : 'success'}>
+                      {user.deletedAt ? 'INACTIVE' : 'ACTIVE'}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4 text-slate-600">{user.joined}</td>
+                  <td className="px-6 py-4 text-slate-600">{formatJoinedDate(user.createdAt)}</td>
                   <td className="px-6 py-4 text-right">
                     <button className="text-indigo-600 hover:text-indigo-800 font-medium text-xs">
                       Edit
                     </button>
+                  </td>
+                </tr>
+              )}
+              {users.length === 0 && !isLoading && (
+                <tr>
+                  <td className="px-6 py-6 text-sm text-slate-500" colSpan={5}>
+                    No users found.
+                  </td>
+                </tr>
+              )}
+              {isLoading && (
+                <tr>
+                  <td className="px-6 py-6 text-sm text-slate-500" colSpan={5}>
+                    Loading users...
                   </td>
                 </tr>
               )}
@@ -181,13 +196,13 @@ export function UsersView() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500">Status:</span>
-                  <Badge variant={user.status === 'ACTIVE' ? 'success' : 'neutral'}>
-                    {user.status}
+                  <Badge variant={user.deletedAt ? 'neutral' : 'success'}>
+                    {user.deletedAt ? 'INACTIVE' : 'ACTIVE'}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500">Joined:</span>
-                  <span className="text-slate-900">{user.joined}</span>
+                  <span className="text-slate-900">{formatJoinedDate(user.createdAt)}</span>
                 </div>
               </div>
               <button className="w-full px-4 py-2 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition-colors text-sm font-medium">
@@ -195,6 +210,12 @@ export function UsersView() {
               </button>
             </div>
           ))}
+          {users.length === 0 && !isLoading && (
+            <div className="p-4 text-sm text-slate-500">No users found.</div>
+          )}
+          {isLoading && (
+            <div className="p-4 text-sm text-slate-500">Loading users...</div>
+          )}
         </div>
       </Card>
 

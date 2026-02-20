@@ -22,6 +22,19 @@ interface CreateUserResult {
   userId?: string
 }
 
+interface ListUsersResult {
+  success: boolean
+  error?: string
+  users: {
+    id: string
+    name: string
+    email: string
+    role: 'CLIENT' | 'ADMIN' | 'SUPERADMIN'
+    createdAt: string
+    deletedAt: string | null
+  }[]
+}
+
 // Generate a secure random password
 function generateSecurePassword(): string {
   const length = 12
@@ -297,5 +310,54 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserResu
     const message = err instanceof Error ? err.message : 'An unexpected error occurred'
     console.error('Error creating user:', message)
     return { success: false, error: message }
+  }
+}
+
+export async function getUsers(searchQuery: string = ''): Promise<ListUsersResult> {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    })
+
+    if (!session?.user || !session.user.id) {
+      return { success: false, error: 'Unauthorized: No session', users: [] }
+    }
+
+    const trimmed = searchQuery.trim()
+    const users = await prisma.user.findMany({
+      where: trimmed
+        ? {
+            OR: [
+              { name: { contains: trimmed, mode: 'insensitive' } },
+              { email: { contains: trimmed, mode: 'insensitive' } },
+            ],
+          }
+        : undefined,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        deletedAt: true,
+      },
+    })
+
+    return {
+      success: true,
+      users: users.map((user) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt.toISOString(),
+        deletedAt: user.deletedAt ? user.deletedAt.toISOString() : null,
+      })),
+    }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'An unexpected error occurred'
+    console.error('Error fetching users:', message)
+    return { success: false, error: message, users: [] }
   }
 }
