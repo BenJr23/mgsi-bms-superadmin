@@ -175,9 +175,10 @@ const AMENITY_OPTIONS = [
 interface AddRoomModalProps {
   isOpen: boolean
   onClose: () => void
+  onSuccess?: () => void
 }
 
-export function AddRoomModal({ isOpen, onClose }: AddRoomModalProps) {
+export function AddRoomModal({ isOpen, onClose, onSuccess }: AddRoomModalProps) {
   const [form, setForm] = useState<RoomFormData>(emptyForm)
   const [errors, setErrors] = useState<
     Partial<Record<keyof RoomFormData, string>>
@@ -285,6 +286,7 @@ export function AddRoomModal({ isOpen, onClose }: AddRoomModalProps) {
         setTimeout(() => {
           setSubmitSuccess('')
           handleClose()
+          onSuccess?.()
         }, 2000)
       } else {
         setSubmitError(result.error || 'Failed to create room.')

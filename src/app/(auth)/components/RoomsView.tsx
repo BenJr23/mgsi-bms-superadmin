@@ -5,7 +5,20 @@ import { Card } from './ui/Card'
 import { Badge } from './ui/Badge'
 import { Button } from './ui/Button'
 import { AddRoomModal } from './Modals/AddRoomModal'
-import { Search, Filter, Users, Wifi, Monitor, Coffee } from 'lucide-react'
+import { EditRoomModal } from './Modals/EditRoomModal'
+import {
+  Search,
+  Filter,
+  Users,
+  Wifi,
+  Monitor,
+  Coffee,
+  Presentation,
+  Video,
+  Mic,
+  PcCase,
+  Wind,
+} from 'lucide-react'
 import { getAllRooms } from '@/app/actions/rooms'
 
 type RoomStatus = 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE' | 'INACTIVE'
@@ -30,6 +43,8 @@ interface Building {
 
 export function RoomsView() {
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>()
   const [rooms, setRooms] = useState<Room[]>([])
   const [buildings, setBuildings] = useState<Building[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -85,14 +100,34 @@ export function RoomsView() {
     setIsModalOpen(false)
   }
 
+  const openEditModal = (roomId: string) => {
+    setSelectedRoomId(roomId)
+    setIsEditModalOpen(true)
+  }
+
+  const closeEditModal = () => {
+    setIsEditModalOpen(false)
+    setSelectedRoomId(undefined)
+  }
+
   const renderAmenityIcon = (amenity: string) => {
     switch (amenity) {
       case 'wifi':
         return <Wifi className="w-3 h-3" />
       case 'screen':
         return <Monitor className="w-3 h-3" />
+      case 'whiteboard':
+        return <Presentation className="w-3 h-3" />
       case 'coffee':
         return <Coffee className="w-3 h-3" />
+      case 'video':
+        return <Video className="w-3 h-3" />
+      case 'mic':
+        return <Mic className="w-3 h-3" />
+      case 'computers':
+        return <PcCase className="w-3 h-3" />
+      case 'aircon':
+        return <Wind className="w-3 h-3" />
       default:
         return null
     }
@@ -253,7 +288,10 @@ export function RoomsView() {
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-indigo-600 hover:text-indigo-800 font-medium text-xs">
+                      <button
+                        onClick={() => openEditModal(room.id)}
+                        className="text-indigo-600 hover:text-indigo-800 font-medium text-xs"
+                      >
                         Edit
                       </button>
                     </td>
@@ -271,7 +309,14 @@ export function RoomsView() {
         </div>
       </Card>
 
-      <AddRoomModal isOpen={isModalOpen} onClose={closeModal} />
+      <AddRoomModal isOpen={isModalOpen} onClose={closeModal} onSuccess={handleAddRoomSuccess} />
+
+      <EditRoomModal
+        isOpen={isEditModalOpen}
+        onClose={closeEditModal}
+        roomId={selectedRoomId}
+        onSuccess={handleAddRoomSuccess}
+      />
     </div>
   )
 }
