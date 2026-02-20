@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { getBuildings } from '@/app/actions/buildings'
+import { createRoom } from '@/app/actions/rooms'
 interface ModalProps {
   isOpen: boolean
   onClose: () => void
@@ -183,6 +184,9 @@ export function AddRoomModal({ isOpen, onClose }: AddRoomModalProps) {
   >({})
   const [buildings, setBuildings] = useState<BuildingOption[]>([])
   const [isLoadingBuildings, setIsLoadingBuildings] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string>('')
+  const [submitSuccess, setSubmitSuccess] = useState<string>('')
 
   useEffect(() => {
     if (!isOpen) return
@@ -213,6 +217,8 @@ export function AddRoomModal({ isOpen, onClose }: AddRoomModalProps) {
   const handleClose = () => {
     setForm(emptyForm)
     setErrors({})
+    setSubmitError('')
+    setSubmitSuccess('')
     onClose()
   }
 
@@ -248,15 +254,48 @@ export function AddRoomModal({ isOpen, onClose }: AddRoomModalProps) {
     return Object.keys(e).length === 0
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validate()) return
-    console.log('New room:', {
-      ...form,
-      capacity: Number(form.capacity),
-      amenities: form.amenities,
-    })
-    handleClose()
+
+    setIsSubmitting(true)
+    setSubmitError('')
+    setSubmitSuccess('')
+
+    try {
+      const result = await createRoom({
+        roomName: form.roomName,
+        roomCode: form.roomCode || undefined,
+        buildingId: form.buildingId,
+        capacity: Number(form.capacity),
+        status: form.status,
+        description: form.description || undefined,
+        imageUrl: form.imageUrl || undefined,
+        amenities: form.amenities.length > 0 ? form.amenities : undefined,
+      })
+
+      if (result.success) {
+        setSubmitSuccess(
+          `Room "${result.data?.roomName}" created successfully!`
+        )
+        setForm(emptyForm)
+        setErrors({})
+
+        // Auto-close after 2 seconds
+        setTimeout(() => {
+          setSubmitSuccess('')
+          handleClose()
+        }, 2000)
+      } else {
+        setSubmitError(result.error || 'Failed to create room.')
+      }
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'An unexpected error occurred.'
+      setSubmitError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const inputClass = (err?: string) =>
@@ -306,6 +345,21 @@ export function AddRoomModal({ isOpen, onClose }: AddRoomModalProps) {
       size="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Error Message */}
+        {submitError && (
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-md flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-rose-700">{submitError}</p>
+          </div>
+        )}
+
+        {/* Success Message */}
+        {submitSuccess && (
+          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-md flex items-start gap-2">
+            <div className="w-4 h-4 bg-emerald-600 rounded-full mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-emerald-700">{submitSuccess}</p>
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">
@@ -486,10 +540,12 @@ export function AddRoomModal({ isOpen, onClose }: AddRoomModalProps) {
         </div>
 
         <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
-          <Button type="button" variant="outline" onClick={handleClose}>
+          <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button type="submit">Create Room</Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Creating...' : 'Create Room'}
+          </Button>
         </div>
       </form>
     </Modal>
