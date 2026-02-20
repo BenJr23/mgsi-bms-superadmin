@@ -6,9 +6,9 @@ import { Badge } from './ui/Badge'
 import { Button } from './ui/Button'
 import { AddRoomModal } from './Modals/AddRoomModal'
 import { EditRoomModal } from './Modals/EditRoomModal'
+import { DeleteRoomModal } from './Modals/DeleteRoomModal'
 import {
   Search,
-  Filter,
   Users,
   Wifi,
   Monitor,
@@ -44,7 +44,14 @@ interface Building {
 export function RoomsView() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>()
+  const [selectedDeleteRoomId, setSelectedDeleteRoomId] = useState<
+    string | undefined
+  >()
+  const [selectedDeleteRoomName, setSelectedDeleteRoomName] = useState<
+    string | undefined
+  >()
   const [rooms, setRooms] = useState<Room[]>([])
   const [buildings, setBuildings] = useState<Building[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -108,6 +115,18 @@ export function RoomsView() {
   const closeEditModal = () => {
     setIsEditModalOpen(false)
     setSelectedRoomId(undefined)
+  }
+
+  const openDeleteModal = (roomId: string, roomName: string) => {
+    setSelectedDeleteRoomId(roomId)
+    setSelectedDeleteRoomName(roomName)
+    setIsDeleteModalOpen(true)
+  }
+
+  const closeDeleteModal = () => {
+    setIsDeleteModalOpen(false)
+    setSelectedDeleteRoomId(undefined)
+    setSelectedDeleteRoomName(undefined)
   }
 
   const renderAmenityIcon = (amenity: string) => {
@@ -288,12 +307,21 @@ export function RoomsView() {
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => openEditModal(room.id)}
-                        className="text-indigo-600 hover:text-indigo-800 font-medium text-xs"
-                      >
-                        Edit
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => openEditModal(room.id)}
+                          className="text-indigo-600 hover:text-indigo-800 font-medium text-xs"
+                        >
+                          Edit
+                        </button>
+                        <span className="text-slate-400 text-xs">/</span>
+                        <button
+                          onClick={() => openDeleteModal(room.id, room.roomName)}
+                          className="text-rose-600 hover:text-rose-800 font-medium text-xs"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -366,12 +394,20 @@ export function RoomsView() {
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={() => openEditModal(room.id)}
-                  className="w-full px-4 py-2 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition-colors text-sm font-medium"
-                >
-                  Edit Room
-                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => openEditModal(room.id)}
+                    className="w-full px-4 py-2 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition-colors text-sm font-medium"
+                  >
+                    Edit Room
+                  </button>
+                  <button
+                    onClick={() => openDeleteModal(room.id, room.roomName)}
+                    className="w-full px-4 py-2 bg-rose-50 text-rose-600 rounded-md hover:bg-rose-100 transition-colors text-sm font-medium"
+                  >
+                    Delete Room
+                  </button>
+                </div>
               </div>
             ))
           ) : (
@@ -388,6 +424,14 @@ export function RoomsView() {
         isOpen={isEditModalOpen}
         onClose={closeEditModal}
         roomId={selectedRoomId}
+        onSuccess={handleAddRoomSuccess}
+      />
+
+      <DeleteRoomModal
+        isOpen={isDeleteModalOpen}
+        onClose={closeDeleteModal}
+        roomId={selectedDeleteRoomId}
+        roomName={selectedDeleteRoomName}
         onSuccess={handleAddRoomSuccess}
       />
     </div>

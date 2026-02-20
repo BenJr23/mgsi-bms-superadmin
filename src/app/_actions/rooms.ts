@@ -346,3 +346,53 @@ export async function updateRoom(
     }
   }
 }
+
+interface DeleteRoomResult {
+  success: boolean
+  error?: string
+}
+
+export async function deleteRoom(roomId: string): Promise<DeleteRoomResult> {
+  try {
+    const session = await getServerSession()
+
+    if (!session?.user?.id) {
+      return { success: false, error: 'Not authenticated.' }
+    }
+
+    if (!roomId?.trim()) {
+      return { success: false, error: 'Room ID is required.' }
+    }
+
+    const room = await prisma.room.findFirst({
+      where: {
+        id: roomId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+      },
+    })
+
+    if (!room) {
+      return { success: false, error: 'Room not found.' }
+    }
+
+    await prisma.room.update({
+      where: { id: roomId },
+      data: {
+        deletedAt: new Date(),
+      },
+    })
+
+    return { success: true }
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : 'Failed to delete room.'
+    console.error('Delete room error:', message)
+    return {
+      success: false,
+      error: message,
+    }
+  }
+}
