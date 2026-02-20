@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Button } from '../ui/Button'
+import { createUser } from '@/app/_actions/users'
 import {
   X,
   User,
@@ -7,12 +8,9 @@ import {
   Phone,
   Building2,
   Shield,
-  Lock,
   Calendar,
   AlertCircle,
   ImageIcon,
-  Eye,
-  EyeOff,
 } from 'lucide-react'
 
 interface ModalProps {
@@ -104,8 +102,6 @@ interface UserFormData {
   phoneNumber: string
   contractEndDate: string
   image: string
-  password: string
-  confirmPassword: string
 }
 const emptyForm: UserFormData = {
   name: '',
@@ -115,8 +111,6 @@ const emptyForm: UserFormData = {
   phoneNumber: '',
   contractEndDate: '',
   image: '',
-  password: '',
-  confirmPassword: '',
 }
 interface AddUserModalProps {
   isOpen: boolean
@@ -171,12 +165,13 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string>('')
   const [submitSuccess, setSubmitSuccess] = useState<string>('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
 
   const formatPhilippinePhone = (value: string): string => {
+    // Extract only digits
     const digits = value.replace(/\D/g, '')
+    // Keep only last 10 digits (to handle stored format with country code)
     const cleaned = digits.slice(-10)
+    // Format as +63 XXX XXX XXXX
     if (cleaned.length === 0) return '+63 '
     if (cleaned.length <= 3) return `+63 ${cleaned}`
     if (cleaned.length <= 6) return `+63 ${cleaned.slice(0, 3)} ${cleaned.slice(3)}`
@@ -209,17 +204,21 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
     if (!form.email.trim()) e.email = 'Email address is required.'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
       e.email = 'Enter a valid email address.'
-    if (form.phoneNumber && !validatePhilippinePhone(form.phoneNumber))
-      e.phoneNumber = 'Please enter a valid Philippine phone number (10 digits starting with 9).'
-    if (!form.password) e.password = 'Password is required.'
-    else if (form.password.length < 8)
-      e.password = 'Password must be at least 8 characters.'
-    if (form.password !== form.confirmPassword)
-      e.confirmPassword = 'Passwords do not match.'
+    
+    // Only validate phone if user entered digits (phone is optional)
+    const phoneDigitsOnly = form.phoneNumber.replace(/\D/g, '')
+    if (phoneDigitsOnly.length > 0) {
+      // Extract last 10 digits (to ignore the +63 country code)
+      const lastTenDigits = phoneDigitsOnly.slice(-10)
+      // Must be exactly 10 digits and start with 9
+      if (lastTenDigits.length !== 10 || lastTenDigits[0] !== '9') {
+        e.phoneNumber = 'Please enter a valid Philippine phone number.'
+      }
+    }
     setErrors(e)
     return Object.keys(e).length === 0
   }
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validate()) return
 
@@ -228,21 +227,29 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
     setSubmitSuccess('')
 
     try {
-      // TODO: Call createUser server action here
-      // const result = await createUser({ ...form, password: form.password })
-      // if (result.success) {
-      setSubmitSuccess('User created successfully!')
-      setForm(emptyForm)
-      setErrors({})
+      const result = await createUser({
+        name: form.name,
+        email: form.email,
+        role: form.role,
+        companyName: form.companyName,
+        phoneNumber: form.phoneNumber,
+        contractEndDate: form.contractEndDate,
+        image: form.image,
+      })
 
-      setTimeout(() => {
-        setSubmitSuccess('')
-        handleClose()
-        onSuccess?.()
-      }, 1500)
-      // } else {
-      //   setSubmitError(result.error || 'Failed to create user.')
-      // }
+      if (result.success) {
+        setSubmitSuccess('User created successfully!')
+        setForm(emptyForm)
+        setErrors({})
+
+        setTimeout(() => {
+          setSubmitSuccess('')
+          handleClose()
+          onSuccess?.()
+        }, 1500)
+      } else {
+        setSubmitError(result.error || 'Failed to create user.')
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.'
       setSubmitError(message)
@@ -255,8 +262,6 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
     setErrors({})
     setSubmitError('')
     setSubmitSuccess('')
-    setShowPassword(false)
-    setShowConfirm(false)
     onClose()
   }
   const inputClass = (err?: string) =>
@@ -367,14 +372,15 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
                   value={form.phoneNumber.replace('+63 ', '')}
                   onChange={(e) => {
                     const value = e.target.value
+                    // Only allow digits to be input
                     const digitsOnly = value.replace(/\D/g, '')
                     if (digitsOnly.length <= 10) {
                       const formatted = formatPhilippinePhone(value)
                       field('phoneNumber', formatted)
                     }
                   }}
-                  maxLength={14}
-                  className={`${inputClass()} pl-20`}
+                  maxLength={18}
+                  className={`${inputClass(errors.phoneNumber)} pl-20`}
                 />
               </div>
               <ErrorMsg msg={errors.phoneNumber} />
@@ -472,88 +478,10 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
           </div>
         </div>
 
-        {/* ── Section: Account Security ── */}
-        <div className="space-y-4">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2">
-            Account Security
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1.5">
-                Password <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Min. 8 characters"
-                  value={form.password}
-                  onChange={(e) => field('password', e.target.value)}
-                  className={`${inputClass(errors.password)} pl-9 pr-10`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-              <ErrorMsg msg={errors.password} />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1.5">
-                Confirm Password <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                <input
-                  type={showConfirm ? 'text' : 'password'}
-                  placeholder="Re-enter password"
-                  value={form.confirmPassword}
-                  onChange={(e) => field('confirmPassword', e.target.value)}
-                  className={`${inputClass(errors.confirmPassword)} pl-9 pr-10`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirm((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  {showConfirm ? (
-                    <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-              <ErrorMsg msg={errors.confirmPassword} />
-            </div>
-          </div>
-
-          {/* Password strength hint */}
-          {form.password && (
-            <div className="flex items-center gap-2">
-              {[1, 2, 3, 4].map((i) => (
-                <div
-                  key={i}
-                  className={`h-1 flex-1 rounded-full transition-colors ${form.password.length >= i * 3 ? (form.password.length >= 12 ? 'bg-emerald-500' : form.password.length >= 8 ? 'bg-amber-400' : 'bg-rose-400') : 'bg-slate-200'}`}
-                />
-              ))}
-              <span className="text-xs text-slate-400 w-16">
-                {form.password.length >= 12
-                  ? 'Strong'
-                  : form.password.length >= 8
-                    ? 'Good'
-                    : 'Weak'}
-              </span>
-            </div>
-          )}
+        {/* Password auto-generated info */}
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-md flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-blue-700">Password will be auto-generated and sent to the user's email.</p>
         </div>
 
         {/* ── Footer ── */}
