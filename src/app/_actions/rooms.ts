@@ -99,24 +99,41 @@ export async function createRoom(
   }
 }
 
+interface GetAllRoomsInput {
+  page?: number
+  pageSize?: number
+  searchQuery?: string
+  buildingId?: string
+}
+
 interface GetAllRoomsResult {
   success: boolean
-  data?: Array<{
-    id: string
-    roomName: string
-    roomCode: string | null
-    capacity: number
-    status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE' | 'INACTIVE'
-    amenities: string[] | null
-    building: {
+  data?: {
+    rooms: Array<{
       id: string
-      buildingName: string
+      roomName: string
+      roomCode: string | null
+      capacity: number
+      status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE' | 'INACTIVE'
+      amenities: string[] | null
+      building: {
+        id: string
+        buildingName: string
+      }
+    }>
+    pagination: {
+      page: number
+      pageSize: number
+      totalItems: number
+      totalPages: number
     }
-  }>
+  }
   error?: string
 }
 
-export async function getAllRooms(): Promise<GetAllRoomsResult> {
+export async function getAllRooms(
+  input: GetAllRoomsInput = {}
+): Promise<GetAllRoomsResult> {
   try {
     const session = await getServerSession()
 
@@ -124,38 +141,88 @@ export async function getAllRooms(): Promise<GetAllRoomsResult> {
       return { success: false, error: 'Not authenticated.' }
     }
 
-    const rooms = await prisma.room.findMany({
-      where: {
+    const page = Math.max(1, input.page ?? 1)
+    const pageSize = Math.max(1, Math.min(100, input.pageSize ?? 10))
+    const skip = (page - 1) * pageSize
+    const searchQuery = input.searchQuery?.trim()
+
+    const whereClause = {
+      deletedAt: null,
+      building: {
         deletedAt: null,
-        building: {
-          deletedAt: null,
-        },
       },
-      select: {
-        id: true,
-        roomName: true,
-        roomCode: true,
-        capacity: true,
-        status: true,
-        amenities: true,
-        building: {
-          select: {
-            id: true,
-            buildingName: true,
+      ...(input.buildingId
+        ? {
+            buildingId: input.buildingId,
+          }
+        : {}),
+      ...(searchQuery
+        ? {
+            OR: [
+              {
+                roomName: {
+                  contains: searchQuery,
+                  mode: 'insensitive' as const,
+                },
+              },
+              {
+                roomCode: {
+                  contains: searchQuery,
+                  mode: 'insensitive' as const,
+                },
+              },
+            ],
+          }
+        : {}),
+    }
+
+    const [totalItems, rooms] = await Promise.all([
+      prisma.room.count({
+        where: whereClause,
+      }),
+      prisma.room.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          roomName: true,
+          roomCode: true,
+          capacity: true,
+          status: true,
+          amenities: true,
+          building: {
+            select: {
+              id: true,
+              buildingName: true,
+            },
           },
         },
-      },
-      orderBy: {
-        roomName: 'asc',
-      },
-    })
+        orderBy: {
+          roomName: 'asc',
+        },
+        skip,
+        take: pageSize,
+      }),
+    ])
+
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
 
     const normalizedRooms = rooms.map((room) => ({
       ...room,
       amenities: normalizeAmenities(room.amenities),
     }))
 
-    return { success: true, data: normalizedRooms }
+    return {
+      success: true,
+      data: {
+        rooms: normalizedRooms,
+        pagination: {
+          page,
+          pageSize,
+          totalItems,
+          totalPages,
+        },
+      },
+    }
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : 'Failed to fetch rooms.'

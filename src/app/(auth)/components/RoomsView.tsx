@@ -20,6 +20,7 @@ import {
   Wind,
 } from 'lucide-react'
 import { getAllRooms } from '@/app/_actions/rooms'
+import { getBuildings } from '@/app/_actions/buildings'
 
 type RoomStatus = 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE' | 'INACTIVE'
 
@@ -42,9 +43,11 @@ interface Building {
 }
 
 export function RoomsView() {
+  const ITEMS_PER_PAGE = 6
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
   const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>()
   const [selectedDeleteRoomId, setSelectedDeleteRoomId] = useState<
     string | undefined
@@ -56,6 +59,8 @@ export function RoomsView() {
   const [buildings, setBuildings] = useState<Building[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedBuilding, setSelectedBuilding] = useState('')
+  const [totalItems, setTotalItems] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -63,16 +68,17 @@ export function RoomsView() {
     setIsLoading(true)
     setError(null)
     try {
-      const result = await getAllRooms()
+      const result = await getAllRooms({
+        page: currentPage,
+        pageSize: ITEMS_PER_PAGE,
+        searchQuery,
+        buildingId: selectedBuilding || undefined,
+      })
+
       if (result.success && result.data) {
-        setRooms(result.data)
-        // Extract unique buildings from rooms
-        const uniqueBuildings = Array.from(
-          new Map(
-            result.data.map((room) => [room.building.id, room.building])
-          ).values()
-        )
-        setBuildings(uniqueBuildings)
+        setRooms(result.data.rooms)
+        setTotalItems(result.data.pagination.totalItems)
+        setTotalPages(result.data.pagination.totalPages)
       } else {
         setError(result.error || 'Failed to load rooms')
       }
@@ -84,21 +90,37 @@ export function RoomsView() {
   }
 
   useEffect(() => {
-    void loadRooms()
+    const loadBuildingOptions = async () => {
+      const result = await getBuildings()
+      if (result.success && result.data) {
+        setBuildings(result.data)
+      }
+    }
+
+    void loadBuildingOptions()
   }, [])
+
+  useEffect(() => {
+    void loadRooms()
+  }, [currentPage, searchQuery, selectedBuilding])
 
   const handleAddRoomSuccess = () => {
     void loadRooms()
   }
 
-  // Filter rooms based on search and building filter
-  const filteredRooms = rooms.filter((room) => {
-    const matchesSearch =
-      room.roomName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (room.roomCode?.toLowerCase().includes(searchQuery.toLowerCase()) || false)
-    const matchesBuilding = !selectedBuilding || room.building.id === selectedBuilding
-    return matchesSearch && matchesBuilding
-  })
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedBuilding])
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
+  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1
+  const endItem = Math.min(currentPage * ITEMS_PER_PAGE, totalItems)
+
   const openModal = () => {
     setIsModalOpen(true)
   }
@@ -232,8 +254,8 @@ export function RoomsView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredRooms.length > 0 ? (
-                filteredRooms.map((room) => (
+              {rooms.length > 0 ? (
+                rooms.map((room) => (
                   <tr
                     key={room.id}
                     className="hover:bg-slate-50 transition-colors"
@@ -338,8 +360,8 @@ export function RoomsView() {
 
         {/* Mobile Cards */}
         <div className="md:hidden divide-y divide-slate-100">
-          {filteredRooms.length > 0 ? (
-            filteredRooms.map((room) => (
+          {rooms.length > 0 ? (
+            rooms.map((room) => (
               <div key={room.id} className="p-4 hover:bg-slate-50 transition-colors">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
@@ -416,6 +438,37 @@ export function RoomsView() {
             </div>
           )}
         </div>
+
+        {totalItems > 0 && (
+          <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3">
+            <span className="text-xs text-slate-500">
+              Showing {startItem}-{endItem} of {totalItems}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <span className="text-xs text-slate-500">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                }
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       <AddRoomModal isOpen={isModalOpen} onClose={closeModal} onSuccess={handleAddRoomSuccess} />
