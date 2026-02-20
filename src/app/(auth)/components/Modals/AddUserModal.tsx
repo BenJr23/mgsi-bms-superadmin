@@ -173,6 +173,20 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
   const [submitSuccess, setSubmitSuccess] = useState<string>('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+
+  const formatPhilippinePhone = (value: string): string => {
+    const digits = value.replace(/\D/g, '')
+    const cleaned = digits.slice(-10)
+    if (cleaned.length === 0) return '+63 '
+    if (cleaned.length <= 3) return `+63 ${cleaned}`
+    if (cleaned.length <= 6) return `+63 ${cleaned.slice(0, 3)} ${cleaned.slice(3)}`
+    return `+63 ${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)} ${cleaned.slice(6)}`
+  }
+
+  const validatePhilippinePhone = (value: string): boolean => {
+    const digits = value.replace(/\D/g, '')
+    return digits.length === 10 && digits[0] === '9'
+  }
   const field = <K extends keyof UserFormData>(
     key: K,
     value: UserFormData[K],
@@ -187,6 +201,8 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
     if (!form.email.trim()) e.email = 'Email address is required.'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
       e.email = 'Enter a valid email address.'
+    if (form.phoneNumber && !validatePhilippinePhone(form.phoneNumber))
+      e.phoneNumber = 'Please enter a valid Philippine phone number (10 digits starting with 9).'
     if (!form.password) e.password = 'Password is required.'
     else if (form.password.length < 8)
       e.password = 'Password must be at least 8 characters.'
@@ -333,15 +349,27 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
                 Phone Number
               </label>
               <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 z-10" />
+                <span className="absolute left-9 top-1/2 -translate-y-1/2 text-slate-500 font-medium text-sm">
+                  +63
+                </span>
                 <input
                   type="tel"
-                  placeholder="+1 (555) 000-0000"
-                  value={form.phoneNumber}
-                  onChange={(e) => field('phoneNumber', e.target.value)}
-                  className={`${inputClass()} pl-9`}
+                  placeholder="9XX XXX XXXX"
+                  value={form.phoneNumber.replace('+63 ', '')}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    const digitsOnly = value.replace(/\D/g, '')
+                    if (digitsOnly.length <= 10) {
+                      const formatted = formatPhilippinePhone(value)
+                      field('phoneNumber', formatted)
+                    }
+                  }}
+                  maxLength={14}
+                  className={`${inputClass()} pl-20`}
                 />
               </div>
+              <ErrorMsg msg={errors.phoneNumber} />
             </div>
           </div>
 
