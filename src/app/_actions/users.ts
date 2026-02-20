@@ -3,6 +3,8 @@
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { headers } from 'next/headers'
+import { sendCredentialsEmail } from '@/lib/email'
+import { hashPassword } from 'better-auth/crypto'
 
 interface CreateUserInput {
   name: string
@@ -69,7 +71,7 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserResu
       },
     })
 
-    // Update user with additional fields and store the generated password info
+    // Update user with additional fields
     const updatedUser = await prisma.user.update({
       where: { id: newUser.id },
       data: {
@@ -80,8 +82,29 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserResu
       },
     })
 
-    // TODO: In production, hash the password and store it securely
-    // For now, return success - the password should be sent via email
+    // Hash the password using better-auth crypto
+    const hashedPassword = await hashPassword(generatedPassword)
+
+    // Create account record with hashed password
+    await prisma.account.create({
+      data: {
+        userId: newUser.id,
+        providerId: 'credential',
+        accountId: newUser.email,
+        password: hashedPassword,
+      },
+    })
+
+    // Send credentials email
+    const emailSent = await sendCredentialsEmail({
+      userEmail: newUser.email,
+      userName: newUser.name,
+      password: generatedPassword,
+    })
+
+    if (!emailSent) {
+      console.warn(`Email failed to send for user ${newUser.email}, but account was created`)
+    }
 
     return {
       success: true,
