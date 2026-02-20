@@ -11,14 +11,12 @@ import { ReportsView } from '../components/ReportsView';
 import { UsersView } from '../components/UsersView';
 import { SettingsView } from '../components/SettingsView';
 import { ProfileView } from '../components/ProfileView';
-import { Menu, Bell, ChevronDown, User, Settings as SettingsIcon, LogOut } from 'lucide-react';
+import { Bell, ChevronDown, User, Settings as SettingsIcon, LogOut, LayoutDashboard, CalendarCheck, Building2, DoorOpen, Calendar, BarChart3, Users } from 'lucide-react';
 import { useSession, signOut } from '@/lib/auth-client';
 import Image from 'next/image';
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [lastLogin, setLastLogin] = useState<string | null>(null);
   const [localUserName, setLocalUserName] = useState<string>('');
@@ -100,6 +98,55 @@ export default function DashboardPage() {
   const [showProfileView, setShowProfileView] = useState(false);
   const [showSettingsView, setShowSettingsView] = useState(false);
 
+  const menuItems = [
+    {
+      id: 'dashboard' as TabId,
+      label: 'Dashboard',
+      icon: LayoutDashboard,
+      roles: ['ADMIN', 'SUPERADMIN']
+    },
+    {
+      id: 'bookings' as TabId,
+      label: 'Bookings',
+      icon: CalendarCheck,
+      roles: ['ADMIN', 'SUPERADMIN']
+    },
+    {
+      id: 'buildings' as TabId,
+      label: 'Buildings',
+      icon: Building2,
+      roles: ['ADMIN', 'SUPERADMIN']
+    },
+    {
+      id: 'rooms' as TabId,
+      label: 'Rooms',
+      icon: DoorOpen,
+      roles: ['ADMIN', 'SUPERADMIN']
+    },
+    {
+      id: 'calendar' as TabId,
+      label: 'Calendar',
+      icon: Calendar,
+      roles: ['ADMIN', 'SUPERADMIN']
+    },
+    {
+      id: 'reports' as TabId,
+      label: 'Reports',
+      icon: BarChart3,
+      roles: ['ADMIN', 'SUPERADMIN']
+    },
+    {
+      id: 'users' as TabId,
+      label: 'Users',
+      icon: Users,
+      roles: ['SUPERADMIN']
+    }
+  ];
+
+  const filteredMenuItems = menuItems.filter((item) =>
+    item.roles.includes(userRole)
+  );
+
   useEffect(() => {
     if (userRole === 'ADMIN' && activeTab === 'users') {
       setActiveTab('dashboard');
@@ -155,58 +202,48 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-900">
-      {/* Mobile Sidebar Overlay Backdrop */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <div
-        className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:relative inset-y-0 left-0 z-30 lg:z-auto transition-transform duration-300 ease-in-out`}>
-
+      {/* Desktop Sidebar - Hidden on mobile */}
+      <div className="hidden md:block">
         <Sidebar
           activeTab={activeTab}
           onTabChange={(tab) => {
             setActiveTab(tab);
             setShowProfileView(false);
             setShowSettingsView(false);
-            if (window.innerWidth < 1024) setSidebarOpen(false);
           }}
           userRole={userRole}
-          showingSpecialView={showProfileView || showSettingsView}
-          collapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />
-
+          showingSpecialView={showProfileView || showSettingsView} />
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Header */}
-        <header className="h-16 bg-white border-b-2 border-red-900 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-10 shadow-sm">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-md hover:bg-red-50 lg:hidden transition-colors">
-
-              <Menu className="w-5 h-5 text-red-900" />
-            </button>
-
-            {/* Breadcrumbs / Title */}
-            <div className="hidden sm:flex items-center text-sm text-slate-500">
+        <header className="bg-white border-b-2 border-red-900 sticky top-0 z-10 shadow-sm">
+          <div className="h-16 flex items-center justify-between px-4 lg:px-8">
+            {/* Breadcrumbs / Title - Desktop only */}
+            <div className="hidden md:flex items-center text-sm text-slate-500">
               <span className="font-bold text-red-900 text-lg">BookingOS</span>
               <span className="mx-2 text-slate-300">/</span>
               <span className="capitalize font-medium text-slate-700">{activeTab}</span>
             </div>
-          </div>
 
-          <div className="flex items-center gap-4">
-            <button className="p-2 text-slate-500 hover:text-red-900 relative transition-colors">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-900 rounded-full border-2 border-white"></span>
-            </button>
+            {/* Mobile Logo */}
+            <div className="md:hidden flex items-center">
+              <Image
+                src="/GreatWork Logo.avif"
+                alt="GreatWork Logo"
+                width={120}
+                height={32}
+                className="object-contain"
+                priority
+              />
+            </div>
+
+            <div className="flex items-center gap-4">
+              <button className="p-2 text-slate-500 hover:text-red-900 relative transition-colors">
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-900 rounded-full border-2 border-white"></span>
+              </button>
 
             {/* User Dropdown */}
             <div className="relative">
@@ -264,7 +301,35 @@ export default function DashboardPage() {
                 </>
               )}
             </div>
+            </div>
           </div>
+
+          {/* Mobile Horizontal Navigation */}
+          <nav className="md:hidden flex items-center justify-around border-t border-slate-200 bg-white px-2 py-2">
+            {filteredMenuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id && !showProfileView && !showSettingsView;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setShowProfileView(false);
+                    setShowSettingsView(false);
+                  }}
+                  className="flex flex-col items-center justify-center gap-1 px-2 py-1 min-w-0 flex-1"
+                >
+                  <Icon
+                    size={20}
+                    className={`${isActive ? 'text-red-900' : 'text-slate-500'} transition-colors`}
+                  />
+                  <span className={`text-[10px] font-medium ${isActive ? 'text-red-900' : 'text-slate-600'} truncate max-w-full`}>
+                    {item.label}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
         </header>
 
         {/* Page Content */}
