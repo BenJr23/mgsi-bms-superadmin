@@ -357,3 +357,70 @@ export async function getAllBuildings(): Promise<GetAllBuildingsResult> {
     }
   }
 }
+
+interface DeleteBuildingResult {
+  success: boolean
+  error?: string
+}
+
+export async function deleteBuilding(
+  buildingId: string
+): Promise<DeleteBuildingResult> {
+  try {
+    const session = await getServerSession()
+
+    if (!session?.user?.id) {
+      return { success: false, error: 'Not authenticated.' }
+    }
+
+    if (!buildingId?.trim()) {
+      return { success: false, error: 'Building ID is required.' }
+    }
+
+    const building = await prisma.building.findFirst({
+      where: {
+        id: buildingId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+      },
+    })
+
+    if (!building) {
+      return { success: false, error: 'Building not found.' }
+    }
+
+    const activeRoomsCount = await prisma.room.count({
+      where: {
+        buildingId,
+        deletedAt: null,
+      },
+    })
+
+    if (activeRoomsCount > 0) {
+      return {
+        success: false,
+        error:
+          'Cannot delete building while it still has active rooms. Soft-delete related rooms first.',
+      }
+    }
+
+    await prisma.building.update({
+      where: { id: buildingId },
+      data: {
+        deletedAt: new Date(),
+      },
+    })
+
+    return { success: true }
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : 'Failed to delete building.'
+    console.error('Delete building error:', message)
+    return {
+      success: false,
+      error: message,
+    }
+  }
+}

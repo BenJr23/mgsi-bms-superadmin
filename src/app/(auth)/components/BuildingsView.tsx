@@ -6,13 +6,22 @@ import { Badge } from './ui/Badge'
 import { Button } from './ui/Button'
 import { AddBuildingModal } from './Modals/AddBuildingModal'
 import { EditBuildingModal } from './Modals/EditBuildingModal'
+import { DeleteBuildingModal } from './Modals/DeleteBuildingModal'
 import { MapPin, Building, MoreVertical } from 'lucide-react'
 import { getAllBuildings } from '@/app/_actions/buildings'
 
 export function BuildingsView() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | undefined>()
+  const [selectedDeleteBuildingId, setSelectedDeleteBuildingId] = useState<
+    string | undefined
+  >()
+  const [selectedDeleteBuildingName, setSelectedDeleteBuildingName] = useState<
+    string | undefined
+  >()
+  const [openMenuBuildingId, setOpenMenuBuildingId] = useState<string | null>(null)
   const [buildings, setBuildings] = useState<Array<{
     id: string
     buildingName: string
@@ -47,6 +56,19 @@ export function BuildingsView() {
     void loadBuildings()
   }, [])
 
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!(event.target instanceof Element)) return
+      if (event.target.closest('[data-building-menu="true"]')) return
+      setOpenMenuBuildingId(null)
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+    }
+  }, [])
+
   const handleAddBuildingSuccess = () => {
     void loadBuildings()
   }
@@ -67,6 +89,23 @@ export function BuildingsView() {
   const closeEditModal = () => {
     setIsEditModalOpen(false)
     setSelectedBuildingId(undefined)
+  }
+
+  const openDeleteModal = (buildingId: string, buildingName: string) => {
+    setSelectedDeleteBuildingId(buildingId)
+    setSelectedDeleteBuildingName(buildingName)
+    setIsDeleteModalOpen(true)
+    setOpenMenuBuildingId(null)
+  }
+
+  const closeDeleteModal = () => {
+    setIsDeleteModalOpen(false)
+    setSelectedDeleteBuildingId(undefined)
+    setSelectedDeleteBuildingName(undefined)
+  }
+
+  const toggleActionMenu = (buildingId: string) => {
+    setOpenMenuBuildingId((prev) => (prev === buildingId ? null : buildingId))
   }
 
   if (isLoading) {
@@ -148,9 +187,26 @@ export function BuildingsView() {
                       {building.buildingCode}
                     </p>
                   </div>
-                  <button className="text-slate-400 hover:text-slate-600">
-                    <MoreVertical className="w-5 h-5" />
-                  </button>
+                  <div className="relative" data-building-menu="true">
+                    <button
+                      type="button"
+                      onClick={() => toggleActionMenu(building.id)}
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      <MoreVertical className="w-5 h-5" />
+                    </button>
+                    {openMenuBuildingId === building.id && (
+                      <div className="absolute right-0 mt-2 w-32 rounded-md border border-slate-200 bg-white shadow-md z-10">
+                        <button
+                          type="button"
+                          onClick={() => openDeleteModal(building.id, building.buildingName)}
+                          className="w-full px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-2 mt-4">
                   {building.address && (
@@ -207,6 +263,14 @@ export function BuildingsView() {
         isOpen={isEditModalOpen}
         onClose={closeEditModal}
         buildingId={selectedBuildingId}
+        onSuccess={handleAddBuildingSuccess}
+      />
+
+      <DeleteBuildingModal
+        isOpen={isDeleteModalOpen}
+        onClose={closeDeleteModal}
+        buildingId={selectedDeleteBuildingId}
+        buildingName={selectedDeleteBuildingName}
         onSuccess={handleAddBuildingSuccess}
       />
     </div>
