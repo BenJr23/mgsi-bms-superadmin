@@ -1,9 +1,24 @@
-import React from 'react';
-import { Card } from './ui/Card';
-import { Badge } from './ui/Badge';
-import { Button } from './ui/Button';
-import { Search, UserPlus, Shield } from 'lucide-react';
+import React, { useState } from 'react'
+import { Card } from './ui/Card'
+import { Badge } from './ui/Badge'
+import { Button } from './ui/Button'
+import { AddUserModal } from './Modals/AddUserModal'
+import { Search, UserPlus, Shield } from 'lucide-react'
+
 export function UsersView() {
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  const openModal = () => {
+    setIsModalOpen(true)
+  }
+
+  const closeModal = () => {
+    setIsModalOpen(false)
+  }
+
+  const handleAddUserSuccess = () => {
+    // TODO: Reload users data from server
+  }
   const users = [
   {
     id: 'USR-001',
@@ -53,7 +68,7 @@ export function UsersView() {
           <h1 className="text-2xl font-bold text-slate-900">User Management</h1>
           <p className="text-slate-500">Manage system access and user roles.</p>
         </div>
-        <Button className="flex items-center gap-2">
+        <Button onClick={openModal} className="flex items-center gap-2">
           <UserPlus className="w-4 h-4" />
           Add User
         </Button>
@@ -182,6 +197,8 @@ export function UsersView() {
           ))}
         </div>
       </Card>
-    </div>);
 
+      <AddUserModal isOpen={isModalOpen} onClose={closeModal} onSuccess={handleAddUserSuccess} />
+    </div>
+  )
 }
