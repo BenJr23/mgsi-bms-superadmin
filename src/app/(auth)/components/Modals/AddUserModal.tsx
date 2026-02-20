@@ -195,6 +195,14 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
       ...prev,
       [key]: value,
     }))
+
+  const handleRoleChange = (role: UserRole) => {
+    setForm((prev) => ({
+      ...prev,
+      role,
+      companyName: role !== 'CLIENT' ? 'My GreatWork Spaces' : '',
+    }))
+  }
   const validate = (): boolean => {
     const e: Partial<Record<keyof UserFormData, string>> = {}
     if (!form.name.trim()) e.name = 'Full name is required.'
@@ -300,7 +308,7 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
                     name="role"
                     value={opt.value}
                     checked={active}
-                    onChange={() => field('role', opt.value)}
+                    onChange={() => handleRoleChange(opt.value)}
                     className="sr-only"
                   />
                   <div className="flex items-center gap-2 font-semibold text-sm">
