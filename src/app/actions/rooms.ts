@@ -54,8 +54,11 @@ export async function createRoom(
     }
 
     // Verify building exists
-    const building = await prisma.building.findUnique({
-      where: { id: input.buildingId },
+    const building = await prisma.building.findFirst({
+      where: {
+        id: input.buildingId,
+        deletedAt: null,
+      },
     })
 
     if (!building) {
@@ -122,6 +125,12 @@ export async function getAllRooms(): Promise<GetAllRoomsResult> {
     }
 
     const rooms = await prisma.room.findMany({
+      where: {
+        deletedAt: null,
+        building: {
+          deletedAt: null,
+        },
+      },
       select: {
         id: true,
         roomName: true,
@@ -186,8 +195,14 @@ export async function getRoomById(roomId: string): Promise<GetRoomByIdResult> {
       return { success: false, error: 'Not authenticated.' }
     }
 
-    const room = await prisma.room.findUnique({
-      where: { id: roomId },
+    const room = await prisma.room.findFirst({
+      where: {
+        id: roomId,
+        deletedAt: null,
+        building: {
+          deletedAt: null,
+        },
+      },
       select: {
         id: true,
         roomName: true,
@@ -275,8 +290,11 @@ export async function updateRoom(
     }
 
     // Verify room exists
-    const room = await prisma.room.findUnique({
-      where: { id: roomId },
+    const room = await prisma.room.findFirst({
+      where: {
+        id: roomId,
+        deletedAt: null,
+      },
     })
 
     if (!room) {
@@ -284,8 +302,11 @@ export async function updateRoom(
     }
 
     // Verify building exists
-    const building = await prisma.building.findUnique({
-      where: { id: input.buildingId },
+    const building = await prisma.building.findFirst({
+      where: {
+        id: input.buildingId,
+        deletedAt: null,
+      },
     })
 
     if (!building) {

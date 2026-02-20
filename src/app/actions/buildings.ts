@@ -49,8 +49,11 @@ export async function createBuilding(
     }
 
     // Check for duplicate building code
-    const existingBuilding = await prisma.building.findUnique({
-      where: { buildingCode: input.buildingCode.toUpperCase() },
+    const existingBuilding = await prisma.building.findFirst({
+      where: {
+        buildingCode: input.buildingCode.toUpperCase(),
+        deletedAt: null,
+      },
     })
 
     if (existingBuilding) {
@@ -101,6 +104,9 @@ export async function getBuildings(): Promise<GetBuildingsResult> {
     }
 
     const buildings = await prisma.building.findMany({
+      where: {
+        deletedAt: null,
+      },
       select: {
         id: true,
         buildingName: true,
@@ -162,8 +168,11 @@ export async function getBuildingById(
       return { success: false, error: 'Not authenticated.' }
     }
 
-    const building = await prisma.building.findUnique({
-      where: { id: buildingId },
+    const building = await prisma.building.findFirst({
+      where: {
+        id: buildingId,
+        deletedAt: null,
+      },
       select: {
         id: true,
         buildingName: true,
@@ -230,8 +239,11 @@ export async function updateBuilding(
     }
 
     // Check if building exists
-    const building = await prisma.building.findUnique({
-      where: { id: buildingId },
+    const building = await prisma.building.findFirst({
+      where: {
+        id: buildingId,
+        deletedAt: null,
+      },
     })
 
     if (!building) {
@@ -240,8 +252,11 @@ export async function updateBuilding(
 
     // Check for duplicate building code (if code is being changed)
     if (input.buildingCode.toUpperCase() !== building.buildingCode) {
-      const existingBuilding = await prisma.building.findUnique({
-        where: { buildingCode: input.buildingCode.toUpperCase() },
+      const existingBuilding = await prisma.building.findFirst({
+        where: {
+          buildingCode: input.buildingCode.toUpperCase(),
+          deletedAt: null,
+        },
       })
 
       if (existingBuilding) {
@@ -293,6 +308,9 @@ export async function getAllBuildings(): Promise<GetAllBuildingsResult> {
     }
 
     const buildings = await prisma.building.findMany({
+      where: {
+        deletedAt: null,
+      },
       select: {
         id: true,
         buildingName: true,
@@ -303,6 +321,9 @@ export async function getAllBuildings(): Promise<GetAllBuildingsResult> {
         status: true,
         createdAt: true,
         rooms: {
+          where: {
+            deletedAt: null,
+          },
           select: {
             id: true,
           },
