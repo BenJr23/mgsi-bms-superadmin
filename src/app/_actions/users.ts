@@ -362,14 +362,17 @@ export async function getUsers(input: GetUsersInput = {}): Promise<ListUsersResu
     const skip = (page - 1) * pageSize
     const searchQuery = input.searchQuery?.trim()
 
-    const whereClause = searchQuery
-      ? {
-          OR: [
-            { name: { contains: searchQuery, mode: 'insensitive' as const } },
-            { email: { contains: searchQuery, mode: 'insensitive' as const } },
-          ],
-        }
-      : {}
+    const whereClause = {
+      deletedAt: null,
+      ...(searchQuery
+        ? {
+            OR: [
+              { name: { contains: searchQuery, mode: 'insensitive' as const } },
+              { email: { contains: searchQuery, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+    }
 
     const [totalItems, users] = await Promise.all([
       prisma.user.count({
@@ -529,18 +532,11 @@ export async function deleteUser(userId: string): Promise<DeleteUserResult> {
       return { success: false, error: 'User not found' }
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.account.deleteMany({
-        where: { userId },
-      })
-
-      await tx.session.deleteMany({
-        where: { userId },
-      })
-
-      await tx.user.delete({
-        where: { id: userId },
-      })
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        deletedAt: new Date(),
+      },
     })
 
     return { success: true }
