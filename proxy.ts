@@ -14,7 +14,7 @@ const isPublicPath = (pathname: string) =>
     pathname === "/" ||
     publicPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
-export async function proxy(request: NextRequest) {
+export default async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
     const isApiPath = pathname.startsWith("/api");
 
@@ -22,6 +22,7 @@ export async function proxy(request: NextRequest) {
         return NextResponse.next();
     }
 
+    // IMPORTANT: Allow auth internal APIs to pass through immediately
     if (pathname.startsWith("/api/auth")) {
         return NextResponse.next();
     }
@@ -29,7 +30,6 @@ export async function proxy(request: NextRequest) {
     const session = await getSession(request);
 
     if (isPublicPath(pathname)) {
-        // If user is signed in and trying to access sign-in/sign-up pages
         if (session?.user && authPages.includes(pathname)) {
             const passwordVerified = (session.user as { passwordVerified?: boolean }).passwordVerified;
 
@@ -37,7 +37,6 @@ export async function proxy(request: NextRequest) {
                 return NextResponse.redirect(new URL("/reset-password", request.url));
             }
 
-            // Only redirect to dashboard if user has ADMIN or SUPERADMIN role
             if (hasAllowedRole(session.user.role)) {
                 return NextResponse.redirect(new URL("/dashboard", request.url));
             }
@@ -45,14 +44,13 @@ export async function proxy(request: NextRequest) {
         return NextResponse.next();
     }
 
-    // Protected route - require authentication
+    // Protected route logic
     if (!session || !session.user) {
         const signInUrl = new URL("/sign-in", request.url);
         signInUrl.searchParams.set("next", pathname);
         return NextResponse.redirect(signInUrl);
     }
 
-    // RBAC: Only allow ADMIN and SUPERADMIN roles
     if (!hasAllowedRole(session.user.role)) {
         const signInUrl = new URL("/sign-in", request.url);
         signInUrl.searchParams.set("error", "unauthorized");
@@ -67,18 +65,18 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL("/reset-password", request.url));
     }
 
+    // CRITICAL: Ensure we return the response with the session context
     return NextResponse.next();
 }
 
 async function getSession(request: NextRequest) {
     try {
-        // Directly verify session from cookie/JWT without making a fetch request
         const session = await authEdge.api.getSession({
             headers: request.headers,
         });
         return session;
-    } catch {
-        // Session verification failed - user is not authenticated
+    } catch (error) {
+        console.error("Middleware Session Error:", error);
         return null;
     }
 }
