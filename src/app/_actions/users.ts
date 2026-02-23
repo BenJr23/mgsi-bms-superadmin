@@ -20,6 +20,8 @@ interface CreateUserResult {
   success: boolean
   error?: string
   userId?: string
+  requiresReactivation?: boolean
+  reactivationUserId?: string
 }
 
 interface GetUsersInput {
@@ -282,9 +284,22 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserResu
     // Check if email already exists
     const existingUser = await prisma.user.findUnique({
       where: { email: input.email },
+      select: {
+        id: true,
+        deletedAt: true,
+      },
     })
 
     if (existingUser) {
+      if (existingUser.deletedAt) {
+        return {
+          success: false,
+          error: 'This email already exists but the account is inactive.',
+          requiresReactivation: true,
+          reactivationUserId: existingUser.id,
+        }
+      }
+
       return { success: false, error: 'Email address is already in use' }
     }
 
@@ -551,6 +566,57 @@ interface ResetUserPasswordResult {
   success: boolean
   error?: string
   newPassword?: string
+}
+
+interface ReactivateUserResult {
+  success: boolean
+  error?: string
+}
+
+export async function reactivateUser(userId: string): Promise<ReactivateUserResult> {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    })
+
+    if (!session?.user || !session.user.id) {
+      return { success: false, error: 'Unauthorized: No session' }
+    }
+
+    if (session.user.role !== 'SUPERADMIN') {
+      return { success: false, error: 'Unauthorized: Only SUPERADMIN can reactivate users' }
+    }
+
+    if (!userId?.trim()) {
+      return { success: false, error: 'User ID is required' }
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, deletedAt: true },
+    })
+
+    if (!user) {
+      return { success: false, error: 'User not found' }
+    }
+
+    if (!user.deletedAt) {
+      return { success: false, error: 'User account is already active' }
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        deletedAt: null,
+      },
+    })
+
+    return { success: true }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'An unexpected error occurred'
+    console.error('Error reactivating user:', message)
+    return { success: false, error: message }
+  }
 }
 
 export async function resetUserPassword(userId: string): Promise<ResetUserPasswordResult> {
