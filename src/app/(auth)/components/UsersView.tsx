@@ -4,6 +4,7 @@ import { Badge } from './ui/Badge'
 import { Button } from './ui/Button'
 import { AddUserModal } from './Modals/AddUserModal'
 import { EditUserModal, type EditableUser } from './Modals/EditUserModal'
+import { DeleteUserModal } from './Modals/DeleteUserModal'
 import { Search, UserPlus, Shield } from 'lucide-react'
 import { getUsers } from '@/app/_actions/users'
 
@@ -24,8 +25,11 @@ export function UsersView() {
   const ITEMS_PER_PAGE = 10
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [users, setUsers] = useState<UserRow[]>([])
   const [selectedUser, setSelectedUser] = useState<EditableUser | null>(null)
+  const [selectedDeleteUserId, setSelectedDeleteUserId] = useState<string | undefined>()
+  const [selectedDeleteUserName, setSelectedDeleteUserName] = useState<string | undefined>()
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -89,6 +93,18 @@ export function UsersView() {
   const closeEditModal = () => {
     setIsEditModalOpen(false)
     setSelectedUser(null)
+  }
+
+  const openDeleteModal = (userId: string, userName: string) => {
+    setSelectedDeleteUserId(userId)
+    setSelectedDeleteUserName(userName)
+    setIsDeleteModalOpen(true)
+  }
+
+  const closeDeleteModal = () => {
+    setIsDeleteModalOpen(false)
+    setSelectedDeleteUserId(undefined)
+    setSelectedDeleteUserName(undefined)
   }
 
   const handleAddUserSuccess = () => {
@@ -195,12 +211,21 @@ export function UsersView() {
                   </td>
                   <td className="px-6 py-4 text-slate-600">{formatJoinedDate(user.createdAt)}</td>
                   <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => openEditModal(user)}
-                      className="text-indigo-600 hover:text-indigo-800 font-medium text-xs"
-                    >
-                      Edit
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => openEditModal(user)}
+                        className="text-indigo-600 hover:text-indigo-800 font-medium text-xs"
+                      >
+                        Edit
+                      </button>
+                      <span className="text-slate-400 text-xs">/</span>
+                      <button
+                        onClick={() => openDeleteModal(user.id, user.name)}
+                        className="text-rose-600 hover:text-rose-800 font-medium text-xs"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -264,9 +289,15 @@ export function UsersView() {
               </div>
               <button
                 onClick={() => openEditModal(user)}
-                className="w-full px-4 py-2 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition-colors text-sm font-medium"
+                className="w-full px-4 py-2 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition-colors text-sm font-medium mb-2"
               >
                 Edit User
+              </button>
+              <button
+                onClick={() => openDeleteModal(user.id, user.name)}
+                className="w-full px-4 py-2 bg-rose-50 text-rose-600 rounded-md hover:bg-rose-100 transition-colors text-sm font-medium"
+              >
+                Delete User
               </button>
             </div>
           ))}
@@ -316,6 +347,13 @@ export function UsersView() {
         onClose={closeEditModal}
         onSuccess={handleAddUserSuccess}
         user={selectedUser}
+      />
+      <DeleteUserModal
+        isOpen={isDeleteModalOpen}
+        onClose={closeDeleteModal}
+        onSuccess={handleAddUserSuccess}
+        userId={selectedDeleteUserId}
+        userName={selectedDeleteUserName}
       />
     </div>
   )

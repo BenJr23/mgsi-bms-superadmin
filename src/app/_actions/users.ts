@@ -496,3 +496,57 @@ export async function updateUser(input: UpdateUserInput): Promise<UpdateUserResu
     return { success: false, error: message }
   }
 }
+
+interface DeleteUserResult {
+  success: boolean
+  error?: string
+}
+
+export async function deleteUser(userId: string): Promise<DeleteUserResult> {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    })
+
+    if (!session?.user || !session.user.id) {
+      return { success: false, error: 'Unauthorized: No session' }
+    }
+
+    if (session.user.role !== 'SUPERADMIN') {
+      return { success: false, error: 'Unauthorized: Only SUPERADMIN can delete users' }
+    }
+
+    if (!userId?.trim()) {
+      return { success: false, error: 'User ID is required' }
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    })
+
+    if (!user) {
+      return { success: false, error: 'User not found' }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.account.deleteMany({
+        where: { userId },
+      })
+
+      await tx.session.deleteMany({
+        where: { userId },
+      })
+
+      await tx.user.delete({
+        where: { id: userId },
+      })
+    })
+
+    return { success: true }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'An unexpected error occurred'
+    console.error('Error deleting user:', message)
+    return { success: false, error: message }
+  }
+}
