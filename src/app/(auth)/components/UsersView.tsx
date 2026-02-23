@@ -5,6 +5,7 @@ import { Button } from './ui/Button'
 import { AddUserModal } from './Modals/AddUserModal'
 import { EditUserModal, type EditableUser } from './Modals/EditUserModal'
 import { DeleteUserModal } from './Modals/DeleteUserModal'
+import { ResetUserModal } from './Modals/ResetUserModal'
 import { Search, UserPlus, Shield } from 'lucide-react'
 import { getUsers } from '@/app/_actions/users'
 
@@ -26,10 +27,13 @@ export function UsersView() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false)
   const [users, setUsers] = useState<UserRow[]>([])
   const [selectedUser, setSelectedUser] = useState<EditableUser | null>(null)
   const [selectedDeleteUserId, setSelectedDeleteUserId] = useState<string | undefined>()
   const [selectedDeleteUserName, setSelectedDeleteUserName] = useState<string | undefined>()
+  const [selectedResetUserId, setSelectedResetUserId] = useState<string | undefined>()
+  const [selectedResetUserName, setSelectedResetUserName] = useState<string | undefined>()
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -105,6 +109,18 @@ export function UsersView() {
     setIsDeleteModalOpen(false)
     setSelectedDeleteUserId(undefined)
     setSelectedDeleteUserName(undefined)
+  }
+
+  const openResetModal = (userId: string, userName: string) => {
+    setSelectedResetUserId(userId)
+    setSelectedResetUserName(userName)
+    setIsResetModalOpen(true)
+  }
+
+  const closeResetModal = () => {
+    setIsResetModalOpen(false)
+    setSelectedResetUserId(undefined)
+    setSelectedResetUserName(undefined)
   }
 
   const handleAddUserSuccess = () => {
@@ -220,6 +236,13 @@ export function UsersView() {
                       </button>
                       <span className="text-slate-400 text-xs">/</span>
                       <button
+                        onClick={() => openResetModal(user.id, user.name)}
+                        className="text-blue-600 hover:text-blue-800 font-medium text-xs"
+                      >
+                        Reset
+                      </button>
+                      <span className="text-slate-400 text-xs">/</span>
+                      <button
                         onClick={() => openDeleteModal(user.id, user.name)}
                         className="text-rose-600 hover:text-rose-800 font-medium text-xs"
                       >
@@ -294,6 +317,12 @@ export function UsersView() {
                 Edit User
               </button>
               <button
+                onClick={() => openResetModal(user.id, user.name)}
+                className="w-full px-4 py-2 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors text-sm font-medium mb-2"
+              >
+                Reset Password
+              </button>
+              <button
                 onClick={() => openDeleteModal(user.id, user.name)}
                 className="w-full px-4 py-2 bg-rose-50 text-rose-600 rounded-md hover:bg-rose-100 transition-colors text-sm font-medium"
               >
@@ -354,6 +383,13 @@ export function UsersView() {
         onSuccess={handleAddUserSuccess}
         userId={selectedDeleteUserId}
         userName={selectedDeleteUserName}
+      />
+      <ResetUserModal
+        isOpen={isResetModalOpen}
+        onClose={closeResetModal}
+        onSuccess={handleAddUserSuccess}
+        userId={selectedResetUserId}
+        userName={selectedResetUserName}
       />
     </div>
   )

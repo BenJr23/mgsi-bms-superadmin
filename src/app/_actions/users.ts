@@ -546,3 +546,84 @@ export async function deleteUser(userId: string): Promise<DeleteUserResult> {
     return { success: false, error: message }
   }
 }
+
+interface ResetUserPasswordResult {
+  success: boolean
+  error?: string
+  newPassword?: string
+}
+
+export async function resetUserPassword(userId: string): Promise<ResetUserPasswordResult> {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    })
+
+    if (!session?.user || !session.user.id) {
+      return { success: false, error: 'Unauthorized: No session' }
+    }
+
+    if (session.user.role !== 'SUPERADMIN') {
+      return { success: false, error: 'Unauthorized: Only SUPERADMIN can reset passwords' }
+    }
+
+    if (!userId?.trim()) {
+      return { success: false, error: 'User ID is required' }
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, name: true },
+    })
+
+    if (!user) {
+      return { success: false, error: 'User not found' }
+    }
+
+    // Generate new secure password
+    const newPassword = generateSecurePassword()
+
+    // Hash the new password
+    const hashedPassword = await hashPassword(newPassword)
+
+    // Update the account with new hashed password and user's passwordVerified status
+    await prisma.$transaction(async (tx) => {
+      await tx.account.updateMany({
+        where: {
+          userId,
+          providerId: 'credential',
+        },
+        data: {
+          password: hashedPassword,
+        },
+      })
+
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          passwordVerified: false,
+        },
+      })
+    })
+
+    // Send credentials email with new password
+    const emailSent = await sendCredentialsEmail({
+      userEmail: user.email,
+      userName: user.name,
+      password: newPassword,
+    })
+
+    if (!emailSent) {
+      console.warn(`Email failed to send for user ${user.email}, but password was reset`)
+    }
+
+    return {
+      success: true,
+      newPassword,
+    }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'An unexpected error occurred'
+    console.error('Error resetting user password:', message)
+    return { success: false, error: message }
+  }
+}
