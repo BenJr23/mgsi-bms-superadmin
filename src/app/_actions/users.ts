@@ -30,9 +30,29 @@ interface ListUsersResult {
     name: string
     email: string
     role: 'CLIENT' | 'ADMIN' | 'SUPERADMIN'
+    companyName: string | null
+    phoneNumber: string | null
+    contractEndDate: string | null
+    image: string | null
     createdAt: string
     deletedAt: string | null
   }[]
+}
+
+interface UpdateUserInput {
+  id: string
+  name: string
+  email: string
+  role: 'CLIENT' | 'ADMIN' | 'SUPERADMIN'
+  companyName: string
+  phoneNumber: string
+  contractEndDate?: string
+  image?: string
+}
+
+interface UpdateUserResult {
+  success: boolean
+  error?: string
 }
 
 // Generate a secure random password
@@ -339,6 +359,10 @@ export async function getUsers(searchQuery: string = ''): Promise<ListUsersResul
         name: true,
         email: true,
         role: true,
+        companyName: true,
+        phoneNumber: true,
+        contractEndDate: true,
+        image: true,
         createdAt: true,
         deletedAt: true,
       },
@@ -351,6 +375,10 @@ export async function getUsers(searchQuery: string = ''): Promise<ListUsersResul
         name: user.name,
         email: user.email,
         role: user.role,
+        companyName: user.companyName,
+        phoneNumber: user.phoneNumber,
+        contractEndDate: user.contractEndDate ? user.contractEndDate.toISOString() : null,
+        image: user.image,
         createdAt: user.createdAt.toISOString(),
         deletedAt: user.deletedAt ? user.deletedAt.toISOString() : null,
       })),
@@ -359,5 +387,75 @@ export async function getUsers(searchQuery: string = ''): Promise<ListUsersResul
     const message = err instanceof Error ? err.message : 'An unexpected error occurred'
     console.error('Error fetching users:', message)
     return { success: false, error: message, users: [] }
+  }
+}
+
+export async function updateUser(input: UpdateUserInput): Promise<UpdateUserResult> {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    })
+
+    if (!session?.user || !session.user.id) {
+      return { success: false, error: 'Unauthorized: No session' }
+    }
+
+    if (session.user.role !== 'SUPERADMIN') {
+      return { success: false, error: 'Unauthorized: Only SUPERADMIN can update users' }
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { id: input.id },
+      select: { id: true, email: true },
+    })
+
+    if (!existingUser) {
+      return { success: false, error: 'User not found' }
+    }
+
+    const duplicateEmailUser = await prisma.user.findFirst({
+      where: {
+        email: input.email,
+        NOT: { id: input.id },
+      },
+      select: { id: true },
+    })
+
+    if (duplicateEmailUser) {
+      return { success: false, error: 'Email address is already in use' }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: input.id },
+        data: {
+          name: input.name,
+          email: input.email,
+          role: input.role,
+          image: input.image || null,
+          phoneNumber: input.phoneNumber || null,
+          contractEndDate: input.contractEndDate ? new Date(input.contractEndDate) : null,
+          companyName: input.companyName || null,
+        },
+      })
+
+      if (existingUser.email !== input.email) {
+        await tx.account.updateMany({
+          where: {
+            userId: input.id,
+            providerId: 'credential',
+          },
+          data: {
+            accountId: input.email,
+          },
+        })
+      }
+    })
+
+    return { success: true }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'An unexpected error occurred'
+    console.error('Error updating user:', message)
+    return { success: false, error: message }
   }
 }

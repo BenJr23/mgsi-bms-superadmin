@@ -3,6 +3,7 @@ import { Card } from './ui/Card'
 import { Badge } from './ui/Badge'
 import { Button } from './ui/Button'
 import { AddUserModal } from './Modals/AddUserModal'
+import { EditUserModal, type EditableUser } from './Modals/EditUserModal'
 import { Search, UserPlus, Shield } from 'lucide-react'
 import { getUsers } from '@/app/_actions/users'
 
@@ -11,13 +12,19 @@ interface UserRow {
   name: string
   email: string
   role: 'CLIENT' | 'ADMIN' | 'SUPERADMIN'
+  companyName: string | null
+  phoneNumber: string | null
+  contractEndDate: string | null
+  image: string | null
   createdAt: string
   deletedAt: string | null
 }
 
 export function UsersView() {
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [users, setUsers] = useState<UserRow[]>([])
+  const [selectedUser, setSelectedUser] = useState<EditableUser | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -42,6 +49,16 @@ export function UsersView() {
 
   const closeModal = () => {
     setIsModalOpen(false)
+  }
+
+  const openEditModal = (user: UserRow) => {
+    setSelectedUser(user)
+    setIsEditModalOpen(true)
+  }
+
+  const closeEditModal = () => {
+    setIsEditModalOpen(false)
+    setSelectedUser(null)
   }
 
   const handleAddUserSuccess = () => {
@@ -141,7 +158,10 @@ export function UsersView() {
                   </td>
                   <td className="px-6 py-4 text-slate-600">{formatJoinedDate(user.createdAt)}</td>
                   <td className="px-6 py-4 text-right">
-                    <button className="text-indigo-600 hover:text-indigo-800 font-medium text-xs">
+                    <button
+                      onClick={() => openEditModal(user)}
+                      className="text-indigo-600 hover:text-indigo-800 font-medium text-xs"
+                    >
                       Edit
                     </button>
                   </td>
@@ -205,7 +225,10 @@ export function UsersView() {
                   <span className="text-slate-900">{formatJoinedDate(user.createdAt)}</span>
                 </div>
               </div>
-              <button className="w-full px-4 py-2 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition-colors text-sm font-medium">
+              <button
+                onClick={() => openEditModal(user)}
+                className="w-full px-4 py-2 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition-colors text-sm font-medium"
+              >
                 Edit User
               </button>
             </div>
@@ -220,6 +243,12 @@ export function UsersView() {
       </Card>
 
       <AddUserModal isOpen={isModalOpen} onClose={closeModal} onSuccess={handleAddUserSuccess} />
+      <EditUserModal
+        isOpen={isEditModalOpen}
+        onClose={closeEditModal}
+        onSuccess={handleAddUserSuccess}
+        user={selectedUser}
+      />
     </div>
   )
 }
