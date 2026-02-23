@@ -21,27 +21,57 @@ interface UserRow {
 }
 
 export function UsersView() {
+  const ITEMS_PER_PAGE = 10
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [users, setUsers] = useState<UserRow[]>([])
   const [selectedUser, setSelectedUser] = useState<EditableUser | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalItems, setTotalItems] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [error, setError] = useState<string | null>(null)
 
-  const loadUsers = async (query: string = '') => {
+  const loadUsers = async () => {
     setIsLoading(true)
-    const result = await getUsers(query)
-    if (result.success) {
-      setUsers(result.users)
-    } else {
+    setError(null)
+    try {
+      const result = await getUsers({
+        page: currentPage,
+        pageSize: ITEMS_PER_PAGE,
+        searchQuery,
+      })
+
+      if (result.success && result.data) {
+        setUsers(result.data.users)
+        setTotalItems(result.data.pagination.totalItems)
+        setTotalPages(result.data.pagination.totalPages)
+      } else {
+        setError(result.error || 'Failed to load users')
+        setUsers([])
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
       setUsers([])
+    } finally {
+      setIsLoading(false)
     }
-    setIsLoading(false)
   }
 
   useEffect(() => {
     loadUsers()
-  }, [])
+  }, [currentPage, searchQuery])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
 
   const openModal = () => {
     setIsModalOpen(true)
@@ -62,8 +92,11 @@ export function UsersView() {
   }
 
   const handleAddUserSuccess = () => {
-    loadUsers(searchQuery)
+    loadUsers()
   }
+
+  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1
+  const endItem = Math.min(currentPage * ITEMS_PER_PAGE, totalItems)
 
   const formatJoinedDate = (value: string) => {
     const date = new Date(value)
@@ -88,6 +121,12 @@ export function UsersView() {
         </Button>
       </div>
 
+      {error && (
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-md">
+          <p className="text-sm text-rose-700">{error}</p>
+        </div>
+      )}
+
       <Card noPadding>
         <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-4 justify-between items-center">
           <div className="relative w-full sm:w-64">
@@ -97,9 +136,7 @@ export function UsersView() {
               placeholder="Search users..."
               value={searchQuery}
               onChange={(event) => {
-                const value = event.target.value
-                setSearchQuery(value)
-                loadUsers(value)
+                setSearchQuery(event.target.value)
               }}
               className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
 
@@ -234,12 +271,43 @@ export function UsersView() {
             </div>
           ))}
           {users.length === 0 && !isLoading && (
-            <div className="p-4 text-sm text-slate-500">No users found.</div>
+            <div className="p-8 text-center text-slate-500">No users found.</div>
           )}
           {isLoading && (
-            <div className="p-4 text-sm text-slate-500">Loading users...</div>
+            <div className="p-8 text-center text-slate-500">Loading users...</div>
           )}
         </div>
+
+        {totalItems > 0 && (
+          <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3">
+            <span className="text-xs text-slate-500">
+              Showing {startItem}-{endItem} of {totalItems}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <span className="text-xs text-slate-500">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                }
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       <AddUserModal isOpen={isModalOpen} onClose={closeModal} onSuccess={handleAddUserSuccess} />

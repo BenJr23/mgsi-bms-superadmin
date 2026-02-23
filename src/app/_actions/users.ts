@@ -22,21 +22,35 @@ interface CreateUserResult {
   userId?: string
 }
 
+interface GetUsersInput {
+  page?: number
+  pageSize?: number
+  searchQuery?: string
+}
+
 interface ListUsersResult {
   success: boolean
   error?: string
-  users: {
-    id: string
-    name: string
-    email: string
-    role: 'CLIENT' | 'ADMIN' | 'SUPERADMIN'
-    companyName: string | null
-    phoneNumber: string | null
-    contractEndDate: string | null
-    image: string | null
-    createdAt: string
-    deletedAt: string | null
-  }[]
+  data?: {
+    users: {
+      id: string
+      name: string
+      email: string
+      role: 'CLIENT' | 'ADMIN' | 'SUPERADMIN'
+      companyName: string | null
+      phoneNumber: string | null
+      contractEndDate: string | null
+      image: string | null
+      createdAt: string
+      deletedAt: string | null
+    }[]
+    pagination: {
+      page: number
+      pageSize: number
+      totalItems: number
+      totalPages: number
+    }
+  }
 }
 
 interface UpdateUserInput {
@@ -333,60 +347,83 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserResu
   }
 }
 
-export async function getUsers(searchQuery: string = ''): Promise<ListUsersResult> {
+export async function getUsers(input: GetUsersInput = {}): Promise<ListUsersResult> {
   try {
     const session = await auth.api.getSession({
       headers: await headers(),
     })
 
     if (!session?.user || !session.user.id) {
-      return { success: false, error: 'Unauthorized: No session', users: [] }
+      return { success: false, error: 'Unauthorized: No session' }
     }
 
-    const trimmed = searchQuery.trim()
-    const users = await prisma.user.findMany({
-      where: trimmed
-        ? {
-            OR: [
-              { name: { contains: trimmed, mode: 'insensitive' } },
-              { email: { contains: trimmed, mode: 'insensitive' } },
-            ],
-          }
-        : undefined,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        companyName: true,
-        phoneNumber: true,
-        contractEndDate: true,
-        image: true,
-        createdAt: true,
-        deletedAt: true,
-      },
-    })
+    const page = Math.max(1, input.page ?? 1)
+    const pageSize = Math.max(1, Math.min(100, input.pageSize ?? 10))
+    const skip = (page - 1) * pageSize
+    const searchQuery = input.searchQuery?.trim()
+
+    const whereClause = searchQuery
+      ? {
+          OR: [
+            { name: { contains: searchQuery, mode: 'insensitive' as const } },
+            { email: { contains: searchQuery, mode: 'insensitive' as const } },
+          ],
+        }
+      : {}
+
+    const [totalItems, users] = await Promise.all([
+      prisma.user.count({
+        where: whereClause,
+      }),
+      prisma.user.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          companyName: true,
+          phoneNumber: true,
+          contractEndDate: true,
+          image: true,
+          createdAt: true,
+          deletedAt: true,
+        },
+        skip,
+        take: pageSize,
+      }),
+    ])
+
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
 
     return {
       success: true,
-      users: users.map((user) => ({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        companyName: user.companyName,
-        phoneNumber: user.phoneNumber,
-        contractEndDate: user.contractEndDate ? user.contractEndDate.toISOString() : null,
-        image: user.image,
-        createdAt: user.createdAt.toISOString(),
-        deletedAt: user.deletedAt ? user.deletedAt.toISOString() : null,
-      })),
+      data: {
+        users: users.map((user) => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          companyName: user.companyName,
+          phoneNumber: user.phoneNumber,
+          contractEndDate: user.contractEndDate ? user.contractEndDate.toISOString() : null,
+          image: user.image,
+          createdAt: user.createdAt.toISOString(),
+          deletedAt: user.deletedAt ? user.deletedAt.toISOString() : null,
+        })),
+        pagination: {
+          page,
+          pageSize,
+          totalItems,
+          totalPages,
+        },
+      },
     }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'An unexpected error occurred'
     console.error('Error fetching users:', message)
-    return { success: false, error: message, users: [] }
+    return { success: false, error: message }
   }
 }
 

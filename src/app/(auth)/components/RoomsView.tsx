@@ -43,7 +43,7 @@ interface Building {
 }
 
 export function RoomsView() {
-  const ITEMS_PER_PAGE = 6
+  const ITEMS_PER_PAGE = 10
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
