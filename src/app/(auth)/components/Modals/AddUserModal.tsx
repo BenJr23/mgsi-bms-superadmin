@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Button } from '../ui/Button'
 import { createUser } from '@/app/_actions/users'
+import { ReactivateUserModal } from './ReactivateUserModal'
 import {
   X,
   User,
@@ -165,6 +166,9 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string>('')
   const [submitSuccess, setSubmitSuccess] = useState<string>('')
+  const [isReactivateModalOpen, setIsReactivateModalOpen] = useState(false)
+  const [reactivateUserId, setReactivateUserId] = useState<string | undefined>()
+  const [reactivateUserEmail, setReactivateUserEmail] = useState<string | undefined>()
 
   const formatPhilippinePhone = (value: string): string => {
     // Extract only digits
@@ -247,6 +251,10 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
           handleClose()
           onSuccess?.()
         }, 1500)
+      } else if (result.requiresReactivation && result.reactivationUserId) {
+        setReactivateUserId(result.reactivationUserId)
+        setReactivateUserEmail(form.email)
+        setIsReactivateModalOpen(true)
       } else {
         setSubmitError(result.error || 'Failed to create user.')
       }
@@ -262,7 +270,22 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
     setErrors({})
     setSubmitError('')
     setSubmitSuccess('')
+    setIsReactivateModalOpen(false)
+    setReactivateUserId(undefined)
+    setReactivateUserEmail(undefined)
     onClose()
+  }
+
+  const handleCloseReactivateModal = () => {
+    setIsReactivateModalOpen(false)
+    setReactivateUserId(undefined)
+    setReactivateUserEmail(undefined)
+  }
+
+  const handleReactivationSuccess = () => {
+    handleCloseReactivateModal()
+    handleClose()
+    onSuccess?.()
   }
   const inputClass = (err?: string) =>
     `w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors ${err ? 'border-rose-400 bg-rose-50' : 'border-slate-300 bg-white'}`
@@ -273,14 +296,15 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
       </p>
     ) : null
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      title="Add New User"
-      description="Create a new user account and assign their role."
-      size="lg"
-    >
-      <form onSubmit={handleSubmit} className="space-y-6">
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={handleClose}
+        title="Add New User"
+        description="Create a new user account and assign their role."
+        size="lg"
+      >
+        <form onSubmit={handleSubmit} className="space-y-6">
         {submitError && (
           <div className="p-3 bg-rose-50 border border-rose-200 rounded-md flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-rose-600 mt-0.5 flex-shrink-0" />
@@ -498,7 +522,16 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
             {isSubmitting ? 'Creating...' : 'Create User'}
           </Button>
         </div>
-      </form>
-    </Modal>
+        </form>
+      </Modal>
+
+      <ReactivateUserModal
+        isOpen={isReactivateModalOpen}
+        onClose={handleCloseReactivateModal}
+        onSuccess={handleReactivationSuccess}
+        userId={reactivateUserId}
+        userEmail={reactivateUserEmail}
+      />
+    </>
   )
 }
