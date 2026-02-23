@@ -40,6 +40,7 @@ export function UsersView() {
   const [totalItems, setTotalItems] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
   const [error, setError] = useState<string | null>(null)
+  const [imageErrorIds, setImageErrorIds] = useState<Set<string>>(new Set())
 
   const loadUsers = async () => {
     setIsLoading(true)
@@ -140,6 +141,24 @@ export function UsersView() {
     })
   }
 
+  const getInitials = (name: string) =>
+    name
+      .split(' ')
+      .filter(Boolean)
+      .map((part) => part[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase()
+
+  const handleImageError = (userId: string) => {
+    setImageErrorIds((prev) => {
+      if (prev.has(userId)) return prev
+      const next = new Set(prev)
+      next.add(userId)
+      return next
+    })
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -194,12 +213,20 @@ export function UsersView() {
 
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-medium text-xs">
-                        {user.name
-                          .split(' ')
-                          .map((n) => n[0])
-                          .join('')}
-                      </div>
+                      {user.image && !imageErrorIds.has(user.id)
+                        ? (
+                          <img
+                            src={user.image}
+                            alt={`${user.name} profile picture`}
+                            className="w-8 h-8 rounded-full object-cover"
+                            onError={() => handleImageError(user.id)}
+                          />
+                        )
+                        : (
+                          <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-medium text-xs">
+                            {getInitials(user.name)}
+                          </div>
+                        )}
                       <div>
                         <div className="font-medium text-slate-900">
                           {user.name}
@@ -275,9 +302,20 @@ export function UsersView() {
           {users.map((user) => (
             <div key={user.id} className="p-4 hover:bg-slate-50 transition-colors">
               <div className="flex items-start gap-3 mb-3">
-                <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-medium text-sm flex-shrink-0">
-                  {user.name.split(' ').map((n) => n[0]).join('')}
-                </div>
+                {user.image && !imageErrorIds.has(user.id)
+                  ? (
+                    <img
+                      src={user.image}
+                      alt={`${user.name} profile picture`}
+                      className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                      onError={() => handleImageError(user.id)}
+                    />
+                  )
+                  : (
+                    <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-medium text-sm flex-shrink-0">
+                      {getInitials(user.name)}
+                    </div>
+                  )}
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-slate-900 truncate">{user.name}</div>
                   <div className="text-sm text-slate-500 truncate">{user.email}</div>
