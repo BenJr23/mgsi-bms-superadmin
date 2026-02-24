@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
-import AuthGuard from "./AuthGuard";
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
@@ -24,7 +23,7 @@ export default function RootLayout({
         {/* Layout UI */}
         {/* Place children where you want to render a page or nested layout */}
         <main>
-          <AuthGuard>{children}</AuthGuard>
+          {children}
         </main>
       </body>
     </html>
