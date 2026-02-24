@@ -6,7 +6,7 @@ export async function GET() {
     try {
         const { session, errorResponse } = await requireApiSession({ requirePasswordVerified: false });
         if (!session) {
-            return errorResponse;
+            return errorResponse ?? NextResponse.json({ error: "Not authenticated" }, { status: 401 });
         }
 
         const user = await prisma.user.findUnique({

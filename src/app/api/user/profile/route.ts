@@ -7,7 +7,7 @@ export async function PATCH(req: NextRequest) {
 		const { session, errorResponse } = await requireApiSession();
 
 		if (!session?.user?.id) {
-			return errorResponse;
+			return errorResponse ?? NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 		}
 
 		const body = await req.json();

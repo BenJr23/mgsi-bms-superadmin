@@ -7,7 +7,7 @@ export async function POST() {
         const { session, errorResponse } = await requireApiSession({ requirePasswordVerified: false });
 
         if (!session?.user?.id) {
-            return errorResponse;
+            return errorResponse ?? NextResponse.json({ error: "Not authenticated" }, { status: 401 });
         }
 
         await prisma.user.update({

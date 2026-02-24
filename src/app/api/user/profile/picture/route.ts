@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
 	try {
 		const { session, errorResponse } = await requireApiSession();
 		if (!session?.user?.id) {
-			return errorResponse;
+			return errorResponse ?? NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 		}
 
 		const formData = await req.formData();
