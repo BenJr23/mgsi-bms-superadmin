@@ -17,6 +17,7 @@ const isPublicPath = (pathname: string) =>
 export default async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
     const isApiPath = pathname.startsWith("/api");
+    const isAuthPage = authPages.includes(pathname);
 
     if (isStaticAsset(pathname) || pathname.startsWith("/_next")) {
         return NextResponse.next();
@@ -29,18 +30,19 @@ export default async function middleware(request: NextRequest) {
 
     const session = await getSession(request);
 
-    if (isPublicPath(pathname)) {
-        if (session?.user && authPages.includes(pathname)) {
-            const passwordVerified = (session.user as { passwordVerified?: boolean }).passwordVerified;
+    if (session?.user && isAuthPage) {
+        const passwordVerified = (session.user as { passwordVerified?: boolean }).passwordVerified;
 
-            if (hasAllowedRole(session.user.role) && passwordVerified === false) {
-                return NextResponse.redirect(new URL("/reset-password", request.url));
-            }
-
-            if (hasAllowedRole(session.user.role)) {
-                return NextResponse.redirect(new URL("/dashboard", request.url));
-            }
+        if (hasAllowedRole(session.user.role) && passwordVerified === false) {
+            return NextResponse.redirect(new URL("/reset-password", request.url));
         }
+
+        if (hasAllowedRole(session.user.role)) {
+            return NextResponse.redirect(new URL("/dashboard", request.url));
+        }
+    }
+
+    if (isPublicPath(pathname)) {
         return NextResponse.next();
     }
 

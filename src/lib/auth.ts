@@ -19,6 +19,14 @@ export const auth = betterAuth({
         enabled: true,
         requireEmailVerification: false,
     },
+    session: {
+        expiresIn: 60 * 60 * 24 * 7,
+        updateAge: 60 * 60 * 24,
+        cookieCache: {
+            enabled: true,
+            maxAge: 5 * 60,
+        },
+    },
     // Ensure baseURL matches your environment
     baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
     secret: process.env.BETTER_AUTH_SECRET,
