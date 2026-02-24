@@ -282,13 +282,6 @@ export default function DashboardPage() {
                       <User className="w-4 h-4" />
                       Profile
                     </button>
-                    <button
-                      onClick={showSettings}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                    >
-                      <SettingsIcon className="w-4 h-4" />
-                      Settings
-                    </button>
                     <div className="my-1 border-t border-slate-200" />
                     <button
                       onClick={handleLogout}
