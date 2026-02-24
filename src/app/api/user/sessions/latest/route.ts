@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/lib/get-server";
+import { requireApiSession } from "@/lib/api-auth";
 import prisma from "@/lib/prisma";
 
 export async function GET() {
     try {
-        const session = await getServerSession();
+        const { session, errorResponse } = await requireApiSession();
         if (!session || !session.user) {
-            return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+            return errorResponse;
         }
 
         const latestSession = await prisma.session.findFirst({

@@ -1,13 +1,13 @@
-import { getServerSession } from '@/lib/get-server';
+import { requireApiSession } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 export async function POST(req: NextRequest) {
 	try {
-		const session = await getServerSession();
+		const { session, errorResponse } = await requireApiSession();
 		if (!session?.user?.id) {
-			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+			return errorResponse;
 		}
 
 		const formData = await req.formData();

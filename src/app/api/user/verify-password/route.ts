@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/lib/get-server";
+import { requireApiSession } from "@/lib/api-auth";
 import prisma from "@/lib/prisma";
 
 export async function POST() {
     try {
-        const session = await getServerSession();
+        const { session, errorResponse } = await requireApiSession({ requirePasswordVerified: false });
 
         if (!session?.user?.id) {
-            return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+            return errorResponse;
         }
 
         await prisma.user.update({

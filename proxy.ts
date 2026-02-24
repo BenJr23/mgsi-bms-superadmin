@@ -1,9 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { authEdge } from "@/lib/auth-edge";
 
-const authPages = ["/sign-in", "/sign-up"];
-const publicPrefixes = ["/home", "/api/auth", "/sign-in", "/sign-up"];
+const authPages = ["/sign-in"];
+const publicPrefixes = ["/api/auth", "/sign-in"];
 const ALLOWED_ROLES = ["ADMIN", "SUPERADMIN"] as const;
+const changePasswordPath = "/reset-password";
 
 const hasAllowedRole = (role?: string | null) =>
     !!role && ALLOWED_ROLES.includes(role as (typeof ALLOWED_ROLES)[number]);
@@ -11,16 +12,17 @@ const hasAllowedRole = (role?: string | null) =>
 const isStaticAsset = (pathname: string) => /\.[^/]+$/.test(pathname);
 
 const isPublicPath = (pathname: string) =>
-    pathname === "/" ||
     publicPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
 export default async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
-    const isApiPath = pathname.startsWith("/api");
-    const isAuthPage = authPages.includes(pathname);
 
     if (isStaticAsset(pathname) || pathname.startsWith("/_next")) {
         return NextResponse.next();
+    }
+
+    if (pathname === "/") {
+        return NextResponse.redirect(new URL("/sign-in", request.url));
     }
 
     // IMPORTANT: Allow auth internal APIs to pass through immediately
@@ -30,23 +32,20 @@ export default async function middleware(request: NextRequest) {
 
     const session = await getSession(request);
 
-    if (session?.user && isAuthPage) {
-        const passwordVerified = (session.user as { passwordVerified?: boolean }).passwordVerified;
-
-        if (hasAllowedRole(session.user.role) && passwordVerified === false) {
-            return NextResponse.redirect(new URL("/reset-password", request.url));
-        }
-
-        if (hasAllowedRole(session.user.role)) {
-            return NextResponse.redirect(new URL("/dashboard", request.url));
-        }
-    }
-
     if (isPublicPath(pathname)) {
+        if (session?.user && authPages.includes(pathname)) {
+            if (hasAllowedRole(session.user.role)) {
+                return NextResponse.redirect(new URL("/dashboard", request.url));
+            }
+
+            const signOutUrl = new URL("/api/auth/sign-out", request.url);
+            signOutUrl.searchParams.set("next", pathname);
+            return NextResponse.redirect(signOutUrl);
+        }
+
         return NextResponse.next();
     }
 
-    // Protected route logic
     if (!session || !session.user) {
         const signInUrl = new URL("/sign-in", request.url);
         signInUrl.searchParams.set("next", pathname);
@@ -54,20 +53,24 @@ export default async function middleware(request: NextRequest) {
     }
 
     if (!hasAllowedRole(session.user.role)) {
-        const signInUrl = new URL("/sign-in", request.url);
-        signInUrl.searchParams.set("error", "unauthorized");
-        return NextResponse.redirect(signInUrl);
+        const signOutUrl = new URL("/api/auth/sign-out", request.url);
+        signOutUrl.searchParams.set("next", pathname);
+        return NextResponse.redirect(signOutUrl);
     }
 
-    const passwordVerified = (session.user as { passwordVerified?: boolean }).passwordVerified;
-    const isResetPasswordPage = pathname === "/reset-password";
-    const isVerifyPasswordApi = pathname === "/api/user/verify-password";
+    const passwordVerified = Boolean((session.user as { passwordVerified?: boolean }).passwordVerified);
 
-    if (!isApiPath && passwordVerified === false && !isResetPasswordPage && !isVerifyPasswordApi) {
-        return NextResponse.redirect(new URL("/reset-password", request.url));
+    if (pathname === changePasswordPath) {
+        if (passwordVerified) {
+            return NextResponse.redirect(new URL("/dashboard", request.url));
+        }
+        return NextResponse.next();
     }
 
-    // CRITICAL: Ensure we return the response with the session context
+    if (!passwordVerified) {
+        return NextResponse.redirect(new URL(changePasswordPath, request.url));
+    }
+
     return NextResponse.next();
 }
 
@@ -78,7 +81,6 @@ async function getSession(request: NextRequest) {
         });
         return session;
     } catch (error) {
-        console.error("Middleware Session Error:", error);
         return null;
     }
 }
