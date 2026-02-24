@@ -11,6 +11,8 @@ export type BookingListItem = {
     bookingReference: string
     startDate: string
     endDate: string
+    dailyTimeStart?: string | null
+    dailyTimeEnd?: string | null
     bookingType: string
     approvalStatus: ApprovalStatus
     building: { name: string }
@@ -115,6 +117,8 @@ export async function getBookings(): Promise<GetBookingsResult> {
             bookingReference: booking.bookingReference,
             startDate: booking.startDate.toISOString(),
             endDate: booking.endDate.toISOString(),
+            dailyTimeStart: booking.dailyTimeStart ? booking.dailyTimeStart.toISOString() : null,
+            dailyTimeEnd: booking.dailyTimeEnd ? booking.dailyTimeEnd.toISOString() : null,
             bookingType: booking.bookingType,
             approvalStatus: booking.approvalStatus,
             building: { name: booking.building.buildingName },

@@ -12,6 +12,8 @@ import {
 } from '@/app/_actions/bookings';
 
 export function BookingsView() {
+  const DISPLAY_TIMEZONE = 'Asia/Manila'; // UTC+8
+
   const [bookings, setBookings] = useState<BookingListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,11 +96,94 @@ export function BookingsView() {
     }
   };
 
-  const formatDate = (dateString: string) => 
-    new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const formatDate = (dateString: string) => {
+    const dt = new Date(dateString);
+    if (Number.isNaN(dt.getTime())) return dateString;
+    return dt.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: DISPLAY_TIMEZONE,
+    });
+  };
 
-  const formatTime = (dateString: string) => 
-    new Date(dateString).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const formatTime = (dateString: string) => {
+    const dt = new Date(dateString);
+    if (Number.isNaN(dt.getTime())) return '--:--';
+    return dt.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: DISPLAY_TIMEZONE,
+    });
+  };
+
+  const formatWallClockTime = (dateString: string) => {
+    const dt = new Date(dateString);
+    if (Number.isNaN(dt.getTime())) return '--:--';
+
+    const utcHours = dt.getUTCHours();
+    const utcMinutes = dt.getUTCMinutes();
+    const period = utcHours >= 12 ? 'PM' : 'AM';
+    const hour12 = utcHours % 12 === 0 ? 12 : utcHours % 12;
+    const minute = String(utcMinutes).padStart(2, '0');
+
+    return `${String(hour12).padStart(2, '0')}:${minute} ${period}`;
+  };
+
+  const formatDateRange = (startDateString: string, endDateString: string) => {
+    const start = new Date(startDateString);
+    const end = new Date(endDateString);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return formatDate(startDateString);
+    }
+
+    const startText = start.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: DISPLAY_TIMEZONE,
+    });
+
+    const endText = end.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: DISPLAY_TIMEZONE,
+    });
+
+    if (startText === endText) return startText;
+
+    const startYear = start.toLocaleDateString('en-US', { year: 'numeric', timeZone: DISPLAY_TIMEZONE });
+    const endYear = end.toLocaleDateString('en-US', { year: 'numeric', timeZone: DISPLAY_TIMEZONE });
+    const startMonth = start.toLocaleDateString('en-US', { month: 'short', timeZone: DISPLAY_TIMEZONE });
+    const endMonth = end.toLocaleDateString('en-US', { month: 'short', timeZone: DISPLAY_TIMEZONE });
+
+    if (startYear === endYear && startMonth === endMonth) {
+      const startDay = start.toLocaleDateString('en-US', { day: 'numeric', timeZone: DISPLAY_TIMEZONE });
+      const endDay = end.toLocaleDateString('en-US', { day: 'numeric', timeZone: DISPLAY_TIMEZONE });
+      return `${startMonth} ${startDay} - ${endDay}, ${startYear}`;
+    }
+
+    if (startYear === endYear) {
+      const startDay = start.toLocaleDateString('en-US', { day: 'numeric', timeZone: DISPLAY_TIMEZONE });
+      return `${startMonth} ${startDay} - ${endText}`;
+    }
+
+    return `${startText} - ${endText}`;
+  };
+
+  const getDisplayStartTime = (booking: BookingListItem) =>
+    booking.dailyTimeStart || booking.startDate;
+
+  const getDisplayEndTime = (booking: BookingListItem) =>
+    booking.dailyTimeEnd || booking.endDate;
+
+  const formatBookingTime = (booking: BookingListItem, value: string, type: 'start' | 'end') => {
+    const hasDailyTime = type === 'start' ? Boolean(booking.dailyTimeStart) : Boolean(booking.dailyTimeEnd);
+    return hasDailyTime ? formatWallClockTime(value) : formatTime(value);
+  };
 
   const escapeCSV = (val: string) => {
     if (val == null) return ''
@@ -127,9 +212,9 @@ export function BookingsView() {
       escapeCSV(b.building.name),
       escapeCSV(b.room.name),
       escapeCSV(formatDate(b.startDate)),
-      escapeCSV(formatTime(b.startDate)),
+      escapeCSV(formatBookingTime(b, getDisplayStartTime(b), 'start')),
       escapeCSV(formatDate(b.endDate)),
-      escapeCSV(formatTime(b.endDate)),
+      escapeCSV(formatBookingTime(b, getDisplayEndTime(b), 'end')),
       escapeCSV(b.approvalStatus),
     ])
 
@@ -152,8 +237,8 @@ export function BookingsView() {
         <td style="padding:8px;border:1px solid #e6edf3">${b.submittedBy.name || b.submittedBy.email}</td>
         <td style="padding:8px;border:1px solid #e6edf3">${b.building.name}</td>
         <td style="padding:8px;border:1px solid #e6edf3">${b.room.name}</td>
-        <td style="padding:8px;border:1px solid #e6edf3">${formatDate(b.startDate)} ${formatTime(b.startDate)}</td>
-        <td style="padding:8px;border:1px solid #e6edf3">${formatDate(b.endDate)} ${formatTime(b.endDate)}</td>
+        <td style="padding:8px;border:1px solid #e6edf3">${formatDate(b.startDate)} ${formatBookingTime(b, getDisplayStartTime(b), 'start')}</td>
+        <td style="padding:8px;border:1px solid #e6edf3">${formatDate(b.endDate)} ${formatBookingTime(b, getDisplayEndTime(b), 'end')}</td>
         <td style="padding:8px;border:1px solid #e6edf3">${b.approvalStatus}</td>
       </tr>
     `).join('\n')
@@ -294,7 +379,7 @@ export function BookingsView() {
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
               <tr>
-                <th className="px-6 py-3">Reference</th>
+                <th className="px-6 py-3 w-[150px]">Reference</th>
                 <th className="px-6 py-3">Client</th>
                 <th className="px-6 py-3">Location</th>
                 <th className="px-6 py-3">Date & Time</th>
@@ -305,15 +390,21 @@ export function BookingsView() {
             <tbody className="divide-y divide-slate-100">
               {filteredBookings.map((booking) => (
                 <tr key={booking.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-slate-900">{booking.bookingReference}</td>
+                  <td className="px-6 py-4 font-medium text-slate-900 max-w-[150px]">
+                    <span className="block truncate" title={booking.bookingReference}>
+                      {booking.bookingReference}
+                    </span>
+                  </td>
                   <td className="px-6 py-4 text-slate-600">{booking.submittedBy.name || booking.submittedBy.email}</td>
                   <td className="px-6 py-4">
                     <div className="text-slate-900 font-medium">{booking.room.name}</div>
                     <div className="text-xs text-slate-500">{booking.building.name}</div>
                   </td>
-                  <td className="px-6 py-4 text-slate-600">
-                    <div>{formatDate(booking.startDate)}</div>
-                    <div className="text-xs text-slate-400">{formatTime(booking.startDate)} - {formatTime(booking.endDate)}</div>
+                  <td className="px-6 py-4 text-slate-600 min-w-[240px]">
+                    <div>{formatDateRange(booking.startDate, booking.endDate)}</div>
+                    <div className="text-xs text-slate-400">
+                      {formatBookingTime(booking, getDisplayStartTime(booking), 'start')} - {formatBookingTime(booking, getDisplayEndTime(booking), 'end')}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <Badge variant={booking.approvalStatus === 'APPROVED' ? 'success' : booking.approvalStatus === 'PENDING' ? 'warning' : 'danger'}>
