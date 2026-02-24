@@ -5,38 +5,33 @@ import { Button } from './ui/Button';
 import { Search, Filter, MoreHorizontal, Check, X, Loader2 } from 'lucide-react';
 import { ApproveBookingModal } from './Modals/ApproveBookingModal';
 import { RejectBookingModal } from './Modals/RejectBookingModal';
-import { useSession } from '@/lib/auth-client';
-
-type BookingWithRelations = {
-  id: string;
-  bookingReference: string;
-  startDate: string;
-  endDate: string;
-  bookingType: string;
-  approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
-  building: { name: string };
-  room: { name: string };
-  submittedBy: { name: string | null; email: string };
-  updatedBy?: { id: string; name?: string | null } | null;
-};
+import {
+  getBookings,
+  type BookingListItem,
+  updateBookingApprovalStatus,
+} from '@/app/_actions/bookings';
 
 export function BookingsView() {
-  const [bookings, setBookings] = useState<BookingWithRelations[]>([]);
+  const [bookings, setBookings] = useState<BookingListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeBooking, setActiveBooking] = useState<BookingWithRelations | null>(null);
+  const [activeBooking, setActiveBooking] = useState<BookingListItem | null>(null);
   const [modalType, setModalType] = useState<'NONE' | 'APPROVE' | 'REJECT'>('NONE');
 
-  const { data: session } = useSession();
+  const closeModal = () => {
+    setModalType('NONE');
+    setActiveBooking(null);
+  };
 
   useEffect(() => {
     const fetchBookings = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/bookings'); 
-        if (!response.ok) throw new Error('Failed to fetch bookings');
-        const data = await response.json();
-        setBookings(data);
+        const result = await getBookings();
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to fetch bookings');
+        }
+        setBookings(result.data || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -47,29 +42,27 @@ export function BookingsView() {
   }, []);
 
   const handleAction = async (status: 'APPROVED' | 'REJECTED') => {
-    if (!activeBooking) return;
+    if (!activeBooking) {
+      return { success: false, error: 'No active booking selected.' };
+    }
     
     try {
-      const response = await fetch(`/api/${activeBooking.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ approvalStatus: status }),
-      });
+      const result = await updateBookingApprovalStatus(activeBooking.id, status);
 
-      if (response.ok) {
-        // Optimistically update the local state
+      if (result.success) {
         setBookings(prev => prev.map(b => 
           b.id === activeBooking.id ? { ...b, approvalStatus: status } : b
         ));
-        setModalType('NONE');
-        setActiveBooking(null);
-      } else {
-        const data = await response.json();
-        alert(data.error || "Failed to update booking");
+        setError(null);
       }
+
+      return {
+        success: result.success,
+        error: result.error,
+      };
     } catch (err) {
       console.error("Action failed", err);
-      alert("A network error occurred.");
+      return { success: false, error: 'A network error occurred.' };
     }
   };
 
@@ -88,6 +81,12 @@ export function BookingsView() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {error}
+        </div>
+      )}
+
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Bookings</h1>
@@ -159,14 +158,14 @@ export function BookingsView() {
         <>
           <ApproveBookingModal
             isOpen={modalType === 'APPROVE'}
-            onClose={() => setModalType('NONE')}
+            onClose={closeModal}
             bookingRef={activeBooking.bookingReference}
             clientName={activeBooking.submittedBy.name || activeBooking.submittedBy.email}
             onConfirm={() => handleAction('APPROVED')}
           />
           <RejectBookingModal
             isOpen={modalType === 'REJECT'}
-            onClose={() => setModalType('NONE')}
+            onClose={closeModal}
             bookingRef={activeBooking.bookingReference}
             clientName={activeBooking.submittedBy.name || activeBooking.submittedBy.email}
             onConfirm={() => handleAction('REJECTED')}

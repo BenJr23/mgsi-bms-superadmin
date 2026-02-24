@@ -1,13 +1,12 @@
-import React from 'react';
-import { Button } from '../ui/Button';
-import { X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { AlertCircle, CheckCircle2, X } from 'lucide-react';
 
 interface RejectBookingModalProps {
   isOpen: boolean;
   onClose: () => void;
   bookingRef: string;
   clientName: string;
-  onConfirm: () => void;
+  onConfirm: () => Promise<{ success: boolean; error?: string }>;
 }
 
 export function RejectBookingModal({ 
@@ -17,6 +16,41 @@ export function RejectBookingModal({
   clientName, 
   onConfirm, 
 }: RejectBookingModalProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsSubmitting(false);
+      setError('');
+      setSuccess('');
+    }
+  }, [isOpen]);
+
+  const handleConfirm = async () => {
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      const result = await onConfirm();
+
+      if (result.success) {
+        setSuccess('Booking rejected successfully.');
+        setTimeout(() => {
+          onClose();
+        }, 400);
+      } else {
+        setError(result.error || 'Failed to reject booking.');
+        setIsSubmitting(false);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      setError(message);
+      setIsSubmitting(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -44,22 +78,38 @@ export function RejectBookingModal({
               </p>
             </div>
           </div>
+
+          {success && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-md flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-emerald-700">{success}</p>
+            </div>
+          )}
+
+          {error && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-md flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-rose-700">{error}</p>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-3 p-4 border-t border-slate-50">
           <button 
             type="button"
             onClick={onClose}
+            disabled={isSubmitting}
             className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
           >
             Cancel
           </button>
           <button 
             type="button"
-            onClick={() => onConfirm()} 
+            onClick={handleConfirm}
+            disabled={isSubmitting}
             className="px-4 py-2 text-sm font-medium bg-[#101828] text-white hover:bg-slate-800 rounded-lg transition-colors"
           >
-            Reject Booking
+            {isSubmitting ? 'Rejecting...' : 'Reject Booking'}
           </button>
         </div>
       </div>
