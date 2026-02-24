@@ -13,10 +13,14 @@ import {
 
 export function BookingsView() {
   const DISPLAY_TIMEZONE = 'Asia/Manila'; // UTC+8
+  const PAGE_SIZE = 10;
 
   const [bookings, setBookings] = useState<BookingListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [activeBooking, setActiveBooking] = useState<BookingListItem | null>(null);
   const [modalType, setModalType] = useState<'NONE' | 'APPROVE' | 'REJECT'>('NONE');
   const [query, setQuery] = useState('');
@@ -34,11 +38,13 @@ export function BookingsView() {
     const fetchBookings = async () => {
       try {
         setLoading(true);
-        const result = await getBookings();
+        const result = await getBookings({ page: currentPage, pageSize: PAGE_SIZE });
         if (!result.success) {
           throw new Error(result.error || 'Failed to fetch bookings');
         }
         setBookings(result.data || []);
+        setTotalPages(result.totalPages || 1);
+        setTotalCount(result.totalCount || 0);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -46,7 +52,7 @@ export function BookingsView() {
       }
     };
     fetchBookings();
-  }, []);
+  }, [currentPage]);
 
   // debounce query input
   useEffect(() => {
@@ -425,6 +431,30 @@ export function BookingsView() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        <div className="px-4 py-3 border-t border-slate-200 bg-white flex items-center justify-between">
+          <p className="text-sm text-slate-500">
+            Showing page {currentPage} of {totalPages} • {totalCount} total bookings
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1 || loading}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages || loading}
+            >
+              Next
+            </Button>
+          </div>
         </div>
       </Card>
 

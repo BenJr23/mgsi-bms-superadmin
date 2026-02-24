@@ -24,7 +24,16 @@ export type BookingListItem = {
 interface GetBookingsResult {
     success: boolean
     data?: BookingListItem[]
+    page?: number
+    pageSize?: number
+    totalCount?: number
+    totalPages?: number
     error?: string
+}
+
+interface GetBookingsInput {
+    page?: number
+    pageSize?: number
 }
 
 interface UpdateBookingApprovalResult {
@@ -70,7 +79,7 @@ async function createTransporter() {
     })
 }
 
-export async function getBookings(): Promise<GetBookingsResult> {
+export async function getBookings(input: GetBookingsInput = {}): Promise<GetBookingsResult> {
     try {
         const session = await getServerSession()
 
@@ -78,39 +87,50 @@ export async function getBookings(): Promise<GetBookingsResult> {
             return { success: false, error: 'Not authenticated.' }
         }
 
-        const bookings = await prisma.booking.findMany({
-            where: {
-                isActive: true,
-                deletedAt: null,
-            },
-            include: {
-                building: {
-                    select: {
-                        buildingName: true,
+        const page = Math.max(1, input.page ?? 1)
+        const pageSize = Math.max(1, Math.min(100, input.pageSize ?? 10))
+        const skip = (page - 1) * pageSize
+
+        const where = {
+            isActive: true,
+            deletedAt: null,
+        }
+
+        const [totalCount, bookings] = await prisma.$transaction([
+            prisma.booking.count({ where }),
+            prisma.booking.findMany({
+                where,
+                include: {
+                    building: {
+                        select: {
+                            buildingName: true,
+                        },
+                    },
+                    room: {
+                        select: {
+                            roomName: true,
+                        },
+                    },
+                    submittedBy: {
+                        select: {
+                            name: true,
+                            email: true,
+                        },
+                    },
+                    updatedBy: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
                     },
                 },
-                room: {
-                    select: {
-                        roomName: true,
-                    },
+                orderBy: {
+                    createdAt: 'desc',
                 },
-                submittedBy: {
-                    select: {
-                        name: true,
-                        email: true,
-                    },
-                },
-                updatedBy: {
-                    select: {
-                        id: true,
-                        name: true,
-                    },
-                },
-            },
-            orderBy: {
-                createdAt: 'desc',
-            },
-        })
+                skip,
+                take: pageSize,
+            }),
+        ])
 
         const formatted: BookingListItem[] = bookings.map((booking) => ({
             id: booking.id,
@@ -135,7 +155,16 @@ export async function getBookings(): Promise<GetBookingsResult> {
                 : null,
         }))
 
-        return { success: true, data: formatted }
+        const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+
+        return {
+            success: true,
+            data: formatted,
+            page,
+            pageSize,
+            totalCount,
+            totalPages,
+        }
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Failed to fetch bookings.'
         console.error('Get bookings error:', message)
