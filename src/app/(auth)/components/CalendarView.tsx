@@ -11,6 +11,7 @@ import {
 	isBookingOnDate,
 	type CalendarDay,
 } from '@/lib/calendar-utils';
+import { ViewCalendarModal } from './Modals/ViewCalendarModal';
 
 export function CalendarView() {
 	const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
@@ -18,6 +19,8 @@ export function CalendarView() {
 	const [bookings, setBookings] = useState<CalendarBooking[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
+	const [isModalOpen, setIsModalOpen] = useState(false);
 
 	const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -84,6 +87,17 @@ export function CalendarView() {
 			default:
 				return 'bg-slate-100 text-slate-700 border-slate-500';
 		}
+	};
+
+	const handleDayClick = (day: CalendarDay) => {
+		if (!day.isCurrentMonth) return;
+		setSelectedDay(day);
+		setIsModalOpen(true);
+	};
+
+	const closeModal = () => {
+		setIsModalOpen(false);
+		setSelectedDay(null);
 	};
 
 	return (
@@ -155,13 +169,14 @@ export function CalendarView() {
 							return (
 								<div
 									key={`${day.dateString}-${i}`}
+									onClick={() => handleDayClick(day)}
 									className={`border-b border-r border-slate-100 p-1 sm:p-2 relative transition-colors ${
 										i % 7 === 6 ? 'border-r-0' : ''
 									} ${
 										day.isWeekend
 											? 'bg-slate-50/50'
 											: day.isCurrentMonth
-											? 'hover:bg-slate-50'
+											? 'hover:bg-slate-50 cursor-pointer'
 											: 'bg-slate-50/30'
 									}`}
 								>
@@ -206,6 +221,15 @@ export function CalendarView() {
 					</div>
 				)}
 			</Card>
+
+			{selectedDay && (
+				<ViewCalendarModal
+					isOpen={isModalOpen}
+					onClose={closeModal}
+					date={selectedDay.dateString}
+					bookings={getBookingsForDay(selectedDay)}
+				/>
+			)}
 		</div>
 	);
 }
