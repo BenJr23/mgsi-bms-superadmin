@@ -21,16 +21,26 @@ export async function proxy(request: NextRequest) {
         return NextResponse.next();
     }
 
-    if (pathname === "/") {
-        return NextResponse.redirect(new URL("/sign-in", request.url));
-    }
-
     // IMPORTANT: Allow auth internal APIs to pass through immediately
     if (pathname.startsWith("/api/auth")) {
         return NextResponse.next();
     }
 
     const session = await getSession(request);
+
+    if (pathname === "/") {
+        if (session?.user) {
+            if (hasAllowedRole(session.user.role)) {
+                return NextResponse.redirect(new URL("/dashboard", request.url));
+            }
+
+            const signOutUrl = new URL("/api/auth/sign-out", request.url);
+            signOutUrl.searchParams.set("next", pathname);
+            return NextResponse.redirect(signOutUrl);
+        }
+
+        return NextResponse.redirect(new URL("/sign-in", request.url));
+    }
 
     if (isPublicPath(pathname)) {
         if (session?.user && authPages.includes(pathname)) {
