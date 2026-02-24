@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Card } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
-import { Search, Filter, MoreHorizontal, Check, X, Loader2 } from 'lucide-react';
+import { Search, Filter, MoreHorizontal, Check, X, Loader2, Eye } from 'lucide-react';
 import { ApproveBookingModal } from './Modals/ApproveBookingModal';
 import { RejectBookingModal } from './Modals/RejectBookingModal';
+import { ViewBookingModal } from './Modals/ViewBookingModal';
 import {
   getBookings,
   type BookingListItem,
@@ -22,7 +23,7 @@ export function BookingsView() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [activeBooking, setActiveBooking] = useState<BookingListItem | null>(null);
-  const [modalType, setModalType] = useState<'NONE' | 'APPROVE' | 'REJECT'>('NONE');
+  const [modalType, setModalType] = useState<'NONE' | 'VIEW' | 'APPROVE' | 'REJECT'>('NONE');
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
@@ -117,6 +118,21 @@ export function BookingsView() {
     const dt = new Date(dateString);
     if (Number.isNaN(dt.getTime())) return '--:--';
     return dt.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: DISPLAY_TIMEZONE,
+    });
+  };
+
+  const formatDateTime = (dateString?: string | null) => {
+    if (!dateString) return '-';
+    const dt = new Date(dateString);
+    if (Number.isNaN(dt.getTime())) return '-';
+    return dt.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,
@@ -420,11 +436,15 @@ export function BookingsView() {
                   <td className="px-6 py-4 text-right">
                     {booking.approvalStatus === 'PENDING' ? (
                       <div className="flex justify-end gap-2">
+                        <button onClick={() => { setActiveBooking(booking); setModalType('VIEW'); }} className="p-1 hover:bg-sky-100 text-sky-600 rounded-full" title="View booking"><Eye className="w-4 h-4" /></button>
                         <button onClick={() => { setActiveBooking(booking); setModalType('APPROVE'); }} className="p-1 hover:bg-emerald-100 text-emerald-600 rounded-full"><Check className="w-4 h-4" /></button>
                         <button onClick={() => { setActiveBooking(booking); setModalType('REJECT'); }} className="p-1 hover:bg-rose-100 text-rose-600 rounded-full"><X className="w-4 h-4" /></button>
                       </div>
                     ) : (
-                      <MoreHorizontal className="w-4 h-4 text-slate-400" />
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => { setActiveBooking(booking); setModalType('VIEW'); }} className="p-1 hover:bg-sky-100 text-sky-600 rounded-full" title="View booking"><Eye className="w-4 h-4" /></button>
+                        <MoreHorizontal className="w-4 h-4 text-slate-400" />
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -460,6 +480,29 @@ export function BookingsView() {
 
       {activeBooking && (
         <>
+          <ViewBookingModal
+            isOpen={modalType === 'VIEW'}
+            onClose={closeModal}
+            details={{
+              bookingReference: activeBooking.bookingReference,
+              submittedByName: activeBooking.submittedBy.name || activeBooking.submittedBy.email,
+              submittedByEmail: activeBooking.submittedBy.email,
+              clientCompany: activeBooking.submittedBy.companyName || null,
+              buildingName: activeBooking.building.name,
+              roomName: activeBooking.room.name,
+              bookingType: activeBooking.bookingType,
+              clientStatus: activeBooking.clientStatus,
+              approvalStatus: activeBooking.approvalStatus,
+              dateRange: formatDateRange(activeBooking.startDate, activeBooking.endDate),
+              timeRange: `${formatBookingTime(activeBooking, getDisplayStartTime(activeBooking), 'start')} - ${formatBookingTime(activeBooking, getDisplayEndTime(activeBooking), 'end')}`,
+              submittedAt: formatDateTime(activeBooking.submittedAt),
+              approvalDate: formatDateTime(activeBooking.approvalDate),
+              cancellationDeadline: formatDateTime(activeBooking.cancellationDeadline),
+              attendeeCount: activeBooking.attendeeCount,
+              message: activeBooking.message,
+              updatedByName: activeBooking.updatedBy?.name || null,
+            }}
+          />
           <ApproveBookingModal
             isOpen={modalType === 'APPROVE'}
             onClose={closeModal}

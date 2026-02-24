@@ -14,10 +14,16 @@ export type BookingListItem = {
     dailyTimeStart?: string | null
     dailyTimeEnd?: string | null
     bookingType: string
+    clientStatus: string
     approvalStatus: ApprovalStatus
+    submittedAt: string
+    approvalDate?: string | null
+    cancellationDeadline?: string | null
+    message?: string | null
+    attendeeCount?: number | null
     building: { name: string }
     room: { name: string }
-    submittedBy: { name: string | null; email: string }
+    submittedBy: { name: string | null; email: string; companyName?: string | null }
     updatedBy?: { id: string; name?: string | null } | null
 }
 
@@ -115,6 +121,7 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
                         select: {
                             name: true,
                             email: true,
+                            companyName: true,
                         },
                     },
                     updatedBy: {
@@ -140,12 +147,21 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
             dailyTimeStart: booking.dailyTimeStart ? booking.dailyTimeStart.toISOString() : null,
             dailyTimeEnd: booking.dailyTimeEnd ? booking.dailyTimeEnd.toISOString() : null,
             bookingType: booking.bookingType,
+            clientStatus: booking.clientStatus,
             approvalStatus: booking.approvalStatus,
+            submittedAt: booking.submittedAt.toISOString(),
+            approvalDate: booking.approvalDate ? booking.approvalDate.toISOString() : null,
+            cancellationDeadline: booking.cancellationDeadline
+                ? booking.cancellationDeadline.toISOString()
+                : null,
+            message: booking.message,
+            attendeeCount: booking.attendeeCount,
             building: { name: booking.building.buildingName },
             room: { name: booking.room.roomName },
             submittedBy: {
                 name: booking.submittedBy.name,
                 email: booking.submittedBy.email,
+                companyName: booking.submittedBy.companyName,
             },
             updatedBy: booking.updatedBy
                 ? {
