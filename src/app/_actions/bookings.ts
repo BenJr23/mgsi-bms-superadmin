@@ -188,10 +188,29 @@ export async function updateBookingApprovalStatus(
             const statusText = isApproved ? 'approved' : 'rejected'
             const messagePrefix = isApproved ? '' : "We're sorry to inform you that "
 
+            // build a nicer HTML and plain-text email using the public logo
+            const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')
+            const logoUrl = `${appUrl}${encodeURI('/GreatWork Logo.avif')}`
+
             const html = `
-                <p>Hi ${updatedBooking.submittedBy.name || 'there'},</p>
-                <p>${messagePrefix}Your booking <strong>${ref}</strong> has been ${statusText}.</p>
+                <div style="font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:680px;margin:0 auto;color:#111827">
+                  <div style="text-align:center;padding:20px 24px;background:#0f172a;border-radius:8px 8px 0 0;color:white">
+                    <img src="${logoUrl}" alt="GreatWork" style="height:40px;display:block;margin:0 auto 8px" />
+                    <h3 style="margin:0;font-size:18px">Booking ${isApproved ? 'Approved' : 'Rejected'}</h3>
+                  </div>
+                  <div style="background:white;padding:24px;border:1px solid #e6edf3;border-top:none">
+                    <p style="margin:0 0 12px">Hi ${updatedBooking.submittedBy.name || 'there'},</p>
+                    <p style="margin:0 0 12px">${messagePrefix}Your booking <strong>${ref}</strong> has been <strong style="color:${isApproved ? '#059669' : '#dc2626'}">${statusText}</strong>.</p>
+                    <p style="margin:0 0 12px">You can view your booking and any updates in your dashboard.</p>
+                    <p style="margin:18px 0"><a href="${appUrl}" style="display:inline-block;padding:10px 16px;background:#0f172a;color:white;border-radius:6px;text-decoration:none">Open Dashboard</a></p>
+                    <hr style="border:none;border-top:1px solid #eef2f7;margin:18px 0" />
+                    <p style="margin:0;color:#6b7280;font-size:13px">If you didn't expect this email, please contact support.</p>
+                  </div>
+                  <div style="text-align:center;padding:12px 16px;color:#9ca3af;font-size:12px">GreatWork • <a href="${appUrl}" style="color:inherit;text-decoration:underline">${appUrl}</a></div>
+                </div>
             `
+
+            const text = `${messagePrefix}Your booking ${ref} has been ${statusText}. View it at ${appUrl}`
 
             try {
                 const transporter = await createTransporter()
@@ -199,6 +218,7 @@ export async function updateBookingApprovalStatus(
                     from: process.env.FROM_EMAIL || process.env.USER || 'no-reply@example.com',
                     to: updatedBooking.submittedBy.email,
                     subject,
+                    text,
                     html,
                 })
             } catch (err: unknown) {

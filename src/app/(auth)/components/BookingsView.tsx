@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
@@ -17,6 +17,10 @@ export function BookingsView() {
   const [error, setError] = useState<string | null>(null);
   const [activeBooking, setActiveBooking] = useState<BookingListItem | null>(null);
   const [modalType, setModalType] = useState<'NONE' | 'APPROVE' | 'REJECT'>('NONE');
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
+  const [showFilters, setShowFilters] = useState(false);
 
   const closeModal = () => {
     setModalType('NONE');
@@ -40,6 +44,29 @@ export function BookingsView() {
     };
     fetchBookings();
   }, []);
+
+  // debounce query input
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  const filteredBookings = useMemo(() => {
+    const q = debouncedQuery.toLowerCase();
+    return bookings.filter((b) => {
+      if (statusFilter !== 'ALL' && b.approvalStatus !== statusFilter) return false;
+
+      if (!q) return true;
+
+      return (
+        b.bookingReference.toLowerCase().includes(q) ||
+        (b.submittedBy.name || '').toLowerCase().includes(q) ||
+        b.submittedBy.email.toLowerCase().includes(q) ||
+        b.room.name.toLowerCase().includes(q) ||
+        b.building.name.toLowerCase().includes(q)
+      );
+    });
+  }, [bookings, debouncedQuery, statusFilter]);
 
   const handleAction = async (status: 'APPROVED' | 'REJECTED') => {
     if (!activeBooking) {
@@ -102,9 +129,42 @@ export function BookingsView() {
         <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <input type="text" placeholder="Search bookings..." className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              type="text"
+              placeholder="Search bookings..."
+              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500"
+            />
           </div>
-          <Button variant="outline" size="sm" className="flex items-center gap-2"><Filter className="w-4 h-4" />Filter</Button>
+          <div className="relative">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+              onClick={() => setShowFilters((s) => !s)}
+            >
+              <Filter className="w-4 h-4" />Filter
+            </Button>
+
+            {showFilters && (
+              <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-md shadow-md z-10 p-2">
+                <div className="text-sm text-slate-600 mb-2">Status</div>
+                <ul className="space-y-1">
+                  {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const).map((s) => (
+                    <li key={s}>
+                      <button
+                        onClick={() => { setStatusFilter(s); setShowFilters(false); }}
+                        className={`w-full text-left text-sm py-1 px-2 rounded ${statusFilter === s ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
+                      >
+                        {s}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -120,7 +180,7 @@ export function BookingsView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {bookings.map((booking) => (
+              {filteredBookings.map((booking) => (
                 <tr key={booking.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4 font-medium text-slate-900">{booking.bookingReference}</td>
                   <td className="px-6 py-4 text-slate-600">{booking.submittedBy.name || booking.submittedBy.email}</td>
