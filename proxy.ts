@@ -14,7 +14,7 @@ const isStaticAsset = (pathname: string) => /\.[^/]+$/.test(pathname);
 const isPublicPath = (pathname: string) =>
     publicPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
-export default async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     if (isStaticAsset(pathname) || pathname.startsWith("/_next")) {
@@ -80,7 +80,7 @@ async function getSession(request: NextRequest) {
             headers: request.headers,
         });
         return session;
-    } catch (error) {
+    } catch {
         return null;
     }
 }
