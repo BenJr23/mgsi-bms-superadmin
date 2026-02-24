@@ -687,6 +687,7 @@ export async function resetUserPassword(userId: string): Promise<ResetUserPasswo
       success: true,
       newPassword,
     }
+    
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'An unexpected error occurred'
     console.error('Error resetting user password:', message)
