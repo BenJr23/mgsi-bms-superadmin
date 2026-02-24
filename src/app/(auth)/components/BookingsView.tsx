@@ -21,6 +21,7 @@ export function BookingsView() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
   const [showFilters, setShowFilters] = useState(false);
+  const [monthFilter, setMonthFilter] = useState<'ALL' | string>('ALL');
 
   const closeModal = () => {
     setModalType('NONE');
@@ -99,6 +100,107 @@ export function BookingsView() {
   const formatTime = (dateString: string) => 
     new Date(dateString).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 
+  const escapeCSV = (val: string) => {
+    if (val == null) return ''
+    const s = String(val)
+    if (s.includes('"') || s.includes(',') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`
+    return s
+  }
+
+  const exportCSV = (items: BookingListItem[], month: 'ALL' | string = 'ALL') => {
+    const headers = ['Reference','Client','Building','Room','Start Date','Start Time','End Date','End Time','Status']
+    const filtered = month === 'ALL' ? items : items.filter((b) => {
+      // month in format YYYY-MM
+      try {
+        const dt = new Date(b.startDate)
+        const y = dt.getFullYear()
+        const m = String(dt.getMonth() + 1).padStart(2, '0')
+        return `${y}-${m}` === month
+      } catch {
+        return false
+      }
+    })
+
+    const rows = filtered.map((b) => [
+      escapeCSV(b.bookingReference),
+      escapeCSV(b.submittedBy.name || b.submittedBy.email),
+      escapeCSV(b.building.name),
+      escapeCSV(b.room.name),
+      escapeCSV(formatDate(b.startDate)),
+      escapeCSV(formatTime(b.startDate)),
+      escapeCSV(formatDate(b.endDate)),
+      escapeCSV(formatTime(b.endDate)),
+      escapeCSV(b.approvalStatus),
+    ])
+
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const monthSuffix = month === 'ALL' ? new Date().toISOString().slice(0,10) : month
+    a.download = `bookings-${monthSuffix}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const exportPDF = (items: BookingListItem[]) => {
+    // Create a print-friendly HTML and open in a new window. User can Save as PDF.
+    const rows = items.map((b) => `
+      <tr>
+        <td style="padding:8px;border:1px solid #e6edf3">${b.bookingReference}</td>
+        <td style="padding:8px;border:1px solid #e6edf3">${b.submittedBy.name || b.submittedBy.email}</td>
+        <td style="padding:8px;border:1px solid #e6edf3">${b.building.name}</td>
+        <td style="padding:8px;border:1px solid #e6edf3">${b.room.name}</td>
+        <td style="padding:8px;border:1px solid #e6edf3">${formatDate(b.startDate)} ${formatTime(b.startDate)}</td>
+        <td style="padding:8px;border:1px solid #e6edf3">${formatDate(b.endDate)} ${formatTime(b.endDate)}</td>
+        <td style="padding:8px;border:1px solid #e6edf3">${b.approvalStatus}</td>
+      </tr>
+    `).join('\n')
+
+    const html = `
+      <html>
+        <head>
+          <title>Bookings</title>
+          <style>
+            body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial; color:#111827; }
+            table { border-collapse: collapse; width:100%; }
+            th { text-align:left; padding:8px; border:1px solid #e6edf3; background:#f8fafc }
+          </style>
+        </head>
+        <body>
+          <h2>Bookings</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Reference</th>
+                <th>Client</th>
+                <th>Building</th>
+                <th>Room</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `
+
+    const win = window.open('', '_blank')
+    if (!win) return
+    win.document.write(html)
+    win.document.close()
+    // wait for render then trigger print
+    setTimeout(() => {
+      win.focus()
+      win.print()
+    }, 500)
+  }
+
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
       <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
@@ -120,7 +222,28 @@ export function BookingsView() {
           <p className="text-slate-500">Manage and approve booking requests.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">Export</Button>
+          <div className="relative flex items-center gap-3">
+            <label className="text-sm text-slate-500">Month:</label>
+            <input
+              type="month"
+              value={monthFilter === 'ALL' ? '' : monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value ? e.target.value : 'ALL')}
+              className="border border-slate-300 rounded-md px-2 py-1 text-sm"
+            />
+            <Button
+              variant="outline"
+              onClick={() => exportCSV(filteredBookings, monthFilter)}
+              title="Export CSV"
+            >
+              Export CSV
+            </Button>
+            <Button
+              onClick={() => exportPDF(filteredBookings)}
+              className="ml-2"
+            >
+              Export PDF
+            </Button>
+          </div>
           <Button>+ New Booking</Button>
         </div>
       </header>
