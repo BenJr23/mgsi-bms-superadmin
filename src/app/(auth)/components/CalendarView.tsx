@@ -181,13 +181,13 @@ export function CalendarView() {
 									}`}
 								>
 									<span
-										className={`text-xs sm:text-sm font-medium inline-block ${
+										className={`text-xs sm:text-sm font-medium ${
 											day.isToday
-												? 'bg-indigo-600 text-white w-5 h-5 sm:w-7 sm:h-7 flex items-center justify-center rounded-full'
+												? 'bg-indigo-600 text-white w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center rounded-full'
 												: day.isCurrentMonth
 												? 'text-slate-700'
 												: 'text-slate-400'
-										} ${day.isWeekend && day.isCurrentMonth ? 'text-slate-500' : ''}`}
+										} ${day.isWeekend && day.isCurrentMonth && !day.isToday ? 'text-slate-500' : ''}`}
 									>
 										{day.date}
 									</span>
