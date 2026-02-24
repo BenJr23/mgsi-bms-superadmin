@@ -83,7 +83,7 @@ export function Sidebar({
   return (
     <aside className="w-64 bg-white text-slate-700 flex flex-col h-screen border-r border-slate-200 transition-all duration-300 shadow-sm">
       {/* Header */}
-      <div className="h-16 flex items-center justify-center px-3 border-b-2 border-red-900">
+      <div className="h-16 flex items-center justify-center px-3">
         <div className="flex items-center gap-2 w-full px-3">
           <Image
             src="/GreatWork Logo.avif"

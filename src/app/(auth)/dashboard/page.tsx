@@ -201,7 +201,8 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 font-sans text-slate-900">
+    <div className="relative flex h-screen bg-slate-50 font-sans text-slate-900">
+      <div className="pointer-events-none absolute left-0 right-0 top-16 z-30 h-[2px] bg-red-900" />
       {/* Desktop Sidebar - Hidden on mobile */}
       <div className="hidden md:block">
         <Sidebar
@@ -218,7 +219,7 @@ export default function DashboardPage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Header */}
-        <header className="bg-white border-b-2 border-red-900 sticky top-0 z-10 shadow-sm">
+        <header className="bg-white sticky top-0 z-20 shadow-sm">
           <div className="h-16 flex items-center justify-between px-4 lg:px-8">
             {/* Breadcrumbs / Title - Desktop only */}
             <div className="hidden md:flex items-center text-sm text-slate-500">
