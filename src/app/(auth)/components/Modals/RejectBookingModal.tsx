@@ -6,7 +6,7 @@ interface RejectBookingModalProps {
   onClose: () => void;
   bookingRef: string;
   clientName: string;
-  onConfirm: () => Promise<{ success: boolean; error?: string }>;
+  onConfirm: (message: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 export function RejectBookingModal({ 
@@ -19,21 +19,29 @@ export function RejectBookingModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       setIsSubmitting(false);
       setError('');
       setSuccess('');
+      setMessage('');
     }
   }, [isOpen]);
 
   const handleConfirm = async () => {
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage) {
+      setError('Please enter a rejection message.');
+      return;
+    }
+
     setIsSubmitting(true);
     setError('');
 
     try {
-      const result = await onConfirm();
+      const result = await onConfirm(trimmedMessage);
 
       if (result.success) {
         setSuccess('Booking rejected successfully.');
@@ -77,6 +85,21 @@ export function RejectBookingModal({
                 Are you sure you want to reject booking <span className="font-bold text-rose-700">{bookingRef}</span>?
               </p>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="reject-message" className="text-sm font-medium text-slate-700">
+              Message to client
+            </label>
+            <textarea
+              id="reject-message"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Type the reason for rejecting this booking"
+              rows={4}
+              disabled={isSubmitting}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:bg-slate-50"
+            />
           </div>
 
           {success && (

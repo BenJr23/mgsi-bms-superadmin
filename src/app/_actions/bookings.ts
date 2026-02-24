@@ -193,7 +193,8 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
 
 export async function updateBookingApprovalStatus(
     bookingId: string,
-    approvalStatus: ApprovalStatus
+    approvalStatus: ApprovalStatus,
+    message?: string
 ): Promise<UpdateBookingApprovalResult> {
     try {
         const session = await getServerSession()
@@ -219,6 +220,7 @@ export async function updateBookingApprovalStatus(
                 approvalStatus,
                 updatedById: session.user.id,
                 approvalDate: new Date(),
+                ...(typeof message === 'string' ? { message: message.trim() || null } : {}),
             },
             include: {
                 submittedBy: {

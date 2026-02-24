@@ -78,17 +78,23 @@ export function BookingsView() {
     });
   }, [bookings, debouncedQuery, statusFilter]);
 
-  const handleAction = async (status: 'APPROVED' | 'REJECTED') => {
+  const handleAction = async (status: 'APPROVED' | 'REJECTED', message?: string) => {
     if (!activeBooking) {
       return { success: false, error: 'No active booking selected.' };
     }
     
     try {
-      const result = await updateBookingApprovalStatus(activeBooking.id, status);
+      const result = await updateBookingApprovalStatus(activeBooking.id, status, message);
 
       if (result.success) {
         setBookings(prev => prev.map(b => 
-          b.id === activeBooking.id ? { ...b, approvalStatus: status } : b
+          b.id === activeBooking.id
+            ? {
+                ...b,
+                approvalStatus: status,
+                message: status === 'REJECTED' ? (message?.trim() || null) : b.message,
+              }
+            : b
         ));
         setError(null);
       }
@@ -515,7 +521,7 @@ export function BookingsView() {
             onClose={closeModal}
             bookingRef={activeBooking.bookingReference}
             clientName={activeBooking.submittedBy.name || activeBooking.submittedBy.email}
-            onConfirm={() => handleAction('REJECTED')}
+            onConfirm={(message) => handleAction('REJECTED', message)}
           />
         </>
       )}
