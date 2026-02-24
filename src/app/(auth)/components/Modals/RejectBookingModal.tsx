@@ -39,7 +39,7 @@ export function RejectBookingModal({
         setSuccess('Booking rejected successfully.');
         setTimeout(() => {
           onClose();
-        }, 400);
+        }, 3000);
       } else {
         setError(result.error || 'Failed to reject booking.');
         setIsSubmitting(false);

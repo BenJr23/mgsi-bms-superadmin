@@ -39,7 +39,7 @@ export function ApproveBookingModal({
         setSuccess('Booking approved successfully.');
         setTimeout(() => {
           onClose();
-        }, 400);
+        }, 3000);
       } else {
         setError(result.error || 'Failed to approve booking.');
         setIsSubmitting(false);
