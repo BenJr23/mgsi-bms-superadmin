@@ -18,26 +18,17 @@ export const auth = betterAuth({
     emailAndPassword: {
         enabled: true,
         requireEmailVerification: false,
-        // ADD THIS BLOCK BELOW:
-        async sendResetPassword({ user, url }) {
-            // In development, this logs the URL with the token to your terminal
-            console.log(">>> RESET PASSWORD URL:", url);
-
-            // In production, you would use Resend, Nodemailer, etc.
-            // await sendEmail({ to: user.email, url });
+    },
+    session: {
+        expiresIn: 60 * 60 * 24 * 7,
+        updateAge: 60 * 60 * 24,
+        cookieCache: {
+            enabled: false,
         },
     },
-    rateLimit: {
-        enabled: true,
-        window: 60, // 1 minute
-        max: 100, // 100 requests per minute
-    },
-    trustedOrigins: process.env.TRUSTED_ORIGINS?.split(',') || [
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'http://localhost:3002'
-    ],
-    secret: process.env.BETTER_AUTH_SECRET,
+    // Ensure baseURL matches your environment
     baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
+    secret: process.env.BETTER_AUTH_SECRET,
     plugins: [nextCookies()],
-})
+    trustedOrigins: ['http://localhost:3000', 'http://localhost:3001'],
+});
