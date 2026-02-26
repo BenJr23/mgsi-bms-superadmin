@@ -25,4 +25,5 @@ export async function requireAuth() {
         throw new Error("Unauthorized - please sign in");
     }
     return user;
+    
 }
