@@ -2,10 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Card } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
-import { Search, Filter, MoreHorizontal, Check, X, Loader2, Eye } from 'lucide-react';
+import { Search, Filter, MoreHorizontal, Check, X, Loader2, Eye, Plus } from 'lucide-react';
 import { ApproveBookingModal } from './Modals/ApproveBookingModal';
 import { RejectBookingModal } from './Modals/RejectBookingModal';
 import { ViewBookingModal } from './Modals/ViewBookingModal';
+import { WalkInBookingModal } from './Modals/WalkInBookingModal';
 import {
   getBookings,
   type BookingListItem,
@@ -23,7 +24,7 @@ export function BookingsView() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [activeBooking, setActiveBooking] = useState<BookingListItem | null>(null);
-  const [modalType, setModalType] = useState<'NONE' | 'VIEW' | 'APPROVE' | 'REJECT'>('NONE');
+  const [modalType, setModalType] = useState<'NONE' | 'VIEW' | 'APPROVE' | 'REJECT' | 'WALK_IN'>('NONE');
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
@@ -357,7 +358,10 @@ export function BookingsView() {
               Export PDF
             </Button>
           </div>
-          <Button>+ New Booking</Button>
+          <Button onClick={() => setModalType('WALK_IN')} className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Walk-In Booking
+          </Button>
         </div>
       </header>
 
@@ -525,6 +529,30 @@ export function BookingsView() {
           />
         </>
       )}
+      <WalkInBookingModal
+        isOpen={modalType === 'WALK_IN'}
+        onClose={() => setModalType('NONE')}
+        onSuccess={() => {
+          setModalType('NONE');
+          // Refresh bookings list
+          const fetchBookings = async () => {
+            try {
+              setLoading(true);
+              const result = await getBookings({ page: currentPage, pageSize: PAGE_SIZE });
+              if (result.success) {
+                setBookings(result.data || []);
+                setTotalPages(result.totalPages || 1);
+                setTotalCount(result.totalCount || 0);
+              }
+            } catch (err) {
+              setError(err instanceof Error ? err.message : 'An error occurred');
+            } finally {
+              setLoading(false);
+            }
+          };
+          fetchBookings();
+        }}
+      />
     </div>
   );
 }

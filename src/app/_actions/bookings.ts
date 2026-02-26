@@ -51,6 +51,58 @@ interface UpdateBookingApprovalResult {
     error?: string
 }
 
+interface CreateWalkInBookingResult {
+    success: boolean
+    data?: {
+        id: string
+        bookingReference: string
+        approvalStatus: ApprovalStatus
+    }
+    error?: string
+}
+
+interface CreateWalkInBookingInput {
+    email: string
+    name: string
+    buildingId: string
+    roomId: string
+    startDate: Date
+    endDate: Date
+    attendeeCount: number
+}
+
+export type Building = {
+    id: string
+    buildingName: string
+    buildingCode: string
+    status: string
+}
+
+export type Room = {
+    id: string
+    roomName: string
+    roomCode: string | null
+    capacity: number
+    status: string
+    buildingId: string
+}
+
+interface GetBuildingsResult {
+    success: boolean
+    data?: Building[]
+    error?: string
+}
+
+interface GetRoomsResult {
+    success: boolean
+    data?: Room[]
+    error?: string
+}
+
+interface GetRoomsByBuildingInput {
+    buildingId: string
+}
+
 export async function getBookings(input: GetBookingsInput = {}): Promise<GetBookingsResult> {
     try {
         const session = await getServerSession()
@@ -130,6 +182,209 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Failed to fetch bookings.'
         console.error('Get bookings error:', message)
+        return { success: false, error: message }
+    }
+}
+
+export async function getBuildings(): Promise<GetBuildingsResult> {
+    try {
+        const session = await getServerSession()
+
+        if (!session?.user?.id) {
+            return { success: false, error: 'Not authenticated.' }
+        }
+
+        const buildings = await prisma.building.findMany({
+            where: { 
+                deletedAt: null,
+                status: 'ACTIVE'
+            },
+            select: {
+                id: true,
+                buildingName: true,
+                buildingCode: true,
+                status: true
+            },
+            orderBy: { buildingName: 'asc' }
+        })
+
+        return {
+            success: true,
+            data: buildings
+        }
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Failed to fetch buildings.'
+        console.error('Get buildings error:', message)
+        return { success: false, error: message }
+    }
+}
+
+export async function getRoomsByBuilding(input: GetRoomsByBuildingInput): Promise<GetRoomsResult> {
+    try {
+        const session = await getServerSession()
+
+        if (!session?.user?.id) {
+            return { success: false, error: 'Not authenticated.' }
+        }
+
+        const { buildingId } = input
+
+        if (!buildingId?.trim()) {
+            return { success: false, error: 'Building ID is required.' }
+        }
+
+        const rooms = await prisma.room.findMany({
+            where: { 
+                buildingId,
+                deletedAt: null,
+                status: 'AVAILABLE'
+            },
+            select: {
+                id: true,
+                roomName: true,
+                roomCode: true,
+                capacity: true,
+                status: true,
+                buildingId: true
+            },
+            orderBy: { roomName: 'asc' }
+        })
+
+        return {
+            success: true,
+            data: rooms
+        }
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Failed to fetch rooms.'
+        console.error('Get rooms error:', message)
+        return { success: false, error: message }
+    }
+}
+
+export async function createWalkInBooking(input: CreateWalkInBookingInput): Promise<CreateWalkInBookingResult> {
+    try {
+        const session = await getServerSession()
+
+        if (!session?.user?.id) {
+            return { success: false, error: 'Not authenticated.' }
+        }
+
+        const { email, name, buildingId, roomId, startDate, endDate, attendeeCount } = input
+
+        if (!email?.trim() || !name?.trim()) {
+            return { success: false, error: 'Client email and name are required.' }
+        }
+
+        if (!buildingId?.trim() || !roomId?.trim()) {
+            return { success: false, error: 'Building and room are required.' }
+        }
+
+        if (!startDate || !endDate) {
+            return { success: false, error: 'Start and end dates are required.' }
+        }
+
+        if (startDate >= endDate) {
+            return { success: false, error: 'End date must be after start date.' }
+        }
+
+        // Check if building and room exist
+        const [building, room] = await Promise.all([
+            prisma.building.findFirst({
+                where: { id: buildingId, deletedAt: null },
+                select: { id: true, buildingName: true }
+            }),
+            prisma.room.findFirst({
+                where: { id: roomId, buildingId, deletedAt: null },
+                select: { id: true, roomName: true }
+            })
+        ])
+
+        if (!building) {
+            return { success: false, error: 'Building not found.' }
+        }
+
+        if (!room) {
+            return { success: false, error: 'Room not found in the specified building.' }
+        }
+
+        // Generate booking reference
+        const bookingRef = `WALK-${Date.now()}`
+
+        // Create or find user
+        let user = await prisma.user.findFirst({
+            where: { email: email.toLowerCase().trim() },
+            select: { id: true, name: true, email: true, emailVerified: true }
+        })
+
+        const isEmailVerified = user?.emailVerified || false
+        const isWalkIn = !user || !isEmailVerified
+
+        if (!user) {
+            user = await prisma.user.create({
+                data: {
+                    email: email.toLowerCase().trim(),
+                    name: name.trim(),
+                    emailVerified: false, // Walk-in clients have unverified emails by default
+                },
+                select: { id: true, name: true, email: true, emailVerified: true }
+            })
+        }
+
+        // Create booking with APPROVED status for walk-ins
+        const newBooking = await prisma.booking.create({
+            data: {
+                bookingReference: bookingRef,
+                submittedById: user.id,
+                buildingId,
+                roomId,
+                startDate,
+                endDate,
+                bookingType: 'HOURLY', // Using HOURLY as default booking type
+                clientStatus: 'SUBMITTED', // Using SUBMITTED as default client status
+                approvalStatus: 'APPROVED', // Auto-approve walk-in bookings
+                submittedAt: new Date(),
+                approvalDate: new Date(),
+                updatedById: session.user.id,
+                attendeeCount,
+                isActive: true
+            },
+            include: {
+                submittedBy: {
+                    select: { email: true, name: true },
+                },
+                building: { select: { buildingName: true } },
+                room: { select: { roomName: true } },
+            },
+        })
+
+        // Send approval email
+        if (newBooking.submittedBy?.email) {
+            await sendBookingStatusEmail({
+                to: newBooking.submittedBy.email,
+                name: newBooking.submittedBy.name,
+                bookingReference: newBooking.bookingReference,
+                approved: true,
+                adminMessage: 'Walk-in booking automatically approved.',
+                startDate: newBooking.startDate.toLocaleDateString(),
+                endDate: newBooking.endDate.toLocaleDateString(),
+                dailyTimeStart: newBooking.dailyTimeStart?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                dailyTimeEnd: newBooking.dailyTimeEnd?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                buildingName: newBooking.building.buildingName,
+                roomName: newBooking.room.roomName,
+            })
+        }
+
+        return {
+            success: true,
+            data: {
+                id: newBooking.id,
+                bookingReference: newBooking.bookingReference,
+                approvalStatus: newBooking.approvalStatus,
+            },
+        }
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Failed to create walk-in booking.'
+        console.error('Create walk-in booking error:', message)
         return { success: false, error: message }
     }
 }
