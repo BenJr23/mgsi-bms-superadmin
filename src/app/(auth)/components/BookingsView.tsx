@@ -151,13 +151,12 @@ export function BookingsView() {
     const dt = new Date(dateString);
     if (Number.isNaN(dt.getTime())) return '--:--';
 
-    const utcHours = dt.getUTCHours();
-    const utcMinutes = dt.getUTCMinutes();
-    const period = utcHours >= 12 ? 'PM' : 'AM';
-    const hour12 = utcHours % 12 === 0 ? 12 : utcHours % 12;
-    const minute = String(utcMinutes).padStart(2, '0');
-
-    return `${String(hour12).padStart(2, '0')}:${minute} ${period}`;
+    return dt.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: 'UTC',
+    });
   };
 
   const formatDateRange = (startDateString: string, endDateString: string) => {

@@ -6,8 +6,10 @@ import { Button } from '../ui/Button'
 import {
   createWalkInBooking,
   getBuildings,
+  getRoomUnavailableSlots,
   getRoomsByBuilding,
   type Building,
+  type RoomUnavailableSlot,
   type Room,
 } from '@/app/_actions/bookings'
 import {
@@ -25,6 +27,11 @@ import {
 
 type BookingType = 'HOURLY' | 'DAILY'
 
+const BUSINESS_START_MINUTES = 9 * 60
+const BUSINESS_END_MINUTES = 18 * 60
+const START_TIME_MAX_MINUTES = 17 * 60
+const END_TIME_MIN_MINUTES = 10 * 60
+
 interface WalkInFormData {
   clientName: string
   email: string
@@ -41,26 +48,102 @@ interface WalkInFormData {
   message: string
 }
 
-const now = new Date()
 const pad = (n: number) => String(n).padStart(2, '0')
-const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
-const currentTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`
-const endTime = `${pad(Math.min(now.getHours() + 1, 23))}:${pad(now.getMinutes())}`
+const timeToMinutes = (time: string): number | null => {
+  if (!/^\d{2}:\d{2}$/.test(time)) return null
+  const [hour, minute] = time.split(':').map(Number)
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) return null
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null
+  return hour * 60 + minute
+}
 
-const emptyForm: WalkInFormData = {
-  clientName: '',
-  email: '',
-  phoneNumber: '',
-  companyName: '',
-  buildingId: '',
-  roomId: '',
-  bookingType: 'HOURLY',
-  dateStart: todayStr,
-  dateEnd: todayStr,
-  timeStart: currentTime,
-  timeEnd: endTime,
-  attendeeCount: '',
-  message: '',
+const clampToBusinessTime = (minutes: number): number =>
+  Math.min(START_TIME_MAX_MINUTES, Math.max(BUSINESS_START_MINUTES, minutes))
+
+const minutesToTime = (minutes: number): string => {
+  const hour = Math.floor(minutes / 60)
+  const minute = minutes % 60
+  return `${pad(hour)}:${pad(minute)}`
+}
+
+const formatTimeLabel = (time: string): string => {
+  const minutes = timeToMinutes(time)
+  if (minutes === null) return time
+  const hour24 = Math.floor(minutes / 60)
+  const minute = minutes % 60
+  const period = hour24 >= 12 ? 'PM' : 'AM'
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12
+  return `${hour12}:${pad(minute)} ${period}`
+}
+
+const TIME_OPTIONS = Array.from({ length: 10 }, (_, index) => {
+  const minutes = BUSINESS_START_MINUTES + index * 60
+  const value = minutesToTime(minutes)
+  return {
+    value,
+    label: formatTimeLabel(value),
+  }
+})
+
+const dateKeyToOrdinal = (dateKey: string): number => {
+  const [year, month, day] = dateKey.split('-').map(Number)
+  return Math.floor(Date.UTC(year, month - 1, day) / 86400000)
+}
+
+const ordinalToDateKey = (ordinal: number): string => {
+  const utcDate = new Date(ordinal * 86400000)
+  return `${utcDate.getUTCFullYear()}-${pad(utcDate.getUTCMonth() + 1)}-${pad(
+    utcDate.getUTCDate(),
+  )}`
+}
+
+const rangesOverlapExclusive = (
+  startA: number,
+  endA: number,
+  startB: number,
+  endB: number,
+): boolean => startA < endB && startB < endA
+
+const formatDateKeyLabel = (dateKey: string): string => {
+  const [year, month, day] = dateKey.split('-').map(Number)
+  if (!year || !month || !day) return dateKey
+
+  const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
+  return date.toLocaleDateString('en-PH', {
+    timeZone: 'Asia/Manila',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+const getDefaultForm = (): WalkInFormData => {
+  const now = new Date()
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
+    now.getDate(),
+  )}`
+  const currentMinutes = now.getHours() * 60 + now.getMinutes()
+  const roundedMinutes = Math.ceil(currentMinutes / 60) * 60
+  const startMinutes = clampToBusinessTime(roundedMinutes)
+  const endMinutes = Math.min(BUSINESS_END_MINUTES, startMinutes + 60)
+  const currentTime = minutesToTime(startMinutes)
+  const endTime = minutesToTime(endMinutes)
+
+  return {
+    clientName: '',
+    email: '',
+    phoneNumber: '',
+    companyName: '',
+    buildingId: '',
+    roomId: '',
+    bookingType: 'HOURLY',
+    dateStart: todayStr,
+    dateEnd: todayStr,
+    timeStart: currentTime,
+    timeEnd: endTime,
+    attendeeCount: '',
+    message: '',
+  }
 }
 
 interface WalkInBookingModalProps {
@@ -76,7 +159,7 @@ export function WalkInBookingModal({
   onSubmit,
   onSuccess,
 }: WalkInBookingModalProps) {
-  const [form, setForm] = useState<WalkInFormData>(emptyForm)
+  const [form, setForm] = useState<WalkInFormData>(getDefaultForm)
   const [errors, setErrors] = useState<
     Partial<Record<keyof WalkInFormData, string>>
   >({})
@@ -84,8 +167,10 @@ export function WalkInBookingModal({
   const [rooms, setRooms] = useState<Room[]>([])
   const [loadingBuildings, setLoadingBuildings] = useState(false)
   const [loadingRooms, setLoadingRooms] = useState(false)
+  const [loadingUnavailableSlots, setLoadingUnavailableSlots] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string>('')
+  const [unavailableSlots, setUnavailableSlots] = useState<RoomUnavailableSlot[]>([])
 
   const selectedBuilding = useMemo(
     () => buildings.find((b) => b.id === form.buildingId),
@@ -97,8 +182,37 @@ export function WalkInBookingModal({
     [rooms, form.roomId],
   )
 
+  const unavailableSlotsEndDate = useMemo(() => {
+    if (!form.dateStart) return ''
+    if (form.bookingType === 'DAILY') {
+      return form.dateEnd || form.dateStart
+    }
+    return form.dateStart
+  }, [form.bookingType, form.dateEnd, form.dateStart])
+
+  const unavailableSlotsByDate = useMemo(() => {
+    return unavailableSlots.reduce<Record<string, RoomUnavailableSlot[]>>(
+      (acc, slot) => {
+        if (!acc[slot.date]) {
+          acc[slot.date] = []
+        }
+        acc[slot.date].push(slot)
+        return acc
+      },
+      {},
+    )
+  }, [unavailableSlots])
+
+  const unavailableDates = useMemo(
+    () => Object.keys(unavailableSlotsByDate).sort(),
+    [unavailableSlotsByDate],
+  )
+
   useEffect(() => {
     if (!isOpen) return
+
+    setForm(getDefaultForm())
+    setUnavailableSlots([])
 
     const fetchBuildings = async () => {
       setLoadingBuildings(true)
@@ -136,6 +250,39 @@ export function WalkInBookingModal({
     fetchRooms()
   }, [form.buildingId])
 
+  useEffect(() => {
+    if (!isOpen || !form.roomId || !form.dateStart || !unavailableSlotsEndDate) {
+      setUnavailableSlots([])
+      return
+    }
+
+    const fetchUnavailableSlots = async () => {
+      setLoadingUnavailableSlots(true)
+      try {
+        const result = await getRoomUnavailableSlots({
+          roomId: form.roomId,
+          dateStart: form.dateStart,
+          dateEnd: unavailableSlotsEndDate,
+        })
+
+        if (result.success && result.data) {
+          setUnavailableSlots(result.data)
+        } else {
+          setUnavailableSlots([])
+        }
+      } finally {
+        setLoadingUnavailableSlots(false)
+      }
+    }
+
+    fetchUnavailableSlots()
+  }, [
+    form.dateStart,
+    form.roomId,
+    isOpen,
+    unavailableSlotsEndDate,
+  ])
+
   const field = <K extends keyof WalkInFormData>(
     key: K,
     value: WalkInFormData[K],
@@ -157,6 +304,8 @@ export function WalkInBookingModal({
 
   const validate = (): boolean => {
     const e: Partial<Record<keyof WalkInFormData, string>> = {}
+    const now = new Date()
+    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
     if (!form.clientName.trim()) e.clientName = 'Client name is required.'
     if (!form.email.trim()) e.email = 'Email address is required.'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
@@ -173,6 +322,8 @@ export function WalkInBookingModal({
     if (!form.buildingId) e.buildingId = 'Please select a building.'
     if (!form.roomId) e.roomId = 'Please select a room.'
     if (!form.dateStart) e.dateStart = 'Start date is required.'
+    if (form.dateStart && form.dateStart < today)
+      e.dateStart = 'Start date cannot be in the past.'
     if (form.bookingType === 'DAILY' && !form.dateEnd)
       e.dateEnd = 'End date is required.'
     if (
@@ -186,12 +337,73 @@ export function WalkInBookingModal({
     if (!form.timeEnd) e.timeEnd = 'End time is required.'
     if (form.timeStart && form.timeEnd && form.timeStart >= form.timeEnd)
       e.timeEnd = 'End time must be after start time.'
+
+    const startMinutes = timeToMinutes(form.timeStart)
+    const endMinutes = timeToMinutes(form.timeEnd)
+
+    if (startMinutes !== null && startMinutes < BUSINESS_START_MINUTES) {
+      e.timeStart = 'Start time must be 9:00 AM or later.'
+    }
+    if (startMinutes !== null && startMinutes > START_TIME_MAX_MINUTES) {
+      e.timeStart = 'Start time must be 5:00 PM or earlier.'
+    }
+    if (endMinutes !== null && endMinutes > BUSINESS_END_MINUTES) {
+      e.timeEnd = 'End time must be 6:00 PM or earlier.'
+    }
+    if (endMinutes !== null && endMinutes < END_TIME_MIN_MINUTES) {
+      e.timeEnd = 'End time must be 10:00 AM or later.'
+    }
+
+    if (
+      form.roomId &&
+      form.dateStart &&
+      startMinutes !== null &&
+      endMinutes !== null &&
+      !e.timeStart &&
+      !e.timeEnd
+    ) {
+      const hasConflictForDate = (dateKey: string) =>
+        (unavailableSlotsByDate[dateKey] || []).some((slot) =>
+          rangesOverlapExclusive(
+            startMinutes,
+            endMinutes,
+            slot.startMinute,
+            slot.endMinute,
+          ),
+        )
+
+      if (form.bookingType === 'DAILY' && form.dateEnd) {
+        const startOrdinal = dateKeyToOrdinal(form.dateStart)
+        const endOrdinal = dateKeyToOrdinal(form.dateEnd)
+        let hasConflict = false
+
+        for (let day = startOrdinal; day <= endOrdinal; day += 1) {
+          if (hasConflictForDate(ordinalToDateKey(day))) {
+            hasConflict = true
+            break
+          }
+        }
+
+        if (hasConflict) {
+          e.timeStart =
+            'Selected time overlaps unavailable slots on one or more days in the range.'
+        }
+      }
+
+      if (form.bookingType === 'HOURLY' && hasConflictForDate(form.dateStart)) {
+        e.timeStart = 'Selected time overlaps an unavailable slot for this room.'
+      }
+    }
     if (
       form.attendeeCount &&
       selectedRoom &&
       Number(form.attendeeCount) > selectedRoom.capacity
     )
       e.attendeeCount = `Exceeds room capacity (${selectedRoom.capacity}).`
+    if (form.attendeeCount && Number(form.attendeeCount) < 1)
+      e.attendeeCount = 'Attendee count must be at least 1.'
+    if (form.attendeeCount && !Number.isInteger(Number(form.attendeeCount)))
+      e.attendeeCount = 'Attendee count must be a whole number.'
 
     setErrors(e)
     return Object.keys(e).length === 0
@@ -199,6 +411,10 @@ export function WalkInBookingModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (loadingUnavailableSlots) {
+      setSubmitError('Please wait while unavailable slots are still loading.')
+      return
+    }
     if (!validate()) return
 
     setSubmitError('')
@@ -253,7 +469,7 @@ export function WalkInBookingModal({
   }
 
   const handleClose = () => {
-    setForm(emptyForm)
+    setForm(getDefaultForm())
     setErrors({})
     setSubmitError('')
     onClose()
@@ -496,6 +712,7 @@ export function WalkInBookingModal({
                   type="date"
                   value={form.dateStart}
                   onChange={(e) => field('dateStart', e.target.value)}
+                  min={getDefaultForm().dateStart}
                   className={inputClass(errors.dateStart)}
                 />
                 <ErrorMsg msg={errors.dateStart} />
@@ -508,6 +725,7 @@ export function WalkInBookingModal({
                   type="date"
                   value={form.dateEnd}
                   onChange={(e) => field('dateEnd', e.target.value)}
+                  min={form.dateStart || getDefaultForm().dateStart}
                   className={inputClass(errors.dateEnd)}
                 />
                 <ErrorMsg msg={errors.dateEnd} />
@@ -518,12 +736,26 @@ export function WalkInBookingModal({
                 </label>
                 <div className="relative">
                   <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                  <input
-                    type="time"
+                  <select
                     value={form.timeStart}
                     onChange={(e) => field('timeStart', e.target.value)}
                     className={`${inputClass(errors.timeStart)} pl-9`}
-                  />
+                  >
+                    {TIME_OPTIONS.filter((option) => {
+                      const endMinutes = timeToMinutes(form.timeEnd)
+                      const optionMinutes = timeToMinutes(option.value)
+                      if (endMinutes === null || optionMinutes === null) return true
+                      return (
+                        optionMinutes >= BUSINESS_START_MINUTES &&
+                        optionMinutes <= START_TIME_MAX_MINUTES &&
+                        optionMinutes < endMinutes
+                      )
+                    }).map((option) => (
+                      <option key={`daily-start-${option.value}`} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <ErrorMsg msg={errors.timeStart} />
               </div>
@@ -533,12 +765,26 @@ export function WalkInBookingModal({
                 </label>
                 <div className="relative">
                   <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                  <input
-                    type="time"
+                  <select
                     value={form.timeEnd}
                     onChange={(e) => field('timeEnd', e.target.value)}
                     className={`${inputClass(errors.timeEnd)} pl-9`}
-                  />
+                  >
+                    {TIME_OPTIONS.filter((option) => {
+                      const startMinutes = timeToMinutes(form.timeStart)
+                      const optionMinutes = timeToMinutes(option.value)
+                      if (startMinutes === null || optionMinutes === null) return true
+                      return (
+                        optionMinutes >= END_TIME_MIN_MINUTES &&
+                        optionMinutes <= BUSINESS_END_MINUTES &&
+                        optionMinutes > startMinutes
+                      )
+                    }).map((option) => (
+                      <option key={`daily-end-${option.value}`} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <ErrorMsg msg={errors.timeEnd} />
               </div>
@@ -553,6 +799,7 @@ export function WalkInBookingModal({
                   type="date"
                   value={form.dateStart}
                   onChange={(e) => field('dateStart', e.target.value)}
+                  min={getDefaultForm().dateStart}
                   className={inputClass(errors.dateStart)}
                 />
                 <ErrorMsg msg={errors.dateStart} />
@@ -563,12 +810,26 @@ export function WalkInBookingModal({
                 </label>
                 <div className="relative">
                   <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                  <input
-                    type="time"
+                  <select
                     value={form.timeStart}
                     onChange={(e) => field('timeStart', e.target.value)}
                     className={`${inputClass(errors.timeStart)} pl-9`}
-                  />
+                  >
+                    {TIME_OPTIONS.filter((option) => {
+                      const endMinutes = timeToMinutes(form.timeEnd)
+                      const optionMinutes = timeToMinutes(option.value)
+                      if (endMinutes === null || optionMinutes === null) return true
+                      return (
+                        optionMinutes >= BUSINESS_START_MINUTES &&
+                        optionMinutes <= START_TIME_MAX_MINUTES &&
+                        optionMinutes < endMinutes
+                      )
+                    }).map((option) => (
+                      <option key={`hourly-start-${option.value}`} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <ErrorMsg msg={errors.timeStart} />
               </div>
@@ -578,12 +839,26 @@ export function WalkInBookingModal({
                 </label>
                 <div className="relative">
                   <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                  <input
-                    type="time"
+                  <select
                     value={form.timeEnd}
                     onChange={(e) => field('timeEnd', e.target.value)}
                     className={`${inputClass(errors.timeEnd)} pl-9`}
-                  />
+                  >
+                    {TIME_OPTIONS.filter((option) => {
+                      const startMinutes = timeToMinutes(form.timeStart)
+                      const optionMinutes = timeToMinutes(option.value)
+                      if (startMinutes === null || optionMinutes === null) return true
+                      return (
+                        optionMinutes >= END_TIME_MIN_MINUTES &&
+                        optionMinutes <= BUSINESS_END_MINUTES &&
+                        optionMinutes > startMinutes
+                      )
+                    }).map((option) => (
+                      <option key={`hourly-end-${option.value}`} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <ErrorMsg msg={errors.timeEnd} />
               </div>
@@ -602,6 +877,7 @@ export function WalkInBookingModal({
               <input
                 type="number"
                 min={1}
+                step={1}
                 placeholder="e.g. 5"
                 value={form.attendeeCount}
                 onChange={(e) => field('attendeeCount', e.target.value)}
@@ -609,6 +885,39 @@ export function WalkInBookingModal({
               />
             </div>
             <ErrorMsg msg={errors.attendeeCount} />
+          </div>
+
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-3 space-y-2">
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+              Unavailable Time Slots
+            </p>
+
+            {!form.roomId ? (
+              <p className="text-xs text-slate-500">Select a room to view unavailable times.</p>
+            ) : loadingUnavailableSlots ? (
+              <p className="text-xs text-slate-500">Loading unavailable slots…</p>
+            ) : unavailableDates.length === 0 ? (
+              <p className="text-xs text-emerald-700">No unavailable slots for the selected schedule window.</p>
+            ) : (
+              <div className="max-h-32 overflow-y-auto space-y-2 pr-1">
+                {unavailableDates.map((dateKey) => (
+                  <div key={dateKey} className="space-y-1">
+                    <p className="text-xs font-medium text-slate-700">{formatDateKeyLabel(dateKey)}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {unavailableSlotsByDate[dateKey].map((slot, index) => (
+                        <span
+                          key={`${slot.bookingReference}-${slot.startTime}-${slot.endTime}-${index}`}
+                          className="inline-flex items-center rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] text-rose-700"
+                          title={`Ref: ${slot.bookingReference}`}
+                        >
+                          {slot.startTime} - {slot.endTime}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

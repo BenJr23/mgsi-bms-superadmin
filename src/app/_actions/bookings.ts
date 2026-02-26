@@ -1,6 +1,6 @@
 'use server'
 
-import { ApprovalStatus } from '@/generated/prisma/client'
+import { ApprovalStatus, BookingType } from '@/generated/prisma/client'
 import { getServerSession } from '@/lib/get-server'
 import { prisma } from '@/lib/prisma'
 import { sendBookingStatusEmail } from './email'
@@ -77,6 +77,124 @@ interface CreateWalkInBookingInput {
     message?: string
 }
 
+type ConflictCheckBooking = {
+    id: string
+    bookingReference: string
+    bookingType: BookingType
+    startDate: Date
+    endDate: Date
+    dailyTimeStart: Date | null
+    dailyTimeEnd: Date | null
+}
+
+const MANILA_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+})
+
+const MANILA_TIME_FORMATTER = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Manila',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+})
+
+function getPartValue(parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPartTypes): string {
+    return parts.find((part) => part.type === type)?.value ?? ''
+}
+
+function toManilaDateKey(date: Date): string {
+    const parts = MANILA_DATE_FORMATTER.formatToParts(date)
+    const year = getPartValue(parts, 'year')
+    const month = getPartValue(parts, 'month')
+    const day = getPartValue(parts, 'day')
+    return `${year}-${month}-${day}`
+}
+
+function toManilaMinutes(date: Date): number {
+    const parts = MANILA_TIME_FORMATTER.formatToParts(date)
+    const hour = Number(getPartValue(parts, 'hour'))
+    const minute = Number(getPartValue(parts, 'minute'))
+    return (hour * 60) + minute
+}
+
+function toDailyWallClockMinutes(date: Date): number {
+    return (date.getUTCHours() * 60) + date.getUTCMinutes()
+}
+
+function dateKeyToOrdinal(dateKey: string): number {
+    const [year, month, day] = dateKey.split('-').map(Number)
+    return Math.floor(Date.UTC(year, month - 1, day) / 86400000)
+}
+
+function rangesOverlapExclusive(startA: number, endA: number, startB: number, endB: number): boolean {
+    return startA < endB && startB < endA
+}
+
+function rangesOverlapInclusive(startA: number, endA: number, startB: number, endB: number): boolean {
+    return startA <= endB && startB <= endA
+}
+
+function hasScheduleConflict(
+    input: CreateWalkInBookingInput,
+    existingBooking: ConflictCheckBooking
+): boolean {
+    const requestIsDaily = input.bookingType === 'DAILY'
+    const existingIsDaily = existingBooking.bookingType === 'DAILY'
+
+    if (!requestIsDaily && !existingIsDaily) {
+        return input.startDate < existingBooking.endDate && existingBooking.startDate < input.endDate
+    }
+
+    const requestStartDay = dateKeyToOrdinal(toManilaDateKey(input.startDate))
+    const requestEndDay = dateKeyToOrdinal(toManilaDateKey(input.endDate))
+    const existingStartDay = dateKeyToOrdinal(toManilaDateKey(existingBooking.startDate))
+    const existingEndDay = dateKeyToOrdinal(toManilaDateKey(existingBooking.endDate))
+
+    if (!rangesOverlapInclusive(requestStartDay, requestEndDay, existingStartDay, existingEndDay)) {
+        return false
+    }
+
+    if (requestIsDaily && existingIsDaily) {
+        if (!input.dailyTimeStart || !input.dailyTimeEnd || !existingBooking.dailyTimeStart || !existingBooking.dailyTimeEnd) {
+            return input.startDate < existingBooking.endDate && existingBooking.startDate < input.endDate
+        }
+
+        const requestStartMinutes = toDailyWallClockMinutes(input.dailyTimeStart)
+        const requestEndMinutes = toDailyWallClockMinutes(input.dailyTimeEnd)
+        const existingStartMinutes = toDailyWallClockMinutes(existingBooking.dailyTimeStart)
+        const existingEndMinutes = toDailyWallClockMinutes(existingBooking.dailyTimeEnd)
+
+        return rangesOverlapExclusive(requestStartMinutes, requestEndMinutes, existingStartMinutes, existingEndMinutes)
+    }
+
+    if (requestIsDaily && !existingIsDaily) {
+        if (!input.dailyTimeStart || !input.dailyTimeEnd) {
+            return input.startDate < existingBooking.endDate && existingBooking.startDate < input.endDate
+        }
+
+        const requestStartMinutes = toDailyWallClockMinutes(input.dailyTimeStart)
+        const requestEndMinutes = toDailyWallClockMinutes(input.dailyTimeEnd)
+        const existingStartMinutes = toManilaMinutes(existingBooking.startDate)
+        const existingEndMinutes = toManilaMinutes(existingBooking.endDate)
+
+        return rangesOverlapExclusive(requestStartMinutes, requestEndMinutes, existingStartMinutes, existingEndMinutes)
+    }
+
+    if (!existingBooking.dailyTimeStart || !existingBooking.dailyTimeEnd) {
+        return input.startDate < existingBooking.endDate && existingBooking.startDate < input.endDate
+    }
+
+    const requestStartMinutes = toManilaMinutes(input.startDate)
+    const requestEndMinutes = toManilaMinutes(input.endDate)
+    const existingStartMinutes = toDailyWallClockMinutes(existingBooking.dailyTimeStart)
+    const existingEndMinutes = toDailyWallClockMinutes(existingBooking.dailyTimeEnd)
+
+    return rangesOverlapExclusive(requestStartMinutes, requestEndMinutes, existingStartMinutes, existingEndMinutes)
+}
+
 export type Building = {
     id: string
     buildingName: string
@@ -107,6 +225,138 @@ interface GetRoomsResult {
 
 interface GetRoomsByBuildingInput {
     buildingId: string
+}
+
+export type RoomUnavailableSlot = {
+    date: string
+    startTime: string
+    endTime: string
+    startMinute: number
+    endMinute: number
+    bookingReference: string
+    bookingType: BookingType
+}
+
+interface GetRoomUnavailableSlotsInput {
+    roomId: string
+    dateStart: string
+    dateEnd?: string
+}
+
+interface GetRoomUnavailableSlotsResult {
+    success: boolean
+    data?: RoomUnavailableSlot[]
+    error?: string
+}
+
+const MANILA_AMPM_TIME_FORMATTER = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Manila',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+})
+
+function parseDateKey(dateKey: string): { year: number; month: number; day: number } | null {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+        return null
+    }
+
+    const [year, month, day] = dateKey.split('-').map(Number)
+    if (!year || !month || !day) {
+        return null
+    }
+
+    return { year, month, day }
+}
+
+function formatMinutesAsLabel(minutes: number): string {
+    if (minutes >= 24 * 60) {
+        return '11:59 PM'
+    }
+
+    const safeMinutes = Math.max(0, minutes)
+    const hour = Math.floor(safeMinutes / 60)
+    const minute = safeMinutes % 60
+    const period = hour >= 12 ? 'PM' : 'AM'
+    const hour12 = hour % 12 === 0 ? 12 : hour % 12
+    return `${hour12.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} ${period}`
+}
+
+function formatManilaTimeLabel(date: Date): string {
+    return MANILA_AMPM_TIME_FORMATTER.format(date)
+}
+
+function formatDailyWallClockLabel(date: Date): string {
+    return formatMinutesAsLabel(toDailyWallClockMinutes(date))
+}
+
+function ordinalToDateKey(ordinal: number): string {
+    return toManilaDateKey(new Date(ordinal * 86400000))
+}
+
+function getBookingSlotsForDateRange(
+    booking: ConflictCheckBooking,
+    requestStartOrdinal: number,
+    requestEndOrdinal: number
+): RoomUnavailableSlot[] {
+    const slots: RoomUnavailableSlot[] = []
+    const bookingStartOrdinal = dateKeyToOrdinal(toManilaDateKey(booking.startDate))
+    const bookingEndOrdinal = dateKeyToOrdinal(toManilaDateKey(booking.endDate))
+
+    const startOrdinal = Math.max(requestStartOrdinal, bookingStartOrdinal)
+    const endOrdinal = Math.min(requestEndOrdinal, bookingEndOrdinal)
+
+    if (startOrdinal > endOrdinal) {
+        return slots
+    }
+
+    if (booking.bookingType === 'DAILY' && booking.dailyTimeStart && booking.dailyTimeEnd) {
+        const startMinute = toDailyWallClockMinutes(booking.dailyTimeStart)
+        const endMinute = toDailyWallClockMinutes(booking.dailyTimeEnd)
+        const startTimeLabel = formatDailyWallClockLabel(booking.dailyTimeStart)
+        const endTimeLabel = formatDailyWallClockLabel(booking.dailyTimeEnd)
+
+        for (let day = startOrdinal; day <= endOrdinal; day += 1) {
+            slots.push({
+                date: ordinalToDateKey(day),
+                startTime: startTimeLabel,
+                endTime: endTimeLabel,
+                startMinute,
+                endMinute,
+                bookingReference: booking.bookingReference,
+                bookingType: booking.bookingType,
+            })
+        }
+
+        return slots
+    }
+
+    const bookingStartMinute = toManilaMinutes(booking.startDate)
+    const bookingEndMinute = toManilaMinutes(booking.endDate)
+
+    for (let day = startOrdinal; day <= endOrdinal; day += 1) {
+        const isFirstDay = day === bookingStartOrdinal
+        const isLastDay = day === bookingEndOrdinal
+
+        const startMinutes = isFirstDay ? bookingStartMinute : 0
+        const endMinutes = isLastDay ? bookingEndMinute : 24 * 60
+
+        if (startMinutes >= endMinutes) {
+            continue
+        }
+
+        slots.push({
+            date: ordinalToDateKey(day),
+            startTime: formatMinutesAsLabel(startMinutes),
+            endTime: formatMinutesAsLabel(endMinutes),
+            startMinute: startMinutes,
+            endMinute: endMinutes,
+            bookingReference: booking.bookingReference,
+            bookingType: booking.bookingType,
+        })
+    }
+
+    return slots
 }
 
 export async function getBookings(input: GetBookingsInput = {}): Promise<GetBookingsResult> {
@@ -322,15 +572,35 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
         }
 
         // Check if building and room exist
-        const [building, room] = await Promise.all([
+        const [building, room, overlappingBookings] = await Promise.all([
             prisma.building.findFirst({
                 where: { id: buildingId, deletedAt: null },
                 select: { id: true, buildingName: true }
             }),
             prisma.room.findFirst({
                 where: { id: roomId, buildingId, deletedAt: null },
-                select: { id: true, roomName: true }
-            })
+                select: { id: true, roomName: true, capacity: true }
+            }),
+            prisma.booking.findMany({
+                where: {
+                    roomId,
+                    isActive: true,
+                    deletedAt: null,
+                    approvalStatus: { in: ['PENDING', 'APPROVED'] },
+                    startDate: { lt: endDate },
+                    endDate: { gt: startDate },
+                },
+                select: {
+                    id: true,
+                    bookingReference: true,
+                    bookingType: true,
+                    startDate: true,
+                    endDate: true,
+                    dailyTimeStart: true,
+                    dailyTimeEnd: true,
+                },
+                orderBy: { startDate: 'asc' },
+            }),
         ])
 
         if (!building) {
@@ -339,6 +609,24 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
 
         if (!room) {
             return { success: false, error: 'Room not found in the specified building.' }
+        }
+
+        if (attendeeCount && attendeeCount > room.capacity) {
+            return {
+                success: false,
+                error: `Attendee count exceeds room capacity (${room.capacity}).`,
+            }
+        }
+
+        const conflictingBooking = overlappingBookings.find((booking) =>
+            hasScheduleConflict(input, booking)
+        )
+
+        if (conflictingBooking) {
+            return {
+                success: false,
+                error: `Selected schedule conflicts with existing booking ${conflictingBooking.bookingReference}.`,
+            }
         }
 
         // Generate booking reference
@@ -513,6 +801,78 @@ export async function updateBookingApprovalStatus(
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Failed to update booking status.'
         console.error('Update booking approval error:', message)
+        return { success: false, error: message }
+    }
+}
+
+export async function getRoomUnavailableSlots(
+    input: GetRoomUnavailableSlotsInput
+): Promise<GetRoomUnavailableSlotsResult> {
+    try {
+        const session = await getServerSession()
+
+        if (!session?.user?.id) {
+            return { success: false, error: 'Not authenticated.' }
+        }
+
+        const roomId = input.roomId?.trim()
+        const startKey = input.dateStart?.trim()
+        const endKey = (input.dateEnd || input.dateStart)?.trim()
+
+        if (!roomId) {
+            return { success: false, error: 'Room ID is required.' }
+        }
+
+        if (!startKey || !endKey) {
+            return { success: false, error: 'Date range is required.' }
+        }
+
+        if (!parseDateKey(startKey) || !parseDateKey(endKey)) {
+            return { success: false, error: 'Invalid date format. Expected YYYY-MM-DD.' }
+        }
+
+        const startOrdinal = dateKeyToOrdinal(startKey)
+        const endOrdinal = dateKeyToOrdinal(endKey)
+
+        if (startOrdinal > endOrdinal) {
+            return { success: false, error: 'End date must be on or after start date.' }
+        }
+
+        const queryStart = new Date(`${startKey}T00:00:00`)
+        const queryEnd = new Date(`${endKey}T23:59:59.999`)
+
+        const overlappingBookings = await prisma.booking.findMany({
+            where: {
+                roomId,
+                isActive: true,
+                deletedAt: null,
+                approvalStatus: { in: ['PENDING', 'APPROVED'] },
+                startDate: { lte: queryEnd },
+                endDate: { gte: queryStart },
+            },
+            select: {
+                id: true,
+                bookingReference: true,
+                bookingType: true,
+                startDate: true,
+                endDate: true,
+                dailyTimeStart: true,
+                dailyTimeEnd: true,
+            },
+            orderBy: { startDate: 'asc' },
+        })
+
+        const slots = overlappingBookings.flatMap((booking) =>
+            getBookingSlotsForDateRange(booking, startOrdinal, endOrdinal)
+        )
+
+        return {
+            success: true,
+            data: slots,
+        }
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Failed to fetch unavailable slots.'
+        console.error('Get room unavailable slots error:', message)
         return { success: false, error: message }
     }
 }
