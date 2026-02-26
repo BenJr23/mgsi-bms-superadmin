@@ -26,7 +26,8 @@ interface WalkInFormData {
   buildingId: string
   roomId: string
   bookingType: BookingType
-  date: string
+  dateStart: string
+  dateEnd: string
   timeStart: string
   timeEnd: string
   attendeeCount: string
@@ -47,7 +48,8 @@ const emptyForm: WalkInFormData = {
   buildingId: '',
   roomId: '',
   bookingType: 'HOURLY',
-  date: todayStr,
+  dateStart: todayStr,
+  dateEnd: todayStr,
   timeStart: currentTime,
   timeEnd: endTime,
   attendeeCount: '',
@@ -195,6 +197,16 @@ export function WalkInBookingModal({
 
     if (!form.buildingId) e.buildingId = 'Please select a building.'
     if (!form.roomId) e.roomId = 'Please select a room.'
+    if (!form.dateStart) e.dateStart = 'Start date is required.'
+    if (form.bookingType === 'DAILY' && !form.dateEnd)
+      e.dateEnd = 'End date is required.'
+    if (
+      form.bookingType === 'DAILY' &&
+      form.dateStart &&
+      form.dateEnd &&
+      form.dateEnd < form.dateStart
+    )
+      e.dateEnd = 'End date must be on or after start date.'
     if (!form.timeStart) e.timeStart = 'Start time is required.'
     if (!form.timeEnd) e.timeEnd = 'End time is required.'
     if (form.timeStart && form.timeEnd && form.timeStart >= form.timeEnd)
@@ -443,49 +455,109 @@ export function WalkInBookingModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1.5">
-                Date
-              </label>
-              <input
-                type="date"
-                value={form.date}
-                onChange={(e) => field('date', e.target.value)}
-                className={inputClass()}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1.5">
-                Start Time <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+          {form.bookingType === 'DAILY' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">
+                  Start Date <span className="text-rose-500">*</span>
+                </label>
                 <input
-                  type="time"
-                  value={form.timeStart}
-                  onChange={(e) => field('timeStart', e.target.value)}
-                  className={`${inputClass(errors.timeStart)} pl-9`}
+                  type="date"
+                  value={form.dateStart}
+                  onChange={(e) => field('dateStart', e.target.value)}
+                  className={inputClass(errors.dateStart)}
                 />
+                <ErrorMsg msg={errors.dateStart} />
               </div>
-              <ErrorMsg msg={errors.timeStart} />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1.5">
-                End Time <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">
+                  End Date <span className="text-rose-500">*</span>
+                </label>
                 <input
-                  type="time"
-                  value={form.timeEnd}
-                  onChange={(e) => field('timeEnd', e.target.value)}
-                  className={`${inputClass(errors.timeEnd)} pl-9`}
+                  type="date"
+                  value={form.dateEnd}
+                  onChange={(e) => field('dateEnd', e.target.value)}
+                  className={inputClass(errors.dateEnd)}
                 />
+                <ErrorMsg msg={errors.dateEnd} />
               </div>
-              <ErrorMsg msg={errors.timeEnd} />
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">
+                  Start Time <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <input
+                    type="time"
+                    value={form.timeStart}
+                    onChange={(e) => field('timeStart', e.target.value)}
+                    className={`${inputClass(errors.timeStart)} pl-9`}
+                  />
+                </div>
+                <ErrorMsg msg={errors.timeStart} />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">
+                  End Time <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <input
+                    type="time"
+                    value={form.timeEnd}
+                    onChange={(e) => field('timeEnd', e.target.value)}
+                    className={`${inputClass(errors.timeEnd)} pl-9`}
+                  />
+                </div>
+                <ErrorMsg msg={errors.timeEnd} />
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">
+                  Date <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={form.dateStart}
+                  onChange={(e) => field('dateStart', e.target.value)}
+                  className={inputClass(errors.dateStart)}
+                />
+                <ErrorMsg msg={errors.dateStart} />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">
+                  Start Time <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <input
+                    type="time"
+                    value={form.timeStart}
+                    onChange={(e) => field('timeStart', e.target.value)}
+                    className={`${inputClass(errors.timeStart)} pl-9`}
+                  />
+                </div>
+                <ErrorMsg msg={errors.timeStart} />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">
+                  End Time <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <input
+                    type="time"
+                    value={form.timeEnd}
+                    onChange={(e) => field('timeEnd', e.target.value)}
+                    className={`${inputClass(errors.timeEnd)} pl-9`}
+                  />
+                </div>
+                <ErrorMsg msg={errors.timeEnd} />
+              </div>
+            </div>
+          )}
 
           <div className="sm:w-1/3">
             <label className="text-sm font-medium text-slate-700 block mb-1.5">
