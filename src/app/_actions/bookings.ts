@@ -64,11 +64,17 @@ interface CreateWalkInBookingResult {
 interface CreateWalkInBookingInput {
     email: string
     name: string
+    phoneNumber?: string
+    companyName?: string
     buildingId: string
     roomId: string
+    bookingType: 'HOURLY' | 'DAILY'
     startDate: Date
     endDate: Date
-    attendeeCount: number
+    dailyTimeStart?: Date
+    dailyTimeEnd?: Date
+    attendeeCount?: number
+    message?: string
 }
 
 export type Building = {
@@ -269,7 +275,21 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
             return { success: false, error: 'Not authenticated.' }
         }
 
-        const { email, name, buildingId, roomId, startDate, endDate, attendeeCount } = input
+        const {
+            email,
+            name,
+            phoneNumber,
+            companyName,
+            buildingId,
+            roomId,
+            bookingType,
+            startDate,
+            endDate,
+            dailyTimeStart,
+            dailyTimeEnd,
+            attendeeCount,
+            message,
+        } = input
 
         if (!email?.trim() || !name?.trim()) {
             return { success: false, error: 'Client email and name are required.' }
@@ -285,6 +305,20 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
 
         if (startDate >= endDate) {
             return { success: false, error: 'End date must be after start date.' }
+        }
+
+        if (bookingType !== 'HOURLY' && bookingType !== 'DAILY') {
+            return { success: false, error: 'Invalid booking type.' }
+        }
+
+        if (bookingType === 'DAILY') {
+            if (!dailyTimeStart || !dailyTimeEnd) {
+                return { success: false, error: 'Daily booking requires start and end times.' }
+            }
+
+            if (dailyTimeStart >= dailyTimeEnd) {
+                return { success: false, error: 'Daily end time must be after start time.' }
+            }
         }
 
         // Check if building and room exist
@@ -316,17 +350,37 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
             select: { id: true, name: true, email: true, emailVerified: true }
         })
 
-        const isEmailVerified = user?.emailVerified || false
-        const isWalkIn = !user || !isEmailVerified
-
         if (!user) {
             user = await prisma.user.create({
                 data: {
                     email: email.toLowerCase().trim(),
                     name: name.trim(),
+                    phoneNumber: phoneNumber?.trim() || null,
+                    companyName: companyName?.trim() || null,
                     emailVerified: false, // Walk-in clients have unverified emails by default
                 },
                 select: { id: true, name: true, email: true, emailVerified: true }
+            })
+        } else {
+            const userUpdateData: {
+                name: string
+                phoneNumber?: string | null
+                companyName?: string | null
+            } = {
+                name: name.trim(),
+            }
+
+            if (typeof phoneNumber === 'string') {
+                userUpdateData.phoneNumber = phoneNumber.trim() || null
+            }
+
+            if (typeof companyName === 'string') {
+                userUpdateData.companyName = companyName.trim() || null
+            }
+
+            await prisma.user.update({
+                where: { id: user.id },
+                data: userUpdateData,
             })
         }
 
@@ -339,13 +393,16 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
                 roomId,
                 startDate,
                 endDate,
-                bookingType: 'HOURLY', // Using HOURLY as default booking type
+                dailyTimeStart: bookingType === 'DAILY' ? dailyTimeStart : null,
+                dailyTimeEnd: bookingType === 'DAILY' ? dailyTimeEnd : null,
+                bookingType,
                 clientStatus: 'SUBMITTED', // Using SUBMITTED as default client status
                 approvalStatus: 'APPROVED', // Auto-approve walk-in bookings
                 submittedAt: new Date(),
                 approvalDate: new Date(),
                 updatedById: session.user.id,
-                attendeeCount,
+                attendeeCount: attendeeCount ?? null,
+                message: message?.trim() || null,
                 isActive: true
             },
             include: {

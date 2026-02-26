@@ -1,8 +1,15 @@
 'use client'
 
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
+import {
+  createWalkInBooking,
+  getBuildings,
+  getRoomsByBuilding,
+  type Building,
+  type Room,
+} from '@/app/_actions/bookings'
 import {
   Building2,
   DoorOpen,
@@ -56,83 +63,6 @@ const emptyForm: WalkInFormData = {
   message: '',
 }
 
-const BUILDINGS = [
-  {
-    id: 'bld-001',
-    name: 'Innovation Hub',
-    rooms: [
-      {
-        id: 'rm-101',
-        name: 'Conference Room A',
-        capacity: 12,
-      },
-      {
-        id: 'rm-102',
-        name: 'Auditorium',
-        capacity: 200,
-      },
-      {
-        id: 'rm-103',
-        name: 'Lab 3',
-        capacity: 15,
-      },
-    ],
-  },
-  {
-    id: 'bld-002',
-    name: 'Downtown Center',
-    rooms: [
-      {
-        id: 'rm-201',
-        name: 'Huddle Room 1',
-        capacity: 4,
-      },
-      {
-        id: 'rm-202',
-        name: 'Meeting B',
-        capacity: 10,
-      },
-      {
-        id: 'rm-203',
-        name: 'Desk 12',
-        capacity: 1,
-      },
-    ],
-  },
-  {
-    id: 'bld-003',
-    name: 'West Wing Annex',
-    rooms: [
-      {
-        id: 'rm-301',
-        name: 'Training Lab',
-        capacity: 30,
-      },
-      {
-        id: 'rm-302',
-        name: 'Banquet Hall',
-        capacity: 100,
-      },
-    ],
-  },
-  {
-    id: 'bld-004',
-    name: 'Executive Tower',
-    rooms: [
-      {
-        id: 'rm-501',
-        name: 'Executive Suite',
-        capacity: 8,
-      },
-      {
-        id: 'rm-502',
-        name: 'Board Room',
-        capacity: 20,
-      },
-    ],
-  },
-]
-
 interface WalkInBookingModalProps {
   isOpen: boolean
   onClose: () => void
@@ -150,16 +80,61 @@ export function WalkInBookingModal({
   const [errors, setErrors] = useState<
     Partial<Record<keyof WalkInFormData, string>>
   >({})
+  const [buildings, setBuildings] = useState<Building[]>([])
+  const [rooms, setRooms] = useState<Room[]>([])
+  const [loadingBuildings, setLoadingBuildings] = useState(false)
+  const [loadingRooms, setLoadingRooms] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string>('')
 
   const selectedBuilding = useMemo(
-    () => BUILDINGS.find((b) => b.id === form.buildingId),
-    [form.buildingId],
+    () => buildings.find((b) => b.id === form.buildingId),
+    [buildings, form.buildingId],
   )
 
   const selectedRoom = useMemo(
-    () => selectedBuilding?.rooms.find((r) => r.id === form.roomId),
-    [selectedBuilding, form.roomId],
+    () => rooms.find((r) => r.id === form.roomId),
+    [rooms, form.roomId],
   )
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    const fetchBuildings = async () => {
+      setLoadingBuildings(true)
+      try {
+        const result = await getBuildings()
+        if (result.success && result.data) {
+          setBuildings(result.data)
+        }
+      } finally {
+        setLoadingBuildings(false)
+      }
+    }
+
+    fetchBuildings()
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!form.buildingId) {
+      setRooms([])
+      return
+    }
+
+    const fetchRooms = async () => {
+      setLoadingRooms(true)
+      try {
+        const result = await getRoomsByBuilding({ buildingId: form.buildingId })
+        if (result.success && result.data) {
+          setRooms(result.data)
+        }
+      } finally {
+        setLoadingRooms(false)
+      }
+    }
+
+    fetchRooms()
+  }, [form.buildingId])
 
   const field = <K extends keyof WalkInFormData>(
     key: K,
@@ -222,17 +197,65 @@ export function WalkInBookingModal({
     return Object.keys(e).length === 0
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validate()) return
-    onSubmit?.(form)
-    onSuccess?.()
-    handleClose()
+
+    setSubmitError('')
+    setIsSubmitting(true)
+    try {
+      const isDaily = form.bookingType === 'DAILY'
+      const startDate = isDaily
+        ? new Date(`${form.dateStart}T00:00:00`)
+        : new Date(`${form.dateStart}T${form.timeStart}:00`)
+      const endDate = isDaily
+        ? new Date(`${form.dateEnd}T23:59:59`)
+        : new Date(`${form.dateStart}T${form.timeEnd}:00`)
+
+      const dailyTimeStart = isDaily
+        ? new Date(`1970-01-01T${form.timeStart}:00.000Z`)
+        : undefined
+      const dailyTimeEnd = isDaily
+        ? new Date(`1970-01-01T${form.timeEnd}:00.000Z`)
+        : undefined
+
+      const attendeeCount = form.attendeeCount
+        ? Number(form.attendeeCount)
+        : undefined
+
+      const result = await createWalkInBooking({
+        email: form.email.trim(),
+        name: form.clientName.trim(),
+        phoneNumber: form.phoneNumber.trim() || undefined,
+        companyName: form.companyName.trim() || undefined,
+        buildingId: form.buildingId,
+        roomId: form.roomId,
+        bookingType: form.bookingType,
+        startDate,
+        endDate,
+        dailyTimeStart,
+        dailyTimeEnd,
+        attendeeCount,
+        message: form.message.trim() || undefined,
+      })
+
+      if (!result.success) {
+        setSubmitError(result.error || 'Failed to create walk-in booking.')
+        return
+      }
+
+      onSubmit?.(form)
+      onSuccess?.()
+      handleClose()
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleClose = () => {
     setForm(emptyForm)
     setErrors({})
+    setSubmitError('')
     onClose()
   }
 
@@ -264,6 +287,13 @@ export function WalkInBookingModal({
       size="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-5">
+        {submitError && (
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-md flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-rose-700">{submitError}</p>
+          </div>
+        )}
+
         <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg">
           <div className="p-1.5 bg-amber-100 rounded-md">
             <Zap className="w-4 h-4 text-amber-600" />
@@ -376,12 +406,13 @@ export function WalkInBookingModal({
               <select
                 value={form.buildingId}
                 onChange={(e) => handleBuildingChange(e.target.value)}
+                disabled={loadingBuildings}
                 className={inputClass(errors.buildingId)}
               >
                 <option value="">Select building…</option>
-                {BUILDINGS.map((b) => (
+                {buildings.map((b) => (
                   <option key={b.id} value={b.id}>
-                    {b.name}
+                    {b.buildingName}
                   </option>
                 ))}
               </select>
@@ -398,15 +429,15 @@ export function WalkInBookingModal({
               <select
                 value={form.roomId}
                 onChange={(e) => field('roomId', e.target.value)}
-                disabled={!form.buildingId}
+                disabled={!form.buildingId || loadingRooms}
                 className={`${inputClass(errors.roomId)} ${!form.buildingId ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <option value="">
                   {form.buildingId ? 'Select room…' : 'Select a building first'}
                 </option>
-                {selectedBuilding?.rooms.map((r) => (
+                {rooms.map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.name} (Cap: {r.capacity})
+                    {r.roomName} (Cap: {r.capacity})
                   </option>
                 ))}
               </select>
@@ -418,7 +449,7 @@ export function WalkInBookingModal({
             <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-md border border-slate-100">
               <Users className="w-3.5 h-3.5 text-slate-400" />
               <span className="text-xs text-slate-600">
-                <strong>{selectedRoom.name}</strong> — max capacity{' '}
+                <strong>{selectedRoom.roomName}</strong> — max capacity{' '}
                 {selectedRoom.capacity} people
               </span>
             </div>
@@ -602,9 +633,9 @@ export function WalkInBookingModal({
           <Button type="button" variant="outline" onClick={handleClose}>
             Cancel
           </Button>
-          <Button type="submit" className="flex items-center gap-2">
+          <Button type="submit" className="flex items-center gap-2" disabled={isSubmitting}>
             <Zap className="w-4 h-4" />
-            Create Walk-In Booking
+            {isSubmitting ? 'Creating...' : 'Create Walk-In Booking'}
           </Button>
         </div>
       </form>
