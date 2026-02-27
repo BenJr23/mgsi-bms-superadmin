@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { signIn, signOut } from '@/lib/auth-client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Mail } from 'lucide-react';
-import { getCurrentUser } from '@/app/_actions/auth';
+import { getCurrentUser, forgotPassword, verifyPasswordResetOTP, resetPasswordWithToken } from '@/app/_actions/auth';
 
 export default function SignInPageClient() {
   const router = useRouter();
@@ -48,14 +48,9 @@ export default function SignInPageClient() {
     setError(null);
 
     try {
-      const res = await fetch('/api/auth/user/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'send', email }),
-      });
-      const result = await res.json();
+      const result = await forgotPassword(email);
 
-      if (res.ok) {
+      if (result.success) {
         setView('otp');
       } else {
         setError(result.error || "Failed to send OTP.");
@@ -117,14 +112,9 @@ export default function SignInPageClient() {
     setError(null);
 
     try {
-      const res = await fetch('/api/auth/user/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'verify', email, otp }),
-      });
-      const result = await res.json();
+      const result = await verifyPasswordResetOTP(email, otp);
 
-      if (res.ok && result.success) {
+      if (result.success && result.token) {
         setResetToken(result.token);
         setView('reset-password');
         setError(null);
@@ -157,18 +147,9 @@ export default function SignInPageClient() {
     }
 
     try {
-      const res = await fetch('/api/auth/user/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'reset',
-          token: resetToken,
-          password: newPassword
-        }),
-      });
-      const result = await res.json();
+      const result = await resetPasswordWithToken(resetToken, newPassword);
 
-      if (res.ok) {
+      if (result.success) {
         setView('login');
         setError(null);
         setOtp("");

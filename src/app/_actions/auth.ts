@@ -110,6 +110,139 @@ export async function verifyOTP(email: string, otp: string) {
     }
 }
 
+export async function verifyPasswordResetOTP(email: string, otp: string) {
+    try {
+        if (!email || !otp) {
+            return { error: "Email and OTP are required", success: false };
+        }
+
+        // Find the verification record
+        const verification = await prisma.verification.findFirst({
+            where: {
+                identifier: email,
+                value: otp,
+            }
+        });
+
+        if (!verification) {
+            return { error: "Incorrect or expired OTP", success: false };
+        }
+
+        // Check if OTP is expired
+        if (new Date() > verification.expiresAt) {
+            // Delete expired OTP
+            await prisma.verification.delete({
+                where: { id: verification.id }
+            });
+            return { error: "OTP has expired", success: false };
+        }
+
+        // Generate a reset token
+        const resetToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        
+        // Store the reset token in the database (expires in 15 minutes)
+        const tokenExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
+        
+        await prisma.verification.create({
+            data: {
+                identifier: `reset_token:${resetToken}`,
+                value: email,
+                expiresAt: tokenExpiresAt,
+            }
+        });
+
+        // Delete the used OTP
+        await prisma.verification.delete({
+            where: { id: verification.id }
+        });
+
+        console.log(`✅ OTP verified for ${email}, reset token generated`);
+
+        return { token: resetToken, success: true };
+    } catch (error: any) {
+        console.error("❌ VERIFY PASSWORD RESET OTP ERROR:", error.message);
+        return { error: "Failed to verify OTP. Check server logs.", success: false };
+    }
+}
+
+export async function resetPasswordWithToken(token: string, password: string) {
+    try {
+        if (!token || !password) {
+            return { error: "Token and password are required", success: false };
+        }
+
+        // Validate password strength
+        if (password.length < 8) {
+            return { error: "Password must be at least 8 characters long", success: false };
+        }
+
+        // Find the reset token
+        const tokenRecord = await prisma.verification.findFirst({
+            where: {
+                identifier: `reset_token:${token}`,
+            }
+        });
+
+        if (!tokenRecord) {
+            return { error: "Invalid or expired reset token", success: false };
+        }
+
+        // Check if token is expired
+        if (new Date() > tokenRecord.expiresAt) {
+            // Delete expired token
+            await prisma.verification.delete({
+                where: { id: tokenRecord.id }
+            });
+            return { error: "Reset token has expired", success: false };
+        }
+
+        const email = tokenRecord.value;
+
+        // Find user
+        const user = await prisma.user.findUnique({
+            where: { email },
+            include: { accounts: true }
+        });
+
+        if (!user) {
+            return { error: "User not found", success: false };
+        }
+
+        // Hash the new password using better-auth's crypto
+        const hashedPassword = await hashPassword(password);
+
+        // Update the password in the account table
+        const credentialAccount = user.accounts.find((acc: { providerId: string; }) => acc.providerId === "credential");
+
+        if (credentialAccount) {
+            await prisma.account.update({
+                where: { id: credentialAccount.id },
+                data: { password: hashedPassword }
+            });
+        } else {
+            return { error: "No credential account found for this user", success: false };
+        }
+
+        // Update passwordVerified flag
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { passwordVerified: true }
+        });
+
+        // Delete the used token
+        await prisma.verification.delete({
+            where: { id: tokenRecord.id }
+        });
+
+        console.log(`✅ Password reset successful for ${email}`);
+
+        return { message: "Password reset successfully", success: true };
+    } catch (error: any) {
+        console.error("❌ RESET PASSWORD WITH TOKEN ERROR:", error.message);
+        return { error: "Failed to reset password. Check server logs.", success: false };
+    }
+}
+
 export async function resetPasswordWithOTP(email: string, otp: string, newPassword: string) {
     try {
         if (!email || !otp || !newPassword) {
