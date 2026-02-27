@@ -379,6 +379,13 @@ export async function getUsers(input: GetUsersInput = {}): Promise<ListUsersResu
 
     const whereClause = {
       deletedAt: null,
+      // Exclude CLIENT users without a contract end date
+      NOT: {
+        AND: [
+          { role: 'CLIENT' as const },
+          { contractEndDate: null },
+        ],
+      },
       ...(searchQuery
         ? {
             OR: [
