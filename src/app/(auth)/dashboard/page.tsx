@@ -23,6 +23,7 @@ export default function DashboardPage() {
   const [localUserName, setLocalUserName] = useState<string>('');
   const [localUserImage, setLocalUserImage] = useState<string | null>(null);
   const [localUserPhone, setLocalUserPhone] = useState<string>('');
+  const [localUserCompany, setLocalUserCompany] = useState<string>('');
   const { data: session } = useSession();
   const sessionUser = session?.user as
   | {
@@ -31,6 +32,7 @@ export default function DashboardPage() {
     email?: string | null;
     image?: string | null;
     phoneNumber?: string | null;
+    companyName?: string | null;
     createdAt?: string | null;
   }
   | undefined;
@@ -40,6 +42,7 @@ export default function DashboardPage() {
   const userEmail = sessionUser?.email || `${userRole.toLowerCase()}@company.com`;
   const userImage = localUserImage || sessionUser?.image || null;
   const userPhone = localUserPhone || sessionUser?.phoneNumber || '';
+  const userCompany = localUserCompany || sessionUser?.companyName || '';
   const userCreatedAt = sessionUser?.createdAt || null;
   const userInitials =
   userName
@@ -60,9 +63,12 @@ export default function DashboardPage() {
     if (sessionUser?.phoneNumber && !localUserPhone) {
       setLocalUserPhone(sessionUser.phoneNumber);
     }
-  }, [sessionUser?.name, sessionUser?.image, sessionUser?.phoneNumber, localUserName, localUserImage, localUserPhone]);
+    if (sessionUser?.companyName && !localUserCompany) {
+      setLocalUserCompany(sessionUser.companyName);
+    }
+  }, [sessionUser?.name, sessionUser?.image, sessionUser?.phoneNumber, sessionUser?.companyName, localUserName, localUserImage, localUserPhone, localUserCompany]);
 
-  const handleProfileUpdate = (updates: { name?: string; image?: string; phoneNumber?: string }) => {
+  const handleProfileUpdate = (updates: { name?: string; image?: string; phoneNumber?: string; companyName?: string }) => {
     if (updates.name) {
       setLocalUserName(updates.name);
     }
@@ -71,6 +77,9 @@ export default function DashboardPage() {
     }
     if (updates.phoneNumber !== undefined) {
       setLocalUserPhone(updates.phoneNumber);
+    }
+    if (updates.companyName !== undefined) {
+      setLocalUserCompany(updates.companyName);
     }
   };
 
@@ -173,7 +182,7 @@ export default function DashboardPage() {
 
   const renderContent = () => {
     if (showProfileView) {
-      return <ProfileView userName={userName} userEmail={userEmail} userRole={userRole} userImage={userImage} userPhone={userPhone} userCreatedAt={userCreatedAt} lastLogin={lastLogin} onProfileUpdate={handleProfileUpdate} />;
+      return <ProfileView userName={userName} userEmail={userEmail} userRole={userRole} userImage={userImage} userPhone={userPhone} userCompany={userCompany} userCreatedAt={userCreatedAt} lastLogin={lastLogin} onProfileUpdate={handleProfileUpdate} />;
     }
 
     if (showSettingsView) {

@@ -28,11 +28,13 @@ export async function PATCH(req: NextRequest) {
 			data: {
 				name: name.trim(),
 				phoneNumber: phoneNumber.trim(),
+				companyName: companyName ? companyName.trim() : null,
 			},
 			select: {
 				id: true,
 				name: true,
 				phoneNumber: true,
+				companyName: true,
 				email: true,
 			},
 		});

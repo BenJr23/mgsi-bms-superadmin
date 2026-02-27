@@ -23,12 +23,13 @@ type ProfileViewProps = {
   userRole: 'ADMIN' | 'SUPERADMIN';
   userImage: string | null;
   userPhone: string;
+  userCompany: string;
   userCreatedAt: string | null;
   lastLogin: string | null;
-  onProfileUpdate?: (updates: { name?: string; image?: string; phoneNumber?: string }) => void;
+  onProfileUpdate?: (updates: { name?: string; image?: string; phoneNumber?: string; companyName?: string }) => void;
 };
 
-export function ProfileView({ userName, userEmail, userRole, userImage, userPhone, userCreatedAt, lastLogin, onProfileUpdate }: ProfileViewProps) {
+export function ProfileView({ userName, userEmail, userRole, userImage, userPhone, userCompany, userCreatedAt, lastLogin, onProfileUpdate }: ProfileViewProps) {
   const [isPasswordUpdating, setIsPasswordUpdating] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
@@ -71,6 +72,7 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
     name: userName,
     email: userEmail,
     phone: formatPhilippinePhone(userPhone),
+    company: userCompany,
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -81,9 +83,10 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
       ...prev,
       name: userName,
       email: userEmail,
-      phone: formatPhilippinePhone(userPhone)
+      phone: formatPhilippinePhone(userPhone),
+      company: userCompany
     }));
-  }, [userName, userEmail, userPhone]);
+  }, [userName, userEmail, userPhone, userCompany]);
 
   useEffect(() => {
     setLocalImageUrl(userImage);
@@ -125,6 +128,7 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
         body: JSON.stringify({
           name: formData.name,
           phoneNumber: `+63${phoneDigitsOnly}`,
+          companyName: formData.company.trim() || null,
         }),
       });
 
@@ -140,7 +144,8 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
       if (onProfileUpdate) {
         onProfileUpdate({
           name: formData.name,
-          phoneNumber: `+63${phoneDigitsOnly}`
+          phoneNumber: `+63${phoneDigitsOnly}`,
+          companyName: formData.company.trim() || ''
         });
       }
       
@@ -156,7 +161,8 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
     setFormData((prev) => ({
       ...prev,
       name: userName,
-      phone: formatPhilippinePhone(userPhone)
+      phone: formatPhilippinePhone(userPhone),
+      company: userCompany
     }));
     setPersonalInfoError('');
     setPersonalInfoSuccess('');
@@ -281,7 +287,7 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const hasPersonalInfoChanges = formData.name !== userName || formData.phone !== formatPhilippinePhone(userPhone);
+  const hasPersonalInfoChanges = formData.name !== userName || formData.phone !== formatPhilippinePhone(userPhone) || formData.company !== userCompany;
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -425,6 +431,28 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
                     }`} />
 
                 </div>
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-medium text-slate-700">
+                  Company Name
+                  <span className="text-slate-400 font-normal ml-1">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Acme Corporation"
+                  value={formData.company}
+                  onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    company: e.target.value
+                  })
+                  }
+                  disabled={!isPersonalInfoEditing}
+                  className={`w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-900 focus:border-transparent ${
+                    isPersonalInfoEditing ? '' : 'bg-slate-50 cursor-not-allowed text-slate-600'
+                  }`} />
+
               </div>
 
               <div className="space-y-2 md:col-span-2">

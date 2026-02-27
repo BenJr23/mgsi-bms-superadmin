@@ -221,7 +221,7 @@ export function BookingsView() {
   }
 
   const exportCSV = (items: BookingListItem[], month: 'ALL' | string = 'ALL') => {
-    const headers = ['Reference','Client','Building','Room','Start Date','Start Time','End Date','End Time','Status']
+    const headers = ['Reference','Client','Company','Building','Room','Start Date','Start Time','End Date','End Time','Status']
     const filtered = month === 'ALL' ? items : items.filter((b) => {
       // month in format YYYY-MM
       try {
@@ -237,6 +237,7 @@ export function BookingsView() {
     const rows = filtered.map((b) => [
       escapeCSV(b.bookingReference),
       escapeCSV(b.submittedBy.name || b.submittedBy.email),
+      escapeCSV(b.submittedBy.companyName || '-'),
       escapeCSV(b.building.name),
       escapeCSV(b.room.name),
       escapeCSV(formatDate(b.startDate)),
@@ -263,6 +264,7 @@ export function BookingsView() {
       <tr>
         <td style="padding:8px;border:1px solid #e6edf3">${b.bookingReference}</td>
         <td style="padding:8px;border:1px solid #e6edf3">${b.submittedBy.name || b.submittedBy.email}</td>
+        <td style="padding:8px;border:1px solid #e6edf3">${b.submittedBy.companyName || '-'}</td>
         <td style="padding:8px;border:1px solid #e6edf3">${b.building.name}</td>
         <td style="padding:8px;border:1px solid #e6edf3">${b.room.name}</td>
         <td style="padding:8px;border:1px solid #e6edf3">${formatDate(b.startDate)} ${formatBookingTime(b, getDisplayStartTime(b), 'start')}</td>
@@ -288,6 +290,7 @@ export function BookingsView() {
               <tr>
                 <th>Reference</th>
                 <th>Client</th>
+                <th>Company</th>
                 <th>Building</th>
                 <th>Room</th>
                 <th>Start</th>
@@ -426,7 +429,12 @@ export function BookingsView() {
                       {booking.bookingReference}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-slate-600">{booking.submittedBy.name || booking.submittedBy.email}</td>
+                  <td className="px-6 py-4 text-slate-600">
+                    <div className="text-slate-900 font-medium">{booking.submittedBy.name || booking.submittedBy.email}</div>
+                    {booking.submittedBy.companyName && (
+                      <div className="text-xs text-slate-500">{booking.submittedBy.companyName}</div>
+                    )}
+                  </td>
                   <td className="px-6 py-4">
                     <div className="text-slate-900 font-medium">{booking.room.name}</div>
                     <div className="text-xs text-slate-500">{booking.building.name}</div>

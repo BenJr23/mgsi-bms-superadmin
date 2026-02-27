@@ -14,6 +14,7 @@ export type RecentBooking = {
 	id: string
 	bookingReference: string
 	submittedByName: string | null
+	submittedByCompany: string | null
 	roomName: string
 	date: string
 	approvalStatus: string
@@ -120,6 +121,7 @@ export async function getRecentBookings(): Promise<GetRecentBookingsResult> {
 				submittedBy: {
 					select: {
 						name: true,
+						companyName: true,
 					},
 				},
 				room: {
@@ -138,6 +140,7 @@ export async function getRecentBookings(): Promise<GetRecentBookingsResult> {
 			id: booking.id,
 			bookingReference: booking.bookingReference,
 			submittedByName: booking.submittedBy.name,
+			submittedByCompany: booking.submittedBy.companyName,
 			roomName: booking.room.roomName,
 			date: booking.startDate.toISOString(),
 			approvalStatus: booking.approvalStatus,

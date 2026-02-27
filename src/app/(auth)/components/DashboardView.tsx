@@ -176,6 +176,7 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
                   <tr>
                     <th className="px-6 py-3">Reference</th>
                     <th className="px-6 py-3">Client</th>
+                    <th className="px-6 py-3">Company</th>
                     <th className="px-6 py-3">Room</th>
                     <th className="px-6 py-3">Date</th>
                     <th className="px-6 py-3">Status</th>
@@ -188,6 +189,7 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
                         {booking.bookingReference}
                       </td>
                       <td className="px-6 py-4 text-slate-600">{booking.submittedByName || 'N/A'}</td>
+                      <td className="px-6 py-4 text-slate-600">{booking.submittedByCompany || '-'}</td>
                       <td className="px-6 py-4 text-slate-600">{booking.roomName}</td>
                       <td className="px-6 py-4 text-slate-600">{formatDate(booking.date)}</td>
                       <td className="px-6 py-4">
@@ -219,6 +221,9 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
                         {booking.bookingReference}
                       </div>
                       <div className="text-sm text-slate-600">{booking.submittedByName || 'N/A'}</div>
+                      {booking.submittedByCompany && (
+                        <div className="text-xs text-slate-500">{booking.submittedByCompany}</div>
+                      )}
                     </div>
                     <Badge
                       variant={
