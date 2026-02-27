@@ -124,6 +124,7 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
       const result = await updateUserProfile({
         name: formData.name,
         phoneNumber: `+63${phoneDigitsOnly}`,
+        companyName: formData.company,
       });
 
       if (!result.success) {

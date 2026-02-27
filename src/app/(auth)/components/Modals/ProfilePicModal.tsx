@@ -108,7 +108,7 @@ export function ProfilePicModal({ isOpen, currentImage, onClose, onUpload }: Pro
 			}
 
 			// Call the parent onUpload callback with the new image URL
-			await onUpload(selectedFile, result.image);
+			await onUpload(selectedFile, result.image ?? undefined);
 
 			setSelectedFile(null);
 			onClose();
@@ -202,7 +202,7 @@ export function ProfilePicModal({ isOpen, currentImage, onClose, onUpload }: Pro
 					</Button>
 				</div>
 			</div>
-			
+
 		</div>
 	);
 }

@@ -46,14 +46,14 @@ export async function forgotPassword(email: string) {
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
-                user: process.env.USER,
-                pass: process.env.PASSWORD,
+                user: process.env.GMAIL_USER,
+                pass: process.env.GMAIL_APP_PASSWORD,
             },
         });
 
         // Send the Email
         await transporter.sendMail({
-            from: `"GreatWork" <${process.env.USER}>`,
+            from: `"GreatWork" <${process.env.GMAIL_USER}>`,
             to: email,
             subject: "Your Password Reset OTP",
             html: `
@@ -377,7 +377,7 @@ export async function getLastLogin() {
     }
 }
 
-export async function updateUserProfile(data: { name: string; phoneNumber: string }) {
+export async function updateUserProfile(data: { name: string; phoneNumber: string; companyName?: string }) {
     try {
         const user = await requireAuth();
 
@@ -396,11 +396,13 @@ export async function updateUserProfile(data: { name: string; phoneNumber: strin
             data: {
                 name: data.name.trim(),
                 phoneNumber: data.phoneNumber.trim(),
+                ...(data.companyName !== undefined && { companyName: data.companyName.trim() || null }),
             },
             select: {
                 id: true,
                 name: true,
                 phoneNumber: true,
+                companyName: true,
                 email: true,
             },
         });
