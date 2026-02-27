@@ -100,7 +100,9 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
 		})
 
 		const occupancyRate =
-			activeRoomsCount > 0 ? Math.round((roomsWithActiveBookings / activeRoomsCount) * 100) : 0
+			activeRoomsCount > 0 
+				? parseFloat(((roomsWithActiveBookings / activeRoomsCount) * 100).toFixed(2))
+				: 0
 
 		return {
 			success: true,
