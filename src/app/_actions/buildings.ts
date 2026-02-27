@@ -363,6 +363,81 @@ interface DeleteBuildingResult {
   error?: string
 }
 
+interface UploadBuildingImageResult {
+  success: boolean
+  image?: string
+  error?: string
+}
+
+export async function uploadBuildingImage(
+  formData: FormData
+): Promise<UploadBuildingImageResult> {
+  try {
+    const session = await getServerSession()
+
+    if (!session?.user?.id) {
+      return { success: false, error: 'Not authenticated.' }
+    }
+
+    const file = formData.get('file') as File
+
+    if (!file) {
+      return { success: false, error: 'No file provided.' }
+    }
+
+    if (!file.type.startsWith('image/')) {
+      return { success: false, error: 'Please select a valid image file.' }
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      return { success: false, error: 'Please select an image smaller than 5MB.' }
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return { success: false, error: 'Supabase configuration missing.' }
+    }
+
+    const { createClient } = await import('@supabase/supabase-js')
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+    const fileExt = file.type.split('/')[1]
+    const fileName = `buildings/${session.user.id}/building-${Date.now()}.${fileExt}`
+
+    const buffer = await file.arrayBuffer()
+    const uint8Array = new Uint8Array(buffer)
+
+    const { error: uploadError } = await supabase.storage
+      .from('BMS')
+      .upload(fileName, uint8Array, {
+        contentType: file.type,
+        upsert: false,
+      })
+
+    if (uploadError) {
+      console.error('Upload building image error:', uploadError)
+      return { success: false, error: 'Failed to upload image.' }
+    }
+
+    const { data: publicUrlData } = supabase.storage.from('BMS').getPublicUrl(fileName)
+
+    return {
+      success: true,
+      image: publicUrlData.publicUrl,
+    }
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : 'Failed to upload building image.'
+    console.error('Upload building image error:', message)
+    return {
+      success: false,
+      error: message,
+    }
+  }
+}
+
 export async function deleteBuilding(
   buildingId: string
 ): Promise<DeleteBuildingResult> {

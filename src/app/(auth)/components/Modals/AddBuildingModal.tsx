@@ -2,10 +2,10 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { X, ImageIcon, AlertCircle, Loader } from 'lucide-react'
+import { X, ImageIcon, AlertCircle, Loader, Upload } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { useSession } from '@/lib/auth-client'
-import { createBuilding } from '@/app/_actions/buildings'
+import { createBuilding, uploadBuildingImage } from '@/app/_actions/buildings'
 
 interface ModalProps {
   isOpen: boolean
@@ -123,6 +123,90 @@ export function AddBuildingModal({ isOpen, onClose, onSuccess }: AddBuildingModa
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string>('')
   const [submitSuccess, setSubmitSuccess] = useState<string>('')
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [imageUploadError, setImageUploadError] = useState('')
+  const [imageUploadSuccess, setImageUploadSuccess] = useState('')
+  const [isDraggingImage, setIsDraggingImage] = useState(false)
+
+  const validateImageFile = (file: File): boolean => {
+    setImageUploadError('')
+
+    if (!file.type.startsWith('image/')) {
+      setImageUploadError('Please select an image file.')
+      return false
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setImageUploadError('Please select an image smaller than 5MB.')
+      return false
+    }
+
+    return true
+  }
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null
+    setImageUploadSuccess('')
+
+    if (!file) {
+      setSelectedImageFile(null)
+      return
+    }
+
+    if (validateImageFile(file)) {
+      setSelectedImageFile(file)
+    } else {
+      setSelectedImageFile(null)
+    }
+  }
+
+  const handleImageDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    setIsDraggingImage(false)
+    const file = e.dataTransfer.files?.[0] ?? null
+    setImageUploadSuccess('')
+
+    if (!file) return
+
+    if (validateImageFile(file)) {
+      setSelectedImageFile(file)
+    } else {
+      setSelectedImageFile(null)
+    }
+  }
+
+  const handleUploadImage = async () => {
+    if (!selectedImageFile) {
+      setImageUploadError('Choose an image before uploading.')
+      return
+    }
+
+    setIsUploadingImage(true)
+    setImageUploadError('')
+    setImageUploadSuccess('')
+
+    try {
+      const formData = new FormData()
+      formData.append('file', selectedImageFile)
+
+      const result = await uploadBuildingImage(formData)
+
+      if (!result.success || !result.image) {
+        setImageUploadError(result.error || 'Failed to upload image.')
+        return
+      }
+
+      field('imageUrl', result.image)
+      setSelectedImageFile(null)
+      setImageUploadSuccess('Image uploaded successfully.')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to upload image.'
+      setImageUploadError(message)
+    } finally {
+      setIsUploadingImage(false)
+    }
+  }
 
   const validate = (): boolean => {
     const newErrors: Partial<BuildingFormData> = {}
@@ -177,6 +261,10 @@ export function AddBuildingModal({ isOpen, onClose, onSuccess }: AddBuildingModa
     setErrors({})
     setSubmitError('')
     setSubmitSuccess('')
+    setSelectedImageFile(null)
+    setImageUploadError('')
+    setImageUploadSuccess('')
+    setIsDraggingImage(false)
     onClose()
   }
 
@@ -317,6 +405,50 @@ export function AddBuildingModal({ isOpen, onClose, onSuccess }: AddBuildingModa
             <ImageIcon className="w-4 h-4 text-slate-400" />
             Image URL
           </label>
+          <div
+            onDragOver={(e) => {
+              e.preventDefault()
+              setIsDraggingImage(true)
+            }}
+            onDragLeave={() => setIsDraggingImage(false)}
+            onDrop={handleImageDrop}
+            className={`rounded-lg border-2 border-dashed p-4 transition-colors ${isDraggingImage ? 'border-red-900 bg-red-50' : 'border-slate-300 bg-slate-50'}`}
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <label className="inline-flex items-center justify-center px-3 py-2 rounded-md border border-slate-300 bg-white text-sm font-medium text-slate-700 cursor-pointer hover:bg-slate-50">
+                <Upload className="w-4 h-4 mr-2" />
+                Choose Image
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageFileChange}
+                  disabled={isUploadingImage || isSubmitting}
+                />
+              </label>
+              <Button
+                type="button"
+                onClick={handleUploadImage}
+                disabled={!selectedImageFile || isUploadingImage || isSubmitting}
+              >
+                {isUploadingImage ? 'Uploading...' : 'Upload to Supabase'}
+              </Button>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              Drag and drop an image here, or choose a file (PNG/JPG up to 5MB).
+            </p>
+            {selectedImageFile && (
+              <p className="text-xs text-slate-600 mt-2 truncate">
+                Selected: {selectedImageFile.name}
+              </p>
+            )}
+            {imageUploadError && (
+              <p className="text-xs text-rose-600 mt-2">{imageUploadError}</p>
+            )}
+            {imageUploadSuccess && (
+              <p className="text-xs text-emerald-700 mt-2">{imageUploadSuccess}</p>
+            )}
+          </div>
           <input
             type="url"
             placeholder="https://..."
