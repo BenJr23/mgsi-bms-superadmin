@@ -106,6 +106,10 @@ export function ReportsView() {
       theme: 'grid',
       headStyles: { fillColor: [79, 70, 229] },
       margin: { left: margin, right: margin },
+      columnStyles: {
+        0: { cellWidth: 'auto' },
+        1: { cellWidth: 40, halign: 'center' },
+      },
     })
 
     // Room Usage Distribution
@@ -120,13 +124,14 @@ export function ReportsView() {
       
       const roomData = reportsData.roomUsageDistribution.map((item) => [
         item.roomName,
+        item.buildingName,
         item.bookingCount.toString(),
         `${item.usagePercent}%`,
       ])
 
       autoTable(doc, {
         startY: 25,
-        head: [['Room Name', 'Bookings', 'Usage %']],
+        head: [['Room Name', 'Building', 'Bookings', 'Usage %']],
         body: roomData,
         theme: 'grid',
         headStyles: { fillColor: [79, 70, 229] },
@@ -139,13 +144,14 @@ export function ReportsView() {
 
       const roomData = reportsData.roomUsageDistribution.map((item) => [
         item.roomName,
+        item.buildingName,
         item.bookingCount.toString(),
         `${item.usagePercent}%`,
       ])
 
       autoTable(doc, {
         startY: finalY2 + 20,
-        head: [['Room Name', 'Bookings', 'Usage %']],
+        head: [['Room Name', 'Building', 'Bookings', 'Usage %']],
         body: roomData,
         theme: 'grid',
         headStyles: { fillColor: [79, 70, 229] },
@@ -263,7 +269,7 @@ export function ReportsView() {
                       }}
                     >
                       <div className="absolute -top-6 sm:-top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                        {item.count}
+                        {item.monthLabel}: {item.count}
                       </div>
                     </div>
                   )
@@ -272,7 +278,7 @@ export function ReportsView() {
               <div className="grid grid-cols-12 mt-3 sm:mt-4 text-[10px] sm:text-xs text-slate-400 uppercase">
                 {(reportsData?.monthlyBookingVolume ?? []).map((item, i) => (
                   <span key={`${item.monthLabel}-label-${i}`} className="text-center">
-                    {item.monthLabel}
+                    {item.monthLabel.charAt(0)}
                   </span>
                 ))}
               </div>

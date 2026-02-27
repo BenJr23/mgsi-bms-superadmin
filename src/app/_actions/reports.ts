@@ -18,6 +18,7 @@ export type MonthlyBookingVolume = {
 export type RoomUsageItem = {
 	roomId: string
 	roomName: string
+	buildingName: string
 	usagePercent: number
 	bookingCount: number
 }
@@ -164,6 +165,11 @@ export async function getReportsData(): Promise<GetReportsDataResult> {
 							roomName: true,
 						},
 					},
+					building: {
+						select: {
+							buildingName: true,
+						},
+					},
 				},
 			}),
 		])
@@ -174,13 +180,13 @@ export async function getReportsData(): Promise<GetReportsDataResult> {
 			monthlyCounts[month] += 1
 		}
 
-		const monthLabels = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
+		const monthLabels = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 		const monthlyBookingVolume: MonthlyBookingVolume[] = monthLabels.map((monthLabel, index) => ({
 			monthLabel,
 			count: monthlyCounts[index],
 		}))
 
-		const roomUsageMap = new Map<string, { roomName: string; bookingCount: number }>()
+		const roomUsageMap = new Map<string, { roomName: string; buildingName: string; bookingCount: number }>()
 		for (const booking of approvedBookings) {
 			const existing = roomUsageMap.get(booking.roomId)
 			if (existing) {
@@ -188,6 +194,7 @@ export async function getReportsData(): Promise<GetReportsDataResult> {
 			} else {
 				roomUsageMap.set(booking.roomId, {
 					roomName: booking.room.roomName,
+					buildingName: booking.building.buildingName,
 					bookingCount: 1,
 				})
 			}
@@ -198,6 +205,7 @@ export async function getReportsData(): Promise<GetReportsDataResult> {
 			.map(([roomId, value]) => ({
 				roomId,
 				roomName: value.roomName,
+				buildingName: value.buildingName,
 				bookingCount: value.bookingCount,
 				usagePercent:
 					totalApproved > 0 ? Math.round((value.bookingCount / totalApproved) * 100) : 0,
