@@ -42,3 +42,12 @@ next-env.d.ts
 
 /src/generated/prisma
 /AR
+
+
+
+# Accomplishment scripts - ignore Google credentials
+accomplishment_scripts/
+today_commits.py
+venv
+requirements.txt
+.venv
