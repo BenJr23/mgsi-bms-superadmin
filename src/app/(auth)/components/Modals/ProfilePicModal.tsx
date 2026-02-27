@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { Button } from '../ui/Button';
 import { Upload } from 'lucide-react';
+import { uploadProfilePicture } from '@/app/_actions/auth';
 
 type ProfilePicModalProps = {
 	isOpen: boolean;
@@ -99,21 +100,15 @@ export function ProfilePicModal({ isOpen, currentImage, onClose, onUpload }: Pro
 			const formData = new FormData();
 			formData.append('file', selectedFile);
 
-			// Upload to backend
-			const response = await fetch('/api/user/profile/picture', {
-				method: 'POST',
-				body: formData,
-			});
+			// Upload via server action
+			const result = await uploadProfilePicture(formData);
 
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({}));
-				throw new Error(errorData?.error || 'Failed to upload image');
+			if (!result.success) {
+				throw new Error(result.error || 'Failed to upload image');
 			}
 
-			const data = await response.json();
-
 			// Call the parent onUpload callback with the new image URL
-			await onUpload(selectedFile, data.image);
+			await onUpload(selectedFile, result.image);
 
 			setSelectedFile(null);
 			onClose();

@@ -3,16 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { verifyPasswordUpdate } from "@/app/_actions/auth";
 
 export default function ChangePasswordPage() {
   const router = useRouter();
-  
+
   const [formData, setFormData] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
-  
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -42,19 +43,16 @@ export default function ChangePasswordPage() {
       if (error) throw new Error(error.message);
 
       // 2. Mark password as verified on server to stop reset loop
-      const verifyRes = await fetch("/api/user/verify-password", {
-        method: "POST",
-      });
+      const verifyResult = await verifyPasswordUpdate();
 
-      if (!verifyRes.ok) {
-        const verifyData = await verifyRes.json().catch(() => ({}));
-        throw new Error(verifyData?.error || "Password updated, but failed to finalize verification.");
+      if (!verifyResult.success) {
+        throw new Error(verifyResult.error || "Password updated, but failed to finalize verification.");
       }
 
       // 3. Redirect to the main dashboard
       router.push("/dashboard");
       router.refresh();
-      
+
     } catch (err: any) {
       setError(err.message || "Failed to update password");
     } finally {
@@ -70,7 +68,7 @@ export default function ChangePasswordPage() {
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        
+
         {/* Current Password Field */}
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-700">Current Password</label>
@@ -115,8 +113,8 @@ export default function ChangePasswordPage() {
 
         {error && <p className="text-red-500 text-sm">{error}</p>}
 
-        <button 
-          type="submit" 
+        <button
+          type="submit"
           disabled={loading}
           className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:opacity-50 mt-2"
         >

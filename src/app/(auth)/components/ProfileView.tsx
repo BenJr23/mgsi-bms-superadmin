@@ -5,6 +5,7 @@ import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { authClient } from '@/lib/auth-client';
 import { ProfilePicModal } from './Modals/ProfilePicModal';
+import { updateUserProfile, verifyPasswordUpdate } from '@/app/_actions/auth';
 import {
   Camera,
   Mail,
@@ -117,20 +118,13 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
         return;
       }
 
-      const response = await fetch('/api/user/profile', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          phoneNumber: `+63${phoneDigitsOnly}`,
-        }),
+      const result = await updateUserProfile({
+        name: formData.name,
+        phoneNumber: `+63${phoneDigitsOnly}`,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData?.error || 'Failed to update profile.');
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update profile.');
       }
 
       setPersonalInfoSuccess('Personal information updated successfully.');
@@ -210,13 +204,10 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
 
       if (error) throw new Error(error.message);
 
-      const verifyRes = await fetch('/api/user/verify-password', {
-        method: 'POST'
-      });
+      const verifyResult = await verifyPasswordUpdate();
 
-      if (!verifyRes.ok) {
-        const verifyData = await verifyRes.json().catch(() => ({}));
-        throw new Error(verifyData?.error || 'Password updated, but failed to finalize verification.');
+      if (!verifyResult.success) {
+        throw new Error(verifyResult.error || 'Password updated, but failed to finalize verification.');
       }
 
       setFormData((prev) => ({
