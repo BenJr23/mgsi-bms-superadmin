@@ -103,6 +103,9 @@ export async function getReportsData(): Promise<GetReportsDataResult> {
 		const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1
 		const previousMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear
 		const previousMonthRange = toManilaMonthRange(previousMonthYear, previousMonth)
+		const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1
+		const nextMonthYear = currentMonth === 12 ? currentYear + 1 : currentYear
+		const nextMonthRange = toManilaMonthRange(nextMonthYear, nextMonth)
 		const yearRangeStart = new Date(`${currentYear}-01-01T00:00:00+08:00`)
 		const yearRangeEnd = new Date(`${currentYear + 1}-01-01T00:00:00+08:00`)
 
@@ -240,8 +243,30 @@ export async function getReportsData(): Promise<GetReportsDataResult> {
 			.sort((a, b) => b.bookingCount - a.bookingCount)
 			.slice(0, 5)
 
-		const averageDurationHoursCurrent = calculateAverageDurationHours(currentMonthDurationBookings)
-		const averageDurationHoursPrevious = calculateAverageDurationHours(previousMonthDurationBookings)
+		let durationBookingsForCurrentAverage = currentMonthDurationBookings
+		let durationBookingsForPreviousAverage = previousMonthDurationBookings
+
+		if (currentMonthDurationBookings.length === 0) {
+			const nextMonthDurationBookings = await prisma.booking.findMany({
+				where: {
+					deletedAt: null,
+					startDate: {
+						gte: nextMonthRange.start,
+						lt: nextMonthRange.end,
+					},
+				},
+				select: {
+					startDate: true,
+					endDate: true,
+				},
+			})
+
+			durationBookingsForCurrentAverage = nextMonthDurationBookings
+			durationBookingsForPreviousAverage = currentMonthDurationBookings
+		}
+
+		const averageDurationHoursCurrent = calculateAverageDurationHours(durationBookingsForCurrentAverage)
+		const averageDurationHoursPrevious = calculateAverageDurationHours(durationBookingsForPreviousAverage)
 
 		const summary: ReportSummary = {
 			totalBookings,
