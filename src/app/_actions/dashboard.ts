@@ -20,6 +20,24 @@ export type RecentBooking = {
 	approvalStatus: string
 }
 
+export type BuildingOccupancy = {
+	id: string
+	buildingName: string
+	totalRooms: number
+	occupancyRate: number
+	bookedHours: number
+	availableHours: number
+}
+
+export type RoomOccupancy = {
+	id: string
+	roomName: string
+	buildingName: string
+	occupancyRate: number
+	bookedHours: number
+	availableHours: number
+}
+
 interface GetDashboardStatsResult {
 	success: boolean
 	data?: DashboardStats
@@ -30,6 +48,57 @@ interface GetRecentBookingsResult {
 	success: boolean
 	data?: RecentBooking[]
 	error?: string
+}
+
+interface GetBuildingOccupancyResult {
+	success: boolean
+	data?: BuildingOccupancy[]
+	error?: string
+}
+
+interface GetRoomOccupancyResult {
+	success: boolean
+	data?: RoomOccupancy[]
+	error?: string
+}
+
+/**
+ * Helper function to calculate booked hours for a room on a given date
+ * Handles overlapping bookings and clamps to 9am-6pm window
+ */
+function calculateRoomBookedHours(
+	bookings: Array<{ startDate: Date; endDate: Date }>,
+	todayStart: Date,
+	todayEnd: Date
+): number {
+	if (bookings.length === 0) return 0
+
+	// Track occupied time slots (in minutes) to handle overlaps
+	const occupiedSlots = new Set<number>()
+
+	for (const booking of bookings) {
+		const bookingStart = new Date(booking.startDate)
+		const bookingEnd = new Date(booking.endDate)
+
+		// Clamp booking times to today's business hours
+		const effectiveStart = bookingStart < todayStart ? todayStart : bookingStart
+		const effectiveEnd = bookingEnd > todayEnd ? todayEnd : bookingEnd
+
+		// Skip if booking doesn't overlap with business hours
+		if (effectiveStart >= effectiveEnd) continue
+
+		// Mark time slots as occupied (in 1-minute intervals for precision)
+		const startMinute = Math.floor(effectiveStart.getTime() / (1000 * 60))
+		const endMinute = Math.ceil(effectiveEnd.getTime() / (1000 * 60))
+
+		for (let minute = startMinute; minute < endMinute; minute++) {
+			occupiedSlots.add(minute)
+		}
+	}
+
+	// Calculate hours for this room (cap at 9 hours = 540 minutes)
+	const roomBookedMinutes = Math.min(occupiedSlots.size, 540)
+	return roomBookedMinutes / 60
 }
 
 export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
@@ -67,103 +136,68 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
 			},
 		})
 
-		// Calculate occupancy rate (only count rooms from active buildings) for today only (09:00-18:00)
+		// Calculate occupancy rate for today only (09:00-18:00) across all active buildings
 		const now = new Date()
-		const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0, 0) // 9:00 AM today
-		const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0) // 6:00 PM today
+		const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0, 0)
+		const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0)
 
-		// Get all rooms with their bookings for today
-		const roomsWithBookings = await prisma.room.findMany({
+		// Get all active buildings with their rooms and bookings
+		const activeBuildings = await prisma.building.findMany({
 			where: {
+				status: 'ACTIVE',
 				deletedAt: null,
-				bookings: {
-					some: {
-						isActive: true,
-						deletedAt: null,
-						approvalStatus: 'APPROVED',
-						// Booking overlaps with today's business hours
-						startDate: { lt: todayEnd },
-						endDate: { gt: todayStart },
-					},
-				},
 			},
 			include: {
-				bookings: {
+				rooms: {
 					where: {
-						isActive: true,
 						deletedAt: null,
-						approvalStatus: 'APPROVED',
-						startDate: { lt: todayEnd },
-						endDate: { gt: todayStart },
 					},
-					select: {
-						startDate: true,
-						endDate: true,
+					include: {
+						bookings: {
+							where: {
+								isActive: true,
+								deletedAt: null,
+								approvalStatus: 'APPROVED',
+								startDate: { lt: todayEnd },
+								endDate: { gt: todayStart },
+							},
+							select: {
+								startDate: true,
+								endDate: true,
+							},
+						},
 					},
 				},
 			},
 		})
 
-		// Total rooms in active buildings for accurate occupancy rate
-		const activeRoomsCount = await prisma.room.count({
-			where: {
-				deletedAt: null,
-				building: {
-					status: 'ACTIVE',
-					deletedAt: null,
-				},
-			},
-		})
-
-		// Calculate total booked hours across all rooms
+		// Calculate total booked hours and available hours across all active buildings
 		let totalBookedHours = 0
+		let totalActiveRooms = 0
 
-		for (const room of roomsWithBookings) {
-			const bookings = room.bookings
-			
-			if (bookings.length === 0) continue
-			
-			// Track occupied time slots (in minutes) to handle overlaps
-			const occupiedSlots = new Set<number>()
-			
-			for (const booking of bookings) {
-				const bookingStart = new Date(booking.startDate)
-				const bookingEnd = new Date(booking.endDate)
-				
-				// Clamp booking times to today's business hours
-				const effectiveStart = bookingStart < todayStart ? todayStart : bookingStart
-				const effectiveEnd = bookingEnd > todayEnd ? todayEnd : bookingEnd
-				
-				// Skip if booking doesn't overlap with business hours
-				if (effectiveStart >= effectiveEnd) continue
-				
-				// Mark time slots as occupied (in 1-minute intervals for precision)
-				const startMinute = Math.floor(effectiveStart.getTime() / (1000 * 60))
-				const endMinute = Math.ceil(effectiveEnd.getTime() / (1000 * 60))
-				
-				for (let minute = startMinute; minute < endMinute; minute++) {
-					occupiedSlots.add(minute)
-				}
+		for (const building of activeBuildings) {
+			for (const room of building.rooms) {
+				totalActiveRooms++
+				const bookedHours = calculateRoomBookedHours(room.bookings, todayStart, todayEnd)
+				totalBookedHours += bookedHours
 			}
-			
-			// Calculate hours for this room (cap at 9 hours = 540 minutes)
-			const roomBookedMinutes = Math.min(occupiedSlots.size, 540)
-			totalBookedHours += roomBookedMinutes / 60
 		}
 
-		// Calculate occupancy rate
-		const totalAvailableHours = activeRoomsCount * 9 // 9 hours per room per day
-		const rawOccupancyRate = totalAvailableHours > 0 ? (totalBookedHours / totalAvailableHours) * 100 : 0
-		const occupancyRate = parseFloat(rawOccupancyRate.toFixed(2))
+		// Calculate overall occupancy rate
+		const totalAvailableHours = totalActiveRooms * 9
+		const occupancyRate =
+			totalAvailableHours > 0
+				? parseFloat(((totalBookedHours / totalAvailableHours) * 100).toFixed(2))
+				: 0
 
-		console.log('=== Occupancy Rate Calculation ===')
+		console.log('=== Occupancy Rate Calculation (Active Buildings Only) ===')
 		console.log('Total Rooms (All):', roomsCount)
-		console.log('Active Rooms:', activeRoomsCount)
+		console.log('Active Buildings:', buildingsCount)
+		console.log('Active Rooms:', totalActiveRooms)
 		console.log('Total Booked Hours:', totalBookedHours.toFixed(2))
 		console.log('Total Available Hours:', totalAvailableHours)
-		console.log('Raw Occupancy Rate:', rawOccupancyRate.toFixed(2) + '%')
-		console.log('Final Occupancy Rate:', occupancyRate + '%')
-		console.log('==================================')
+		console.log('Occupancy Rate:', occupancyRate + '%')
+		console.log('=============================================================')
 
 		return {
 			success: true,
@@ -232,6 +266,168 @@ export async function getRecentBookings(): Promise<GetRecentBookingsResult> {
 		const message =
 			error instanceof Error ? error.message : 'Failed to fetch recent bookings.'
 		console.error('Get recent bookings error:', message)
+		return {
+			success: false,
+			error: message,
+		}
+	}
+}
+
+/**
+ * Get occupancy rates for all buildings for today (9am-6pm)
+ */
+export async function getBuildingOccupancyRates(): Promise<GetBuildingOccupancyResult> {
+	try {
+		const session = await getServerSession()
+
+		if (!session?.user?.id) {
+			return { success: false, error: 'Not authenticated.' }
+		}
+
+		// Define today's business hours (9am-6pm)
+		const now = new Date()
+		const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0, 0)
+		const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0)
+
+		// Get all active buildings with their rooms and bookings for today
+		const buildings = await prisma.building.findMany({
+			where: {
+				deletedAt: null,
+			},
+			include: {
+				rooms: {
+					where: {
+						deletedAt: null,
+					},
+					include: {
+						bookings: {
+							where: {
+								isActive: true,
+								deletedAt: null,
+								approvalStatus: 'APPROVED',
+								// Booking overlaps with today's business hours
+								startDate: { lt: todayEnd },
+								endDate: { gt: todayStart },
+							},
+							select: {
+								startDate: true,
+								endDate: true,
+							},
+						},
+					},
+				},
+			},
+		})
+
+		const buildingOccupancy: BuildingOccupancy[] = buildings.map((building) => {
+			const totalRooms = building.rooms.length
+			const availableHours = totalRooms * 9 // 9 hours per room
+
+			// Calculate total booked hours across all rooms in this building
+			let totalBookedHours = 0
+			for (const room of building.rooms) {
+				const bookedHours = calculateRoomBookedHours(room.bookings, todayStart, todayEnd)
+				totalBookedHours += bookedHours
+			}
+
+			// Calculate occupancy rate
+			const occupancyRate =
+				availableHours > 0
+					? parseFloat(((totalBookedHours / availableHours) * 100).toFixed(2))
+					: 0
+
+			return {
+				id: building.id,
+				buildingName: building.buildingName,
+				totalRooms,
+				occupancyRate,
+				bookedHours: parseFloat(totalBookedHours.toFixed(2)),
+				availableHours,
+			}
+		})
+
+		return { success: true, data: buildingOccupancy }
+	} catch (error: unknown) {
+		const message =
+			error instanceof Error
+				? error.message
+				: 'Failed to fetch building occupancy rates.'
+		console.error('Get building occupancy error:', message)
+		return {
+			success: false,
+			error: message,
+		}
+	}
+}
+
+/**
+ * Get occupancy rates for all rooms for today (9am-6pm)
+ */
+export async function getRoomOccupancyRates(): Promise<GetRoomOccupancyResult> {
+	try {
+		const session = await getServerSession()
+
+		if (!session?.user?.id) {
+			return { success: false, error: 'Not authenticated.' }
+		}
+
+		// Define today's business hours (9am-6pm)
+		const now = new Date()
+		const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0, 0)
+		const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0)
+
+		// Get all rooms with their bookings for today
+		const rooms = await prisma.room.findMany({
+			where: {
+				deletedAt: null,
+			},
+			include: {
+				building: {
+					select: {
+						buildingName: true,
+					},
+				},
+				bookings: {
+					where: {
+						isActive: true,
+						deletedAt: null,
+						approvalStatus: 'APPROVED',
+						// Booking overlaps with today's business hours
+						startDate: { lt: todayEnd },
+						endDate: { gt: todayStart },
+					},
+					select: {
+						startDate: true,
+						endDate: true,
+					},
+				},
+			},
+		})
+
+		const roomOccupancy: RoomOccupancy[] = rooms.map((room) => {
+			const availableHours = 9 // 9 hours per day (9am-6pm)
+
+			// Calculate booked hours for this room
+			const bookedHours = calculateRoomBookedHours(room.bookings, todayStart, todayEnd)
+
+			// Calculate occupancy rate
+			const occupancyRate = parseFloat(((bookedHours / availableHours) * 100).toFixed(2))
+
+			return {
+				id: room.id,
+				roomName: room.roomName,
+				buildingName: room.building.buildingName,
+				occupancyRate,
+				bookedHours: parseFloat(bookedHours.toFixed(2)),
+				availableHours,
+			}
+		})
+
+		return { success: true, data: roomOccupancy }
+	} catch (error: unknown) {
+		const message =
+			error instanceof Error ? error.message : 'Failed to fetch room occupancy rates.'
+		console.error('Get room occupancy error:', message)
 		return {
 			success: false,
 			error: message,
