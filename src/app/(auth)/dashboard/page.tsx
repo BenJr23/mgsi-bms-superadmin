@@ -159,7 +159,7 @@ export default function DashboardPage() {
       try {
         const result = await getLastLogin();
         if (result.success && result.lastLogin) {
-          setLastLogin(result.lastLogin);
+          setLastLogin(result.lastLogin.toISOString());
         }
       } catch (err) {
         console.error('Failed to fetch last login:', err);
