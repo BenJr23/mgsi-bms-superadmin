@@ -142,8 +142,16 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
 
 		// Calculate occupancy rate
 		const totalAvailableHours = roomsCount * 9 // 9 hours per room per day
-		const occupancyRate =
-			roomsCount > 0 ? Math.round((roomsWithActiveBookings / roomsCount) * 100) : 0
+		const rawOccupancyRate = totalAvailableHours > 0 ? (totalBookedHours / totalAvailableHours) * 100 : 0
+		const occupancyRate = Math.round(rawOccupancyRate)
+
+		console.log('=== Occupancy Rate Calculation ===')
+		console.log('Total Rooms:', roomsCount)
+		console.log('Total Booked Hours:', totalBookedHours.toFixed(2))
+		console.log('Total Available Hours:', totalAvailableHours)
+		console.log('Raw Occupancy Rate:', rawOccupancyRate.toFixed(2) + '%')
+		console.log('Final Occupancy Rate:', occupancyRate + '%')
+		console.log('==================================')
 
 		return {
 			success: true,
@@ -197,7 +205,7 @@ export async function getRecentBookings(): Promise<GetRecentBookingsResult> {
 			take: 5,
 		})
 
-		const formatted: RecentBooking[] = bookings.map((booking) => ({
+		const formatted: RecentBooking[] = bookings.map((booking: any) => ({
 			id: booking.id,
 			bookingReference: booking.bookingReference,
 			submittedByName: booking.submittedBy.name,
