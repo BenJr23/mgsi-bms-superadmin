@@ -202,6 +202,7 @@ export function ProfilePicModal({ isOpen, currentImage, onClose, onUpload }: Pro
 					</Button>
 				</div>
 			</div>
+			
 		</div>
 	);
 }
