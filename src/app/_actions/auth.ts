@@ -377,7 +377,7 @@ export async function getLastLogin() {
     }
 }
 
-export async function updateUserProfile(data: { name: string; phoneNumber: string }) {
+export async function updateUserProfile(data: { name: string; phoneNumber: string; companyName?: string }) {
     try {
         const user = await requireAuth();
 
@@ -396,11 +396,13 @@ export async function updateUserProfile(data: { name: string; phoneNumber: strin
             data: {
                 name: data.name.trim(),
                 phoneNumber: data.phoneNumber.trim(),
+                ...(data.companyName !== undefined && { companyName: data.companyName.trim() || null }),
             },
             select: {
                 id: true,
                 name: true,
                 phoneNumber: true,
+                companyName: true,
                 email: true,
             },
         });
