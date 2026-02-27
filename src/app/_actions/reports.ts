@@ -35,9 +35,33 @@ interface GetReportsDataResult {
 	error?: string
 }
 
-function getMonthRange(baseDate: Date) {
-	const start = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1)
-	const end = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 1)
+const MANILA_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
+	timeZone: 'Asia/Manila',
+	year: 'numeric',
+	month: '2-digit',
+	day: '2-digit',
+})
+
+function getPartValue(parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPartTypes): string {
+	return parts.find((part) => part.type === type)?.value ?? ''
+}
+
+function toManilaDateParts(date: Date): { year: number; month: number; day: number } {
+	const parts = MANILA_DATE_FORMATTER.formatToParts(date)
+	return {
+		year: Number(getPartValue(parts, 'year')),
+		month: Number(getPartValue(parts, 'month')),
+		day: Number(getPartValue(parts, 'day')),
+	}
+}
+
+function toManilaMonthRange(year: number, month: number) {
+	const start = new Date(`${year}-${String(month).padStart(2, '0')}-01T00:00:00+08:00`)
+
+	const nextMonth = month === 12 ? 1 : month + 1
+	const nextMonthYear = month === 12 ? year + 1 : year
+	const end = new Date(`${nextMonthYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00+08:00`)
+
 	return { start, end }
 }
 
@@ -74,10 +98,13 @@ export async function getReportsData(): Promise<GetReportsDataResult> {
 		}
 
 		const now = new Date()
-		const currentMonthRange = getMonthRange(now)
-		const previousMonthRange = getMonthRange(
-			new Date(now.getFullYear(), now.getMonth() - 1, 1)
-		)
+		const { year: currentYear, month: currentMonth } = toManilaDateParts(now)
+		const currentMonthRange = toManilaMonthRange(currentYear, currentMonth)
+		const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1
+		const previousMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear
+		const previousMonthRange = toManilaMonthRange(previousMonthYear, previousMonth)
+		const yearRangeStart = new Date(`${currentYear}-01-01T00:00:00+08:00`)
+		const yearRangeEnd = new Date(`${currentYear + 1}-01-01T00:00:00+08:00`)
 
 		const [
 			totalBookings,
@@ -141,8 +168,8 @@ export async function getReportsData(): Promise<GetReportsDataResult> {
 				where: {
 					deletedAt: null,
 					startDate: {
-						gte: new Date(now.getFullYear(), 0, 1),
-						lt: new Date(now.getFullYear() + 1, 0, 1),
+						gte: yearRangeStart,
+						lt: yearRangeEnd,
 					},
 				},
 				select: {
@@ -176,8 +203,8 @@ export async function getReportsData(): Promise<GetReportsDataResult> {
 
 		const monthlyCounts = new Array<number>(12).fill(0)
 		for (const booking of bookingsThisYear) {
-			const month = booking.startDate.getMonth()
-			monthlyCounts[month] += 1
+			const { month } = toManilaDateParts(booking.startDate)
+			monthlyCounts[month - 1] += 1
 		}
 
 		const monthLabels = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
