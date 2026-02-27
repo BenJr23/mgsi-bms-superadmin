@@ -421,12 +421,13 @@ export function WalkInBookingModal({
     setIsSubmitting(true)
     try {
       const isDaily = form.bookingType === 'DAILY'
+      // Explicitly create dates in Manila timezone (UTC+8) to ensure consistency
       const startDate = isDaily
-        ? new Date(`${form.dateStart}T00:00:00`)
-        : new Date(`${form.dateStart}T${form.timeStart}:00`)
+        ? new Date(`${form.dateStart}T00:00:00+08:00`)
+        : new Date(`${form.dateStart}T${form.timeStart}:00+08:00`)
       const endDate = isDaily
-        ? new Date(`${form.dateEnd}T23:59:59`)
-        : new Date(`${form.dateStart}T${form.timeEnd}:00`)
+        ? new Date(`${form.dateEnd}T23:59:59+08:00`)
+        : new Date(`${form.dateStart}T${form.timeEnd}:00+08:00`)
 
       const dailyTimeStart = isDaily
         ? new Date(`1970-01-01T${form.timeStart}:00.000Z`)

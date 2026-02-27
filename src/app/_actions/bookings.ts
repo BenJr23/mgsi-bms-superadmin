@@ -838,8 +838,9 @@ export async function getRoomUnavailableSlots(
             return { success: false, error: 'End date must be on or after start date.' }
         }
 
-        const queryStart = new Date(`${startKey}T00:00:00`)
-        const queryEnd = new Date(`${endKey}T23:59:59.999`)
+        // Explicitly use Manila timezone (UTC+8) for consistency
+        const queryStart = new Date(`${startKey}T00:00:00+08:00`)
+        const queryEnd = new Date(`${endKey}T23:59:59.999+08:00`)
 
         const overlappingBookings = await prisma.booking.findMany({
             where: {
