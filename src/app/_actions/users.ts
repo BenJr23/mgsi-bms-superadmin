@@ -91,13 +91,13 @@ async function sendCredentialsEmail(input: {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.USER,
-        pass: process.env.PASSWORD,
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD,
       },
     })
 
     await transporter.sendMail({
-      from: process.env.USER,
+      from: process.env.GMAIL_USER,
       to: input.userEmail,
       subject: 'GreatWork Spaces - Your Account Credentials',
       html: `

@@ -46,14 +46,14 @@ export async function forgotPassword(email: string) {
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
-                user: process.env.USER,
-                pass: process.env.PASSWORD,
+                user: process.env.GMAIL_USER,
+                pass: process.env.GMAIL_APP_PASSWORD,
             },
         });
 
         // Send the Email
         await transporter.sendMail({
-            from: `"GreatWork" <${process.env.USER}>`,
+            from: `"GreatWork" <${process.env.GMAIL_USER}>`,
             to: email,
             subject: "Your Password Reset OTP",
             html: `

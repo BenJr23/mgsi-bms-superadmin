@@ -39,8 +39,8 @@ async function createTransporter() {
         host: hostToUse,
         port,
         secure,
-        auth: process.env.USER
-            ? { user: process.env.USER, pass: process.env.PASSWORD }
+        auth: process.env.GMAIL_USER
+            ? { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD }
             : undefined,
         tls: {
             servername: origHost,
@@ -103,7 +103,7 @@ export async function sendBookingStatusEmail(args: SendBookingEmailArgs): Promis
     try {
         const transporter = await createTransporter()
         await transporter.sendMail({
-            from: process.env.FROM_EMAIL || process.env.USER || 'no-reply@example.com',
+            from: process.env.FROM_EMAIL || process.env.GMAIL_USER || 'no-reply@example.com',
             to,
             subject,
             text,
