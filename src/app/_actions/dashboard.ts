@@ -92,6 +92,7 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
 					},
 				},
 			},
+			
 		})
 
 		// Total rooms in active buildings for accurate occupancy rate
