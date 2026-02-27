@@ -57,18 +57,25 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
 			},
 		})
 
-		// Get total rooms count
+		// Get total rooms count from all buildings
 		const roomsCount = await prisma.room.count({
 			where: {
 				deletedAt: null,
+				building: {
+					deletedAt: null,
+				},
 			},
 		})
 
-		// Calculate occupancy rate
+		// Calculate occupancy rate (only count rooms from active buildings)
 		const now = new Date()
 		const roomsWithActiveBookings = await prisma.room.count({
 			where: {
 				deletedAt: null,
+				building: {
+					status: 'ACTIVE',
+					deletedAt: null,
+				},
 				bookings: {
 					some: {
 						isActive: true,
@@ -81,8 +88,19 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
 			},
 		})
 
+		// Total rooms in active buildings for accurate occupancy rate
+		const activeRoomsCount = await prisma.room.count({
+			where: {
+				deletedAt: null,
+				building: {
+					status: 'ACTIVE',
+					deletedAt: null,
+				},
+			},
+		})
+
 		const occupancyRate =
-			roomsCount > 0 ? Math.round((roomsWithActiveBookings / roomsCount) * 100) : 0
+			activeRoomsCount > 0 ? Math.round((roomsWithActiveBookings / activeRoomsCount) * 100) : 0
 
 		return {
 			success: true,
