@@ -2,7 +2,7 @@
 
 import prisma from '@/lib/prisma';
 import nodemailer from 'nodemailer';
-import { getSession } from '@/lib/get-session';
+import { getSession, requireAuth } from '@/lib/get-session';
 import { hashPassword } from 'better-auth/crypto';
 
 export async function forgotPassword(email: string) {
@@ -155,7 +155,7 @@ export async function resetPasswordWithOTP(email: string, otp: string, newPasswo
         const hashedPassword = await hashPassword(newPassword);
 
         // Update the password in the account table
-        const credentialAccount = user.accounts.find(acc => acc.providerId === "credential");
+        const credentialAccount = user.accounts.find((acc: { providerId: string; }) => acc.providerId === "credential");
 
         if (credentialAccount) {
             await prisma.account.update({
@@ -214,5 +214,31 @@ export async function getCurrentUser() {
     } catch (err) {
         console.error(err);
         return { error: "Server error", success: false };
+    }
+}
+
+export async function getLastLogin() {
+    try {
+        const user = await requireAuth();
+
+        const latestSession = await prisma.session.findFirst({
+            where: { userId: user.id },
+            orderBy: { createdAt: "desc" },
+            select: {
+                createdAt: true,
+            }
+        });
+
+        return {
+            lastLogin: latestSession?.createdAt ?? null,
+            success: true
+        };
+    } catch (err) {
+        console.error("Failed to fetch last login:", err);
+        return {
+            lastLogin: null,
+            success: false,
+            error: err instanceof Error ? err.message : "Server error"
+        };
     }
 }
