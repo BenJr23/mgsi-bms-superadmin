@@ -67,10 +67,8 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
 			},
 		})
 
-		// Calculate occupancy rate (only count rooms from active buildings) for today only (09:00-18:00)
-		const now = new Date()
-		const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0, 0) // 9:00 AM today
-		const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0) // 6:00 PM today
+		const todayStart = new Date(2026, 2, 2, 9, 0, 0)
+		const todayEnd = new Date(2026, 2, 2, 18, 0, 0)
 
 		// Get all rooms with their bookings for today
 		const roomsWithBookings = await prisma.room.findMany({
@@ -82,8 +80,6 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
 						deletedAt: null,
 						approvalStatus: 'APPROVED',
 						// Booking overlaps with today's business hours
-						startDate: { lt: todayEnd },
-						endDate: { gt: todayStart },
 					},
 				},
 			},
@@ -93,12 +89,6 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
 						isActive: true,
 						deletedAt: null,
 						approvalStatus: 'APPROVED',
-						startDate: { lt: todayEnd },
-						endDate: { gt: todayStart },
-					},
-					select: {
-						startDate: true,
-						endDate: true,
 					},
 				},
 			},
@@ -120,32 +110,32 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
 
 		for (const room of roomsWithBookings) {
 			const bookings = room.bookings
-			
+
 			if (bookings.length === 0) continue
-			
+
 			// Track occupied time slots (in minutes) to handle overlaps
 			const occupiedSlots = new Set<number>()
-			
+
 			for (const booking of bookings) {
-				const bookingStart = new Date(booking.startDate)
-				const bookingEnd = new Date(booking.endDate)
-				
+				// Adjust for timezone - subtract 8 hours since stored time is in PH time
+				const phOffset = 8 * 60 * 60 * 1000 // 8 hours in milliseconds
+				const bookingStart = new Date(new Date(booking.dailyTimeStart!).getTime() - phOffset)
+				const bookingEnd = new Date(new Date(booking.dailyTimeEnd!).getTime() - phOffset)
+
 				// Clamp booking times to today's business hours
 				const effectiveStart = bookingStart < todayStart ? todayStart : bookingStart
 				const effectiveEnd = bookingEnd > todayEnd ? todayEnd : bookingEnd
-				
-				// Skip if booking doesn't overlap with business hours
-				if (effectiveStart >= effectiveEnd) continue
-				
+
 				// Mark time slots as occupied (in 1-minute intervals for precision)
 				const startMinute = Math.floor(effectiveStart.getTime() / (1000 * 60))
 				const endMinute = Math.ceil(effectiveEnd.getTime() / (1000 * 60))
-				
+				const minutesDuration = endMinute - startMinute
+
 				for (let minute = startMinute; minute < endMinute; minute++) {
 					occupiedSlots.add(minute)
 				}
 			}
-			
+
 			// Calculate hours for this room (cap at 9 hours = 540 minutes)
 			const roomBookedMinutes = Math.min(occupiedSlots.size, 540)
 			totalBookedHours += roomBookedMinutes / 60
@@ -155,15 +145,6 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
 		const totalAvailableHours = activeRoomsCount * 9 // 9 hours per room per day
 		const rawOccupancyRate = totalAvailableHours > 0 ? (totalBookedHours / totalAvailableHours) * 100 : 0
 		const occupancyRate = parseFloat(rawOccupancyRate.toFixed(2))
-
-		console.log('=== Occupancy Rate Calculation ===')
-		console.log('Total Rooms (All):', roomsCount)
-		console.log('Active Rooms:', activeRoomsCount)
-		console.log('Total Booked Hours:', totalBookedHours.toFixed(2))
-		console.log('Total Available Hours:', totalAvailableHours)
-		console.log('Raw Occupancy Rate:', rawOccupancyRate.toFixed(2) + '%')
-		console.log('Final Occupancy Rate:', occupancyRate + '%')
-		console.log('==================================')
 
 		return {
 			success: true,
