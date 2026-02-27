@@ -77,11 +77,22 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
 			where: {
 				deletedAt: null,
 				bookings: {
-					where: {
+					some: {
 						isActive: true,
 						deletedAt: null,
 						approvalStatus: 'APPROVED',
 						// Booking overlaps with today's business hours
+						startDate: { lt: todayEnd },
+						endDate: { gt: todayStart },
+					},
+				},
+			},
+			include: {
+				bookings: {
+					where: {
+						isActive: true,
+						deletedAt: null,
+						approvalStatus: 'APPROVED',
 						startDate: { lt: todayEnd },
 						endDate: { gt: todayStart },
 					},
@@ -141,12 +152,13 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
 		}
 
 		// Calculate occupancy rate
-		const totalAvailableHours = roomsCount * 9 // 9 hours per room per day
+		const totalAvailableHours = activeRoomsCount * 9 // 9 hours per room per day
 		const rawOccupancyRate = totalAvailableHours > 0 ? (totalBookedHours / totalAvailableHours) * 100 : 0
-		const occupancyRate = Math.round(rawOccupancyRate)
+		const occupancyRate = parseFloat(rawOccupancyRate.toFixed(2))
 
 		console.log('=== Occupancy Rate Calculation ===')
-		console.log('Total Rooms:', roomsCount)
+		console.log('Total Rooms (All):', roomsCount)
+		console.log('Active Rooms:', activeRoomsCount)
 		console.log('Total Booked Hours:', totalBookedHours.toFixed(2))
 		console.log('Total Available Hours:', totalAvailableHours)
 		console.log('Raw Occupancy Rate:', rawOccupancyRate.toFixed(2) + '%')
