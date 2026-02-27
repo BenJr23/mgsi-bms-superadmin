@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
         hostname: 'gzyxkuuagbbstrpggbaf.supabase.co',
         pathname: '/storage/v1/object/public/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'drive.google.com',
+        pathname: '/**',
+      },
     ],
   },
 };
