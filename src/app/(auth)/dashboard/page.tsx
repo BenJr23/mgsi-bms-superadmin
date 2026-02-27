@@ -14,6 +14,7 @@ import { ProfileView } from '../components/ProfileView';
 import { Bell, ChevronDown, User, Settings as SettingsIcon, LogOut, LayoutDashboard, CalendarCheck, Building2, DoorOpen, Calendar, BarChart3, Users } from 'lucide-react';
 import { useSession, signOut } from '@/lib/auth-client';
 import Image from 'next/image';
+import { getLastLogin } from '@/app/_actions/auth';
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
@@ -156,10 +157,9 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchLastLogin = async () => {
       try {
-        const res = await fetch('/api/user/sessions/latest', { cache: 'no-store' });
-        if (res.ok) {
-          const data = await res.json();
-          setLastLogin(data.lastLogin);
+        const result = await getLastLogin();
+        if (result.success && result.lastLogin) {
+          setLastLogin(result.lastLogin);
         }
       } catch (err) {
         console.error('Failed to fetch last login:', err);
