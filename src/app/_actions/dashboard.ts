@@ -67,7 +67,7 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
 			},
 		})
 
-		// Calculate occupancy rate for today only (09:00-18:00)
+		// Calculate occupancy rate (only count rooms from active buildings) for today only (09:00-18:00)
 		const now = new Date()
 		const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0, 0) // 9:00 AM today
 		const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0) // 6:00 PM today
