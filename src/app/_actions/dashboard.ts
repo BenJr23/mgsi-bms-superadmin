@@ -8,6 +8,7 @@ export type DashboardStats = {
 	activeBuildings: number
 	totalRooms: number
 	occupancyRate: number
+	occupancyWindowLabel: 'THIS_WEEK' | 'NEXT_WEEK'
 }
 
 export type RecentBooking = {
@@ -202,6 +203,8 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
 		const weekBookings = occupancyWindow.bookings
 		const occupancyWeekStartOrdinal = occupancyWindow.startOrdinal
 		const occupancyWeekEndOrdinal = occupancyWindow.endOrdinal
+		const occupancyWindowLabel: DashboardStats['occupancyWindowLabel'] =
+			occupancyWindow.startOrdinal === weekStartOrdinal ? 'THIS_WEEK' : 'NEXT_WEEK'
 
 		console.log('[dashboard] occupancyWindow:', {
 			weekStartOrdinal: occupancyWeekStartOrdinal,
@@ -286,6 +289,7 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
 				activeBuildings: buildingsCount,
 				totalRooms: roomsCount,
 				occupancyRate,
+				occupancyWindowLabel,
 			},
 		}
 	} catch (error: unknown) {

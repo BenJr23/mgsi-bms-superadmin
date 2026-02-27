@@ -16,6 +16,7 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
     activeBuildings: 0,
     totalRooms: 0,
     occupancyRate: 0,
+    occupancyWindowLabel: 'THIS_WEEK' as 'THIS_WEEK' | 'NEXT_WEEK',
   })
   const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([])
   const [loading, setLoading] = useState(true)
@@ -77,6 +78,7 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
     {
       label: 'Occupancy Rate',
       value: `${stats.occupancyRate}%`,
+      helperText: stats.occupancyWindowLabel === 'NEXT_WEEK' ? 'Next week' : 'This week',
       icon: Users,
       color: 'text-emerald-600',
       bg: 'bg-emerald-100',
@@ -133,6 +135,9 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
                   <div>
                     <p className="text-sm font-medium text-slate-500">{stat.label}</p>
                     <h3 className="text-2xl font-bold text-slate-900 mt-1">{stat.value}</h3>
+                    {'helperText' in stat && (
+                      <p className="text-xs text-slate-500 mt-1">{stat.helperText}</p>
+                    )}
                   </div>
                   <div className={`p-2 rounded-lg ${stat.bg}`}>
                     <Icon className={`w-5 h-5 ${stat.color}`} />
