@@ -12,8 +12,10 @@ import {
   type BookingListItem,
   updateBookingApprovalStatus,
 } from '@/app/_actions/bookings';
+import { getCurrentUserForExport } from '@/app/_actions/auth';
 
 export function BookingsView() {
+
   const DISPLAY_TIMEZONE = 'Asia/Manila'; // UTC+8
   const PAGE_SIZE = 10;
 
@@ -30,6 +32,7 @@ export function BookingsView() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
   const [showFilters, setShowFilters] = useState(false);
   const [monthFilter, setMonthFilter] = useState<'ALL' | string>('ALL');
+  const [exportUser, setExportUser] = useState<{ name: string | null; email: string } | null>(null);
 
   const closeModal = () => {
     setModalType('NONE');
@@ -38,6 +41,7 @@ export function BookingsView() {
 
   useEffect(() => {
     const fetchBookings = async () => {
+
       try {
         setLoading(true);
         const result = await getBookings({ page: currentPage, pageSize: PAGE_SIZE });
@@ -56,7 +60,21 @@ export function BookingsView() {
     fetchBookings();
   }, [currentPage]);
 
-  // debounce query input
+  useEffect(() => {
+    const fetchExportUser = async () => {
+      try {
+        const result = await getCurrentUserForExport();
+        if (result.success) {
+          setExportUser({ name: result.data.name, email: result.data.email });
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    fetchExportUser();
+  }, []);
+
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(query.trim()), 300);
     return () => clearTimeout(t);
@@ -220,15 +238,39 @@ export function BookingsView() {
     return s
   }
 
+  const getMonthParts = (value: 'ALL' | string): { year: number; month: number } | null => {
+    if (!value || value === 'ALL') return null
+    const v = value.trim()
+
+    // Supports both formats:
+    // - "YYYY-MM" from <input type="month">
+    // - "MM" from older dropdown
+    if (/^\d{4}-\d{2}$/.test(v)) {
+      const [y, m] = v.split('-')
+      const year = Number(y)
+      const month = Number(m)
+      if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) return null
+      return { year, month }
+    }
+
+    if (/^\d{2}$/.test(v)) {
+      const month = Number(v)
+      if (!Number.isFinite(month) || month < 1 || month > 12) return null
+      return { year: new Date().getFullYear(), month }
+    }
+
+    return null
+  }
+
   const exportCSV = (items: BookingListItem[], month: 'ALL' | string = 'ALL') => {
     const headers = ['Reference','Client','Company','Building','Room','Start Date','Start Time','End Date','End Time','Status']
-    const filtered = month === 'ALL' ? items : items.filter((b) => {
-      // month in format YYYY-MM
+    const monthParts = getMonthParts(month)
+    const filtered = !monthParts ? items : items.filter((b) => {
       try {
         const dt = new Date(b.startDate)
         const y = dt.getFullYear()
-        const m = String(dt.getMonth() + 1).padStart(2, '0')
-        return `${y}-${m}` === month
+        const m = dt.getMonth() + 1
+        return y === monthParts.year && m === monthParts.month
       } catch {
         return false
       }
@@ -250,17 +292,47 @@ export function BookingsView() {
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
+    const monthSuffix = month === 'ALL' ? new Date().toISOString().slice(0,10) : month
     const a = document.createElement('a')
     a.href = url
-    const monthSuffix = month === 'ALL' ? new Date().toISOString().slice(0,10) : month
     a.download = `bookings-${monthSuffix}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
 
   const exportPDF = (items: BookingListItem[]) => {
+    const exportedBy = exportUser?.name || exportUser?.email || 'Administrator';
+    const exportDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const monthParts = getMonthParts(monthFilter)
+
+    // Apply month filter to PDF export
+    const filteredItems = !monthParts ? items : items.filter((b) => {
+      try {
+        const bookingDate = new Date(b.startDate);
+        const y = bookingDate.getFullYear()
+        const m = bookingDate.getMonth() + 1
+        return y === monthParts.year && m === monthParts.month
+      } catch {
+        return false;
+      }
+    });
+
+    // Get month display name
+    const getMonthDisplay = () => {
+      if (!monthParts) return 'All Months'
+      const date = new Date(monthParts.year, monthParts.month - 1, 1)
+      return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    };
+
     // Create a print-friendly HTML and open in a new window. User can Save as PDF.
-    const rows = items.map((b) => `
+    const rows = filteredItems.map((b) => `
       <tr>
         <td style="padding:8px;border:1px solid #e6edf3">${b.bookingReference}</td>
         <td style="padding:8px;border:1px solid #e6edf3">${b.submittedBy.name || b.submittedBy.email}</td>
@@ -276,15 +348,39 @@ export function BookingsView() {
     const html = `
       <html>
         <head>
-          <title>Bookings</title>
+          <title>Bookings Report</title>
           <style>
-            body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial; color:#111827; }
-            table { border-collapse: collapse; width:100%; }
-            th { text-align:left; padding:8px; border:1px solid #e6edf3; background:#f8fafc }
+            body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial; color:#111827; margin: 20px; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #e5e7eb; padding-bottom: 20px; }
+            .logo-container { display: flex; justify-content: center; align-items: center; gap: 20px; margin-bottom: 15px; }
+            .logo { max-width: 120px; max-height: 60px; }
+            .title { font-size: 24px; font-weight: bold; color: #111827; margin: 0; }
+            .subtitle { font-size: 14px; color: #6b7280; margin: 5px 0 0 0; }
+            .month-info { font-size: 16px; color: #374151; margin: 10px 0 0 0; font-weight: 600; }
+            .export-info { text-align: right; font-size: 12px; color: #6b7280; margin-bottom: 20px; }
+            table { border-collapse: collapse; width:100%; margin-top: 20px; }
+            th { text-align:left; padding:8px; border:1px solid #e6edf3; background:#f8fafc; font-weight: 600; }
+            td { padding:8px; border:1px solid #e6edf3; }
+            .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #6b7280; }
+            @media print { .no-print { display: none; } }
           </style>
         </head>
         <body>
-          <h2>Bookings</h2>
+          <div class="header">
+            <div class="logo-container">
+              <img src="/images/gwlogo.png" alt="GreatWork Logo" class="logo" />
+            </div>
+            <h1 class="title">Bookings Report</h1>
+            <p class="subtitle">GreatWork Booking Management System</p>
+            <p class="month-info">Bookings for: ${getMonthDisplay()}</p>
+          </div>
+          
+          <div class="export-info">
+            <strong>Exported by:</strong> ${exportedBy}<br>
+            <strong>Export Date:</strong> ${exportDate}<br>
+            <strong>Total Records:</strong> ${filteredItems.length}
+          </div>
+          
           <table>
             <thead>
               <tr>
@@ -302,6 +398,11 @@ export function BookingsView() {
               ${rows}
             </tbody>
           </table>
+          
+          <div class="footer">
+            <p> ${new Date().getFullYear()} GreatWork. All rights reserved.</p>
+            <p>This report was generated from the GreatWork Booking Management System.</p>
+          </div>
         </body>
       </html>
     `
@@ -384,19 +485,20 @@ export function BookingsView() {
               variant="outline"
               size="sm"
               className="flex items-center gap-2"
-              onClick={() => setShowFilters((s) => !s)}
+              onClick={() => setShowFilters(!showFilters)}
             >
-              <Filter className="w-4 h-4" />Filter
+              <Filter className="w-4 h-4" />
+              Filters
             </Button>
 
             {showFilters && (
-              <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-md shadow-md z-10 p-2">
+              <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-md shadow-md z-10 p-3">
                 <div className="text-sm text-slate-600 mb-2">Status</div>
                 <ul className="space-y-1">
                   {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const).map((s) => (
                     <li key={s}>
                       <button
-                        onClick={() => { setStatusFilter(s); setShowFilters(false); }}
+                        onClick={() => { setStatusFilter(s); }}
                         className={`w-full text-left text-sm py-1 px-2 rounded ${statusFilter === s ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
                       >
                         {s}
@@ -404,6 +506,15 @@ export function BookingsView() {
                     </li>
                   ))}
                 </ul>
+                
+                <div className="mt-3 pt-2 border-t border-slate-100">
+                  <button
+                    onClick={() => { setShowFilters(false); }}
+                    className="w-full text-xs text-slate-500 hover:text-slate-700"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -451,18 +562,15 @@ export function BookingsView() {
                     </Badge>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    {booking.approvalStatus === 'PENDING' ? (
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => { setActiveBooking(booking); setModalType('VIEW'); }} className="p-1 hover:bg-sky-100 text-sky-600 rounded-full" title="View booking"><Eye className="w-4 h-4" /></button>
-                        <button onClick={() => { setActiveBooking(booking); setModalType('APPROVE'); }} className="p-1 hover:bg-emerald-100 text-emerald-600 rounded-full"><Check className="w-4 h-4" /></button>
-                        <button onClick={() => { setActiveBooking(booking); setModalType('REJECT'); }} className="p-1 hover:bg-rose-100 text-rose-600 rounded-full"><X className="w-4 h-4" /></button>
-                      </div>
-                    ) : (
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => { setActiveBooking(booking); setModalType('VIEW'); }} className="p-1 hover:bg-sky-100 text-sky-600 rounded-full" title="View booking"><Eye className="w-4 h-4" /></button>
-                        <MoreHorizontal className="w-4 h-4 text-slate-400" />
-                      </div>
-                    )}
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => { setActiveBooking(booking); setModalType('VIEW'); }} className="p-1 hover:bg-sky-100 text-sky-600 rounded-full" title="View booking"><Eye className="w-4 h-4" /></button>
+                      {booking.approvalStatus !== 'APPROVED' && (
+                        <button onClick={() => { setActiveBooking(booking); setModalType('APPROVE'); }} className="p-1 hover:bg-emerald-100 text-emerald-600 rounded-full" title="Approve booking"><Check className="w-4 h-4" /></button>
+                      )}
+                      {booking.approvalStatus !== 'REJECTED' && (
+                        <button onClick={() => { setActiveBooking(booking); setModalType('REJECT'); }} className="p-1 hover:bg-rose-100 text-rose-600 rounded-full" title="Reject booking"><X className="w-4 h-4" /></button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

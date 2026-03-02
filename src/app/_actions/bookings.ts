@@ -672,7 +672,7 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
             })
         }
 
-        // Create booking with APPROVED status for walk-ins
+        // Create booking with PENDING status
         const newBooking = await prisma.booking.create({
             data: {
                 bookingReference: bookingRef,
@@ -684,10 +684,9 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
                 dailyTimeStart: bookingType === 'DAILY' ? dailyTimeStart : null,
                 dailyTimeEnd: bookingType === 'DAILY' ? dailyTimeEnd : null,
                 bookingType,
-                clientStatus: 'SUBMITTED', // Using SUBMITTED as default client status
-                approvalStatus: 'APPROVED', // Auto-approve walk-in bookings
+                clientStatus: 'SUBMITTED',
+                approvalStatus: 'APPROVED', // Start as APPROVED, admin can change status later
                 submittedAt: new Date(),
-                approvalDate: new Date(),
                 updatedById: session.user.id,
                 attendeeCount: attendeeCount ?? null,
                 message: message?.trim() || null,
@@ -701,23 +700,6 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
                 room: { select: { roomName: true } },
             },
         })
-
-        // Send approval email
-        if (newBooking.submittedBy?.email) {
-            await sendBookingStatusEmail({
-                to: newBooking.submittedBy.email,
-                name: newBooking.submittedBy.name,
-                bookingReference: newBooking.bookingReference,
-                approved: true,
-                adminMessage: 'Walk-in booking automatically approved.',
-                startDate: newBooking.startDate.toLocaleDateString(),
-                endDate: newBooking.endDate.toLocaleDateString(),
-                dailyTimeStart: newBooking.dailyTimeStart?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                dailyTimeEnd: newBooking.dailyTimeEnd?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                buildingName: newBooking.building.buildingName,
-                roomName: newBooking.room.roomName,
-            })
-        }
 
         return {
             success: true,
@@ -750,7 +732,7 @@ export async function updateBookingApprovalStatus(
             return { success: false, error: 'Booking ID is required.' }
         }
 
-        if (approvalStatus !== 'APPROVED' && approvalStatus !== 'REJECTED') {
+        if (approvalStatus !== 'APPROVED' && approvalStatus !== 'REJECTED' && approvalStatus !== 'PENDING') {
             return { success: false, error: 'Invalid approval status.' }
         }
 
