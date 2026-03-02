@@ -56,7 +56,7 @@ export function ReportsView() {
     // Header
     doc.setFontSize(20)
     doc.setTextColor(128, 0, 0) // Maroon text
-    doc.text('GreatWork Spaces - Reports', margin, 20)
+    doc.text('My GreatWork Spaces - Reports', margin, 20)
 
     // Date
     doc.setFontSize(10)
