@@ -159,7 +159,7 @@ export function CalendarView() {
                     >
                         Today
                     </Button>
-                    <Button className="h-10">+ Book</Button>
+                    
                 </div>
             </div>
 
