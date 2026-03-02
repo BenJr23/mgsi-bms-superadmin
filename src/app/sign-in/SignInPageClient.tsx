@@ -140,8 +140,9 @@ export default function SignInPageClient() {
       return;
     }
 
-    if (newPassword.length < 8) {
-      setError("Password must be at least 8 characters long.");
+    const passwordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*()[\]{}<>_+\-=\\|;:'",./?]).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      setError("Password must be at least 8 characters long, contain at least one number, and at least one special character.");
       setIsLoading(false);
       return;
     }
@@ -172,8 +173,11 @@ export default function SignInPageClient() {
   }, [error]);
 
   return (
-    <main className="min-h-screen w-full flex items-center justify-center px-6 py-16">
-      <div className="w-full max-w-xl rounded-3xl border border-[#8B1D1D]/35 bg-white/1 backdrop-blur-xl shadow-2xl shadow-black/20">
+    <main 
+      className="min-h-screen w-full flex items-center justify-center px-6 py-16 text-black bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: "url('/assets/gw-asset.webp')" }}
+    >
+      <div className="w-full max-w-xl rounded-3xl border border-[#8B1D1D]/35 bg-white shadow-2xl shadow-black/20">
         <div className="px-8 py-10 sm:px-12 sm:py-12">
           <div className="mx-auto mb-6 flex justify-center">
             <div className="relative h-14 w-44">

@@ -534,4 +534,3 @@ export async function uploadProfilePicture(formData: FormData) {
         return { error: message, success: false };
     }
 }
-
