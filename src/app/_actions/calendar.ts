@@ -12,6 +12,7 @@ export type CalendarBooking = {
 	buildingName: string
 	approvalStatus: string
 	submittedByName: string | null
+	companyName: string | null
 }
 
 interface GetCalendarBookingsResult {
@@ -73,7 +74,7 @@ export async function getCalendarBookings(
 				},
 				submittedBy: {
 					select: {
-						name: true,
+						name: true, companyName: true
 					},
 				},
 			},
@@ -91,6 +92,7 @@ export async function getCalendarBookings(
 			buildingName: booking.building.buildingName,
 			approvalStatus: booking.approvalStatus,
 			submittedByName: booking.submittedBy.name,
+			companyName: booking.submittedBy.companyName,
 		}))
 
 		return { success: true, data: formatted }

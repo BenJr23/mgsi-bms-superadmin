@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { X, Calendar, MapPin, User, Clock } from 'lucide-react';
+import { X, Calendar, MapPin, User, Clock, Building2 } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import type { CalendarBooking } from '@/app/_actions/calendar';
 
@@ -110,6 +110,7 @@ export function ViewCalendarModal({ isOpen, onClose, date, bookings }: ViewCalen
 									</div>
 
 									<div className="space-y-2 text-sm">
+										{/* Room & Building */}
 										<div className="flex items-center gap-2 text-slate-600">
 											<MapPin className="w-4 h-4 text-slate-400 flex-shrink-0" />
 											<span className="font-medium text-slate-900">
@@ -119,18 +120,27 @@ export function ViewCalendarModal({ isOpen, onClose, date, bookings }: ViewCalen
 											<span>{booking.buildingName}</span>
 										</div>
 
+										{/* Time Slot */}
 										<div className="flex items-center gap-2 text-slate-600">
 											<Clock className="w-4 h-4 text-slate-400 flex-shrink-0" />
 											<span>
-												{formatTime(booking.startDate)} -{' '}
-												{formatTime(booking.endDate)}
+												{formatTime(booking.startDate)} - {formatTime(booking.endDate)}
 											</span>
 										</div>
 
+										{/* Company Name (New Separate Row) */}
+										{booking.companyName && (
+											<div className="flex items-center gap-2 text-slate-600">
+												<Building2 className="w-4 h-4 text-slate-400 flex-shrink-0" />
+												<span className="font-medium text-slate-700">{booking.companyName}</span>
+											</div>
+										)}
+
+										{/* Submitted By */}
 										{booking.submittedByName && (
 											<div className="flex items-center gap-2 text-slate-600">
 												<User className="w-4 h-4 text-slate-400 flex-shrink-0" />
-												<span>Submitted by {booking.submittedByName}</span>
+												<span>Submitted by: {booking.submittedByName}</span>
 											</div>
 										)}
 									</div>
