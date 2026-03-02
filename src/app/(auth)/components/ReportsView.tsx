@@ -55,21 +55,21 @@ export function ReportsView() {
 
     // Header
     doc.setFontSize(20)
-    doc.setTextColor(30, 41, 59) // slate-800
-    doc.text('GreatWork Spaces - Reports', margin, 20)
+    doc.setTextColor(128, 0, 0) // Maroon text
+    doc.text('My GreatWork Spaces - Reports', margin, 20)
 
     // Date
     doc.setFontSize(10)
     doc.setTextColor(100, 116, 139) // slate-500
-    doc.text(`Generated on ${new Date().toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    doc.text(`Generated on ${new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     })}`, margin, 28)
 
     // Summary Section
     doc.setFontSize(14)
-    doc.setTextColor(30, 41, 59)
+    doc.setTextColor(128, 0, 0) // Maroon text
     doc.text('Summary', margin, 40)
 
     const summaryData = [
@@ -84,14 +84,14 @@ export function ReportsView() {
       head: [['Metric', 'Value']],
       body: summaryData,
       theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229] }, // indigo-600
+      headStyles: { fillColor: [128, 0, 0] }, // Maroon table header
       margin: { left: margin, right: margin },
     })
 
     // Monthly Booking Volume
     const finalY1 = (doc as any).lastAutoTable.finalY || 45
     doc.setFontSize(14)
-    doc.setTextColor(30, 41, 59)
+    doc.setTextColor(128, 0, 0)
     doc.text('Monthly Booking Volume', margin, finalY1 + 15)
 
     const monthlyData = reportsData.monthlyBookingVolume.map((item) => [
@@ -104,7 +104,7 @@ export function ReportsView() {
       head: [['Month', 'Bookings']],
       body: monthlyData,
       theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229] },
+      headStyles: { fillColor: [128, 0, 0] }, // Maroon table header
       margin: { left: margin, right: margin },
       columnStyles: {
         0: { cellWidth: 'auto' },
@@ -114,47 +114,40 @@ export function ReportsView() {
 
     // Room Usage Distribution
     const finalY2 = (doc as any).lastAutoTable.finalY || finalY1 + 20
-    
-    // Check if we need a new page
+
+    // Header for Room Usage
+    const setupRoomUsageHeader = (yPos: number) => {
+      doc.setFontSize(14)
+      doc.setTextColor(128, 0, 0)
+      doc.text('Room Usage Distribution', margin, yPos)
+    }
+
+    const roomData = reportsData.roomUsageDistribution.map((item) => [
+      item.roomName,
+      item.buildingName,
+      item.bookingCount.toString(),
+      `${item.usagePercent}%`,
+    ])
+
     if (finalY2 + 40 > doc.internal.pageSize.getHeight()) {
       doc.addPage()
-      doc.setFontSize(14)
-      doc.setTextColor(30, 41, 59)
-      doc.text('Room Usage Distribution', margin, 20)
-      
-      const roomData = reportsData.roomUsageDistribution.map((item) => [
-        item.roomName,
-        item.buildingName,
-        item.bookingCount.toString(),
-        `${item.usagePercent}%`,
-      ])
-
+      setupRoomUsageHeader(20)
       autoTable(doc, {
         startY: 25,
         head: [['Room Name', 'Building', 'Bookings', 'Usage %']],
         body: roomData,
         theme: 'grid',
-        headStyles: { fillColor: [79, 70, 229] },
+        headStyles: { fillColor: [128, 0, 0] }, // Maroon table header
         margin: { left: margin, right: margin },
       })
     } else {
-      doc.setFontSize(14)
-      doc.setTextColor(30, 41, 59)
-      doc.text('Room Usage Distribution', margin, finalY2 + 15)
-
-      const roomData = reportsData.roomUsageDistribution.map((item) => [
-        item.roomName,
-        item.buildingName,
-        item.bookingCount.toString(),
-        `${item.usagePercent}%`,
-      ])
-
+      setupRoomUsageHeader(finalY2 + 15)
       autoTable(doc, {
         startY: finalY2 + 20,
         head: [['Room Name', 'Building', 'Bookings', 'Usage %']],
         body: roomData,
         theme: 'grid',
-        headStyles: { fillColor: [79, 70, 229] },
+        headStyles: { fillColor: [128, 0, 0] }, // Maroon table header
         margin: { left: margin, right: margin },
       })
     }
@@ -164,7 +157,7 @@ export function ReportsView() {
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i)
       doc.setFontSize(8)
-      doc.setTextColor(148, 163, 184) // slate-400
+      doc.setTextColor(148, 163, 184)
       doc.text(
         `Page ${i} of ${pageCount}`,
         pageWidth / 2,
@@ -173,8 +166,7 @@ export function ReportsView() {
       )
     }
 
-    // Save the PDF
-    doc.save(`GreatWork-Reports-${new Date().toISOString().split('T')[0]}.pdf`)
+    doc.save(`My GreatWork-Reports-${new Date().toISOString().split('T')[0]}.pdf`)
   }
 
   const summary = reportsData?.summary
@@ -186,9 +178,9 @@ export function ReportsView() {
           <h1 className="text-2xl font-bold text-slate-900">Reports</h1>
           <p className="text-slate-500">Analytics and system usage insights.</p>
         </div>
-        <Button 
+        <Button
           variant="outline" 
-          className="flex items-center gap-2" 
+          className="flex items-center gap-2"
           onClick={handleExportPDF}
           disabled={loading || !reportsData}
         >
