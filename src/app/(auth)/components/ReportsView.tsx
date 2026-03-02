@@ -166,7 +166,7 @@ export function ReportsView() {
       )
     }
 
-    doc.save(`GreatWork-Reports-${new Date().toISOString().split('T')[0]}.pdf`)
+    doc.save(`My GreatWork-Reports-${new Date().toISOString().split('T')[0]}.pdf`)
   }
 
   const summary = reportsData?.summary
