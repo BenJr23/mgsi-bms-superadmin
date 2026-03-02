@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
-import { verifyPasswordUpdate } from "@/app/_actions/auth";
 
 export default function ChangePasswordPage() {
   const router = useRouter();
@@ -15,6 +14,7 @@ export default function ChangePasswordPage() {
   });
 
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -25,6 +25,7 @@ export default function ChangePasswordPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSuccess("");
 
     if (formData.newPassword !== formData.confirmPassword) {
       setError("New passwords do not match");
@@ -37,21 +38,25 @@ export default function ChangePasswordPage() {
       const { error } = await authClient.changePassword({
         currentPassword: formData.currentPassword, // The temp password
         newPassword: formData.newPassword,
-        revokeOtherSessions: true, // Optional: Log out other devices
+        revokeOtherSessions: false,
       });
 
       if (error) throw new Error(error.message);
 
-      // 2. Mark password as verified on server to stop reset loop
-      const verifyResult = await verifyPasswordUpdate();
+      // 2. Update passwordVerified via auth API so session/user payload stays in sync
+      const verifyResult = await (authClient as any).updateUser({
+        passwordVerified: true,
+      });
 
-      if (!verifyResult.success) {
-        throw new Error(verifyResult.error || "Password updated, but failed to finalize verification.");
+      if (verifyResult.error) {
+        throw new Error(verifyResult.error.message || "Password updated, but failed to finalize verification.");
       }
 
-      // 3. Redirect to the main dashboard
-      router.push("/dashboard");
-      router.refresh();
+      // 3. Show success and redirect to dashboard
+      setSuccess("Password updated successfully. Redirecting to dashboard...");
+      setTimeout(() => {
+        router.replace("/dashboard");
+      }, 800);
 
     } catch (err: any) {
       setError(err.message || "Failed to update password");
@@ -111,7 +116,8 @@ export default function ChangePasswordPage() {
           />
         </div>
 
-        {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {success && <p className="text-green-600 text-sm">{success}</p>}
 
         <button
           type="submit"

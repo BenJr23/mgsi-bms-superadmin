@@ -23,8 +23,7 @@ export const authEdge = betterAuth({
         expiresIn: 60 * 60 * 24 * 7, // 7 days (must match main auth config)
         updateAge: 60 * 60 * 24, // 1 day
         cookieCache: {
-            enabled: true,
-            maxAge: 5 * 60, // 5 minutes
+            enabled: false,
         },
     },
     
