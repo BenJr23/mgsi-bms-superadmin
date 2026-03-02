@@ -55,16 +55,41 @@ export async function forgotPassword(email: string) {
         await transporter.sendMail({
             from: `"GreatWork" <${process.env.GMAIL_USER}>`,
             to: email,
-            subject: "Your Password Reset OTP",
+            subject: "Your GreatWork Verification Code",
             html: `
-                <div style="font-family: sans-serif; padding: 20px;">
-                  <h2>Password Reset</h2>
-                  <p>Your OTP is: <strong>${otp}</strong></p>
-                  <p>This code expires in 10 minutes.</p>
+                <div style="background-color: #ffffff; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1a1a1a; line-height: 1.6;">
+                    <div style="max-width: 460px; margin: 0 auto; text-align: center;">
+                        
+                        <img src="https://static.wixstatic.com/media/0f0d2b_a16c66e8204b4a4a9aa7d1c5eb937db7~mv2.png" 
+                             alt="GreatWork" 
+                             style="width: 140px; margin-bottom: 40px;" />
+
+                        <h1 style="font-size: 24px; font-weight: 600; letter-spacing: -0.5px; margin-bottom: 8px;">
+                            Reset your password
+                        </h1>
+                        <p style="color: #666666; font-size: 16px; margin-bottom: 32px;">
+                            Enter the following code to verify your identity.
+                        </p>
+                        
+                        <div style="background-color: #f8f9fa; border-radius: 12px; padding: 24px; border: 1px solid #eaeaea; margin-bottom: 32px;">
+                            <span style="font-family: 'SF Mono', 'Roboto Mono', monospace; font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #2d333a;">
+                                ${otp}
+                            </span>
+                        </div>
+
+                        <p style="font-size: 14px; color: #888888;">
+                            This code expires in <span style="color: #1a1a1a; font-weight: 600;">10 minutes</span>.
+                        </p>
+                        
+                        <hr style="border: 0; border-top: 1px solid #f0f0f0; margin: 40px 0;" />
+                        
+                        <p style="font-size: 12px; color: #b0b0b0; text-transform: uppercase; letter-spacing: 1px;">
+                            © ${new Date().getFullYear()} GreatWork Team
+                        </p>
+                    </div>
                 </div>
             `,
         });
-
         console.log(`✅ Email sent to ${email}. OTP: ${otp}`);
 
         return { message: "OTP sent successfully", success: true };
