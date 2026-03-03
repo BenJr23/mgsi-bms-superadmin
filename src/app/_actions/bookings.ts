@@ -3,7 +3,7 @@
 import { ApprovalStatus, BookingType } from '@/generated/prisma/client'
 import { getServerSession } from '@/lib/get-server'
 import { prisma } from '@/lib/prisma'
-import { sendBookingStatusEmail } from './email'
+import { sendBookingStatusEmail } from './email/email-bookings'
 
 export type BookingListItem = {
     id: string

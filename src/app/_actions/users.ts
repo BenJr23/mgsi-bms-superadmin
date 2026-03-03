@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { headers } from 'next/headers'
 import { hashPassword } from 'better-auth/crypto'
-import { sendCredentialsEmail } from './email-user'
+import { sendCredentialsEmail } from './email/email-user'
 
 interface CreateUserInput {
   name: string
