@@ -1,3 +1,5 @@
+'use client'
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { Card } from './ui/Card';
 import { Loader2 } from 'lucide-react';

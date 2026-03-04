@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/get-server";
 import { hasAllowedRole } from "@/lib/auth-utils";
+import { AuthShell } from "./components/AuthShell";
 
 type AuthLayoutProps = {
     children: ReactNode;
@@ -18,5 +19,5 @@ export default async function AuthLayout({ children }: AuthLayoutProps) {
         redirect("/sign-in?error=unauthorized");
     }
 
-    return <>{children}</>;
+    return <AuthShell>{children}</AuthShell>;
 }

@@ -1,3 +1,5 @@
+'use client'
+
 import React, { useEffect, useState } from 'react'
 import { Card } from './ui/Card'
 import { Badge } from './ui/Badge'
