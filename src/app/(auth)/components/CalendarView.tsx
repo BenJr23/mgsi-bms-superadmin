@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react'; // Added useMemo
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { ChevronLeft, ChevronRight, Loader2, Building2 } from 'lucide-react'; // Added Building2 icon
@@ -26,26 +26,38 @@ export function CalendarView() {
 
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    useEffect(() => {
-        const fetchBookings = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const result = await getCalendarBookings(currentYear, currentMonth);
-                if (result.success) {
-                    setAllBookings(result.data || []);
-                    setBuildings(result.buildings || []);
-                } else {
-                    setError(result.error || 'Failed to fetch bookings');
-                }
-            } catch (err) {
-                setError(err instanceof Error ? err.message : 'An error occurred');
-            } finally {
-                setLoading(false);
+    const fetchBookings = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        
+        // Add timeout to prevent infinite loading
+        const timeoutId = setTimeout(() => {
+            setError('Request timed out. Please try again.');
+            setLoading(false);
+        }, 10000); // 10 second timeout
+        
+        try {
+            const result = await getCalendarBookings(currentYear, currentMonth, selectedBuildingId);
+            clearTimeout(timeoutId);
+            
+            if (result.success) {
+                setAllBookings(result.data || []);
+                setBuildings(result.buildings || []);
+            } else {
+                setError(result.error || 'Failed to fetch bookings');
             }
-        };
+        } catch (err) {
+            clearTimeout(timeoutId);
+            setError(err instanceof Error ? err.message : 'An error occurred');
+        } finally {
+            clearTimeout(timeoutId);
+            setLoading(false);
+        }
+    }, [currentYear, currentMonth, selectedBuildingId]);
+
+    useEffect(() => {
         fetchBookings();
-    }, [currentYear, currentMonth]);
+    }, [fetchBookings]);
 
     // --- Filter Logic ---
     const filteredBookings = useMemo(() => {
@@ -53,39 +65,39 @@ export function CalendarView() {
         return allBookings.filter((b) => b.buildingId === selectedBuildingId);
     }, [allBookings, selectedBuildingId]);
 
-    const goToPreviousMonth = () => {
+    const goToPreviousMonth = useCallback(() => {
         if (currentMonth === 0) {
             setCurrentMonth(11);
             setCurrentYear(currentYear - 1);
         } else {
             setCurrentMonth(currentMonth - 1);
         }
-    };
+    }, [currentMonth, currentYear]);
 
-    const goToNextMonth = () => {
+    const goToNextMonth = useCallback(() => {
         if (currentMonth === 11) {
             setCurrentMonth(0);
             setCurrentYear(currentYear + 1);
         } else {
             setCurrentMonth(currentMonth + 1);
         }
-    };
+    }, [currentMonth, currentYear]);
 
-    const goToToday = () => {
+    const goToToday = useCallback(() => {
         const today = new Date();
         setCurrentYear(today.getFullYear());
         setCurrentMonth(today.getMonth());
-    };
+    }, []);
 
     const calendarDays = generateCalendarGrid(currentYear, currentMonth);
 
-    const getBookingsForDay = (day: CalendarDay): CalendarBooking[] => {
+    const getBookingsForDay = useCallback((day: CalendarDay): CalendarBooking[] => {
         return filteredBookings.filter((booking) =>
             isBookingOnDate(booking.startDate, booking.endDate, day.dateString)
         );
-    };
+    }, [filteredBookings]);
 
-    const getStatusColor = (status: string) => {
+    const getStatusColor = useCallback((status: string) => {
         switch (status) {
             case 'APPROVED':
                 return 'bg-emerald-100 text-emerald-700 border-emerald-500';
@@ -96,7 +108,7 @@ export function CalendarView() {
             default:
                 return 'bg-slate-100 text-slate-700 border-slate-500';
         }
-    };
+    }, []); // Added closing parenthesis here
 
     const handleDayClick = (day: CalendarDay) => {
         if (!day.isCurrentMonth) return;
