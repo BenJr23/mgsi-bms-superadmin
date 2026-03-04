@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Card } from './ui/Card';
-import { Badge } from './ui/Badge';
-import { Button } from './ui/Button';
-import { Search, Filter, MoreHorizontal, Check, X, Loader2, Eye, Plus } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { ApproveBookingModal } from './Modals/ApproveBookingModal';
 import { RejectBookingModal } from './Modals/RejectBookingModal';
 import { ViewBookingModal } from './Modals/ViewBookingModal';
 import { WalkInBookingModal } from './Modals/WalkInBookingModal';
+import { BookingsViewHeader } from './bookings/BookingsViewHeader'
+import { BookingsViewFiltersBar } from './bookings/BookingsViewFiltersBar'
+import { BookingsTable } from './bookings/BookingsTable'
+import { BookingsPagination } from './bookings/BookingsPagination'
+
 import {
   getBookings,
   type BookingListItem,
@@ -33,6 +36,130 @@ export function BookingsView() {
   const [showFilters, setShowFilters] = useState(false);
   const [monthFilter, setMonthFilter] = useState<'ALL' | string>('ALL');
   const [exportUser, setExportUser] = useState<{ name: string | null; email: string } | null>(null);
+
+  const toSafeDate = (value: string) => {
+    const dt = new Date(value)
+    if (Number.isNaN(dt.getTime())) return null
+    return dt
+  }
+
+  const formatDate = (dt: Date) =>
+    dt.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: DISPLAY_TIMEZONE,
+    })
+
+  const formatTime = (dt: Date, timeZone: string) =>
+    dt.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+      timeZone,
+    })
+
+  const formatDateTime = (dt: Date) =>
+    dt.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: DISPLAY_TIMEZONE,
+    })
+
+  const formatDateRange = (start: Date, end: Date) => {
+    const startText = start.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: DISPLAY_TIMEZONE,
+    })
+
+    const endText = end.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: DISPLAY_TIMEZONE,
+    })
+
+    if (startText === endText) return startText
+
+    const startYear = start.toLocaleDateString('en-US', { year: 'numeric', timeZone: DISPLAY_TIMEZONE })
+    const endYear = end.toLocaleDateString('en-US', { year: 'numeric', timeZone: DISPLAY_TIMEZONE })
+    const startMonth = start.toLocaleDateString('en-US', { month: 'short', timeZone: DISPLAY_TIMEZONE })
+    const endMonth = end.toLocaleDateString('en-US', { month: 'short', timeZone: DISPLAY_TIMEZONE })
+
+    if (startYear === endYear && startMonth === endMonth) {
+      const startDay = start.toLocaleDateString('en-US', { day: 'numeric', timeZone: DISPLAY_TIMEZONE })
+      const endDay = end.toLocaleDateString('en-US', { day: 'numeric', timeZone: DISPLAY_TIMEZONE })
+      return `${startMonth} ${startDay} - ${endDay}, ${startYear}`
+    }
+
+    if (startYear === endYear) {
+      const startDay = start.toLocaleDateString('en-US', { day: 'numeric', timeZone: DISPLAY_TIMEZONE })
+      return `${startMonth} ${startDay} - ${endText}`
+    }
+
+    return `${startText} - ${endText}`
+  }
+
+  type BookingRow = BookingListItem & {
+    _display: {
+      dateRange: string
+      timeRange: string
+      submittedAt: string
+      approvalDate: string
+      cancellationDeadline: string
+      startDateForExport: string
+      endDateForExport: string
+      startTimeForExport: string
+      endTimeForExport: string
+      startYear: number | null
+      startMonth: number | null
+    }
+  }
+
+  const bookingRows: BookingRow[] = useMemo(() => {
+    return bookings.map((b) => {
+      const start = toSafeDate(b.startDate)
+      const end = toSafeDate(b.endDate)
+      const submittedAt = toSafeDate(b.submittedAt)
+      const approvalDate = b.approvalDate ? toSafeDate(b.approvalDate) : null
+      const cancellationDeadline = b.cancellationDeadline ? toSafeDate(b.cancellationDeadline) : null
+
+      const startTimeBase = toSafeDate(b.dailyTimeStart || b.startDate)
+      const endTimeBase = toSafeDate(b.dailyTimeEnd || b.endDate)
+      const startTimeTz = b.dailyTimeStart ? 'UTC' : DISPLAY_TIMEZONE
+      const endTimeTz = b.dailyTimeEnd ? 'UTC' : DISPLAY_TIMEZONE
+
+      const startYear = start ? start.getFullYear() : null
+      const startMonth = start ? start.getMonth() + 1 : null
+
+      const dateRange = start && end ? formatDateRange(start, end) : (b.startDate || '-')
+      const startTimeLabel = startTimeBase ? formatTime(startTimeBase, startTimeTz) : '--:--'
+      const endTimeLabel = endTimeBase ? formatTime(endTimeBase, endTimeTz) : '--:--'
+
+      return {
+        ...b,
+        _display: {
+          dateRange,
+          timeRange: `${startTimeLabel} - ${endTimeLabel}`,
+          submittedAt: submittedAt ? formatDateTime(submittedAt) : '-',
+          approvalDate: approvalDate ? formatDateTime(approvalDate) : '-',
+          cancellationDeadline: cancellationDeadline ? formatDateTime(cancellationDeadline) : '-',
+          startDateForExport: start ? formatDate(start) : b.startDate,
+          endDateForExport: end ? formatDate(end) : b.endDate,
+          startTimeForExport: startTimeBase ? formatTime(startTimeBase, startTimeTz) : '--:--',
+          endTimeForExport: endTimeBase ? formatTime(endTimeBase, endTimeTz) : '--:--',
+          startYear,
+          startMonth,
+        },
+      }
+    })
+  }, [bookings])
 
   const closeModal = () => {
     setModalType('NONE');
@@ -82,7 +209,7 @@ export function BookingsView() {
 
   const filteredBookings = useMemo(() => {
     const q = debouncedQuery.toLowerCase();
-    return bookings.filter((b) => {
+    return bookingRows.filter((b) => {
       if (statusFilter !== 'ALL' && b.approvalStatus !== statusFilter) return false;
 
       if (!q) return true;
@@ -95,7 +222,7 @@ export function BookingsView() {
         b.building.name.toLowerCase().includes(q)
       );
     });
-  }, [bookings, debouncedQuery, statusFilter]);
+  }, [bookingRows, debouncedQuery, statusFilter]);
 
   const handleAction = async (status: 'APPROVED' | 'REJECTED', message?: string) => {
     if (!activeBooking) {
@@ -126,109 +253,6 @@ export function BookingsView() {
       console.error("Action failed", err);
       return { success: false, error: 'A network error occurred.' };
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    const dt = new Date(dateString);
-    if (Number.isNaN(dt.getTime())) return dateString;
-    return dt.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      timeZone: DISPLAY_TIMEZONE,
-    });
-  };
-
-  const formatTime = (dateString: string) => {
-    const dt = new Date(dateString);
-    if (Number.isNaN(dt.getTime())) return '--:--';
-    return dt.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-      timeZone: DISPLAY_TIMEZONE,
-    });
-  };
-
-  const formatDateTime = (dateString?: string | null) => {
-    if (!dateString) return '-';
-    const dt = new Date(dateString);
-    if (Number.isNaN(dt.getTime())) return '-';
-    return dt.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-      timeZone: DISPLAY_TIMEZONE,
-    });
-  };
-
-  const formatWallClockTime = (dateString: string) => {
-    const dt = new Date(dateString);
-    if (Number.isNaN(dt.getTime())) return '--:--';
-
-    return dt.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-      timeZone: 'UTC',
-    });
-  };
-
-  const formatDateRange = (startDateString: string, endDateString: string) => {
-    const start = new Date(startDateString);
-    const end = new Date(endDateString);
-
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      return formatDate(startDateString);
-    }
-
-    const startText = start.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      timeZone: DISPLAY_TIMEZONE,
-    });
-
-    const endText = end.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      timeZone: DISPLAY_TIMEZONE,
-    });
-
-    if (startText === endText) return startText;
-
-    const startYear = start.toLocaleDateString('en-US', { year: 'numeric', timeZone: DISPLAY_TIMEZONE });
-    const endYear = end.toLocaleDateString('en-US', { year: 'numeric', timeZone: DISPLAY_TIMEZONE });
-    const startMonth = start.toLocaleDateString('en-US', { month: 'short', timeZone: DISPLAY_TIMEZONE });
-    const endMonth = end.toLocaleDateString('en-US', { month: 'short', timeZone: DISPLAY_TIMEZONE });
-
-    if (startYear === endYear && startMonth === endMonth) {
-      const startDay = start.toLocaleDateString('en-US', { day: 'numeric', timeZone: DISPLAY_TIMEZONE });
-      const endDay = end.toLocaleDateString('en-US', { day: 'numeric', timeZone: DISPLAY_TIMEZONE });
-      return `${startMonth} ${startDay} - ${endDay}, ${startYear}`;
-    }
-
-    if (startYear === endYear) {
-      const startDay = start.toLocaleDateString('en-US', { day: 'numeric', timeZone: DISPLAY_TIMEZONE });
-      return `${startMonth} ${startDay} - ${endText}`;
-    }
-
-    return `${startText} - ${endText}`;
-  };
-
-  const getDisplayStartTime = (booking: BookingListItem) =>
-    booking.dailyTimeStart || booking.startDate;
-
-  const getDisplayEndTime = (booking: BookingListItem) =>
-    booking.dailyTimeEnd || booking.endDate;
-
-  const formatBookingTime = (booking: BookingListItem, value: string, type: 'start' | 'end') => {
-    const hasDailyTime = type === 'start' ? Boolean(booking.dailyTimeStart) : Boolean(booking.dailyTimeEnd);
-    return hasDailyTime ? formatWallClockTime(value) : formatTime(value);
   };
 
   const escapeCSV = (val: string) => {
@@ -262,18 +286,14 @@ export function BookingsView() {
     return null
   }
 
-  const exportCSV = (items: BookingListItem[], month: 'ALL' | string = 'ALL') => {
+  const exportCSV = (items: BookingRow[], month: 'ALL' | string = 'ALL') => {
     const headers = ['Reference','Client','Company','Building','Room','Start Date','Start Time','End Date','End Time','Status']
     const monthParts = getMonthParts(month)
     const filtered = !monthParts ? items : items.filter((b) => {
-      try {
-        const dt = new Date(b.startDate)
-        const y = dt.getFullYear()
-        const m = dt.getMonth() + 1
-        return y === monthParts.year && m === monthParts.month
-      } catch {
-        return false
-      }
+      const y = b._display.startYear
+      const m = b._display.startMonth
+      if (!y || !m) return false
+      return y === monthParts.year && m === monthParts.month
     })
 
     const rows = filtered.map((b) => [
@@ -282,10 +302,10 @@ export function BookingsView() {
       escapeCSV(b.submittedBy.companyName || '-'),
       escapeCSV(b.building.name),
       escapeCSV(b.room.name),
-      escapeCSV(formatDate(b.startDate)),
-      escapeCSV(formatBookingTime(b, getDisplayStartTime(b), 'start')),
-      escapeCSV(formatDate(b.endDate)),
-      escapeCSV(formatBookingTime(b, getDisplayEndTime(b), 'end')),
+      escapeCSV(b._display.startDateForExport),
+      escapeCSV(b._display.startTimeForExport),
+      escapeCSV(b._display.endDateForExport),
+      escapeCSV(b._display.endTimeForExport),
       escapeCSV(b.approvalStatus),
     ])
 
@@ -300,8 +320,9 @@ export function BookingsView() {
     URL.revokeObjectURL(url)
   }
 
-  const exportPDF = (items: BookingListItem[]) => {
+  const exportPDF = (items: BookingRow[]) => {
     const exportedBy = exportUser?.name || exportUser?.email || 'Administrator';
+
     const exportDate = new Date().toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -314,14 +335,10 @@ export function BookingsView() {
 
     // Apply month filter to PDF export
     const filteredItems = !monthParts ? items : items.filter((b) => {
-      try {
-        const bookingDate = new Date(b.startDate);
-        const y = bookingDate.getFullYear()
-        const m = bookingDate.getMonth() + 1
-        return y === monthParts.year && m === monthParts.month
-      } catch {
-        return false;
-      }
+      const y = b._display.startYear
+      const m = b._display.startMonth
+      if (!y || !m) return false
+      return y === monthParts.year && m === monthParts.month
     });
 
     // Get month display name
@@ -331,21 +348,10 @@ export function BookingsView() {
       return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     };
 
-    // Create a print-friendly HTML and open in a new window. User can Save as PDF.
-    const rows = filteredItems.map((b) => `
-      <tr>
-        <td style="padding:8px;border:1px solid #e6edf3">${b.bookingReference}</td>
-        <td style="padding:8px;border:1px solid #e6edf3">${b.submittedBy.name || b.submittedBy.email}</td>
-        <td style="padding:8px;border:1px solid #e6edf3">${b.submittedBy.companyName || '-'}</td>
-        <td style="padding:8px;border:1px solid #e6edf3">${b.building.name}</td>
-        <td style="padding:8px;border:1px solid #e6edf3">${b.room.name}</td>
-        <td style="padding:8px;border:1px solid #e6edf3">${formatDate(b.startDate)} ${formatBookingTime(b, getDisplayStartTime(b), 'start')}</td>
-        <td style="padding:8px;border:1px solid #e6edf3">${formatDate(b.endDate)} ${formatBookingTime(b, getDisplayEndTime(b), 'end')}</td>
-        <td style="padding:8px;border:1px solid #e6edf3">${b.approvalStatus}</td>
-      </tr>
-    `).join('\n')
+    const win = window.open('', '_blank')
+    if (!win) return
 
-    const html = `
+    const beforeTable = `
       <html>
         <head>
           <title>Bookings Report</title>
@@ -395,7 +401,9 @@ export function BookingsView() {
               </tr>
             </thead>
             <tbody>
-              ${rows}
+    `
+
+    const afterTable = `
             </tbody>
           </table>
           
@@ -407,15 +415,44 @@ export function BookingsView() {
       </html>
     `
 
-    const win = window.open('', '_blank')
-    if (!win) return
-    win.document.write(html)
-    win.document.close()
-    // wait for render then trigger print
-    setTimeout(() => {
-      win.focus()
-      win.print()
-    }, 500)
+    const yieldToBrowser = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
+
+    const writeRowsChunked = async () => {
+      win.document.open()
+      win.document.write(beforeTable)
+
+      const chunkSize = 200
+      for (let i = 0; i < filteredItems.length; i += chunkSize) {
+        const chunk = filteredItems.slice(i, i + chunkSize)
+        const rows = chunk
+          .map((b) => `
+            <tr>
+              <td style="padding:8px;border:1px solid #e6edf3">${b.bookingReference}</td>
+              <td style="padding:8px;border:1px solid #e6edf3">${b.submittedBy.name || b.submittedBy.email}</td>
+              <td style="padding:8px;border:1px solid #e6edf3">${b.submittedBy.companyName || '-'}</td>
+              <td style="padding:8px;border:1px solid #e6edf3">${b.building.name}</td>
+              <td style="padding:8px;border:1px solid #e6edf3">${b.room.name}</td>
+              <td style="padding:8px;border:1px solid #e6edf3">${b._display.startDateForExport} ${b._display.startTimeForExport}</td>
+              <td style="padding:8px;border:1px solid #e6edf3">${b._display.endDateForExport} ${b._display.endTimeForExport}</td>
+              <td style="padding:8px;border:1px solid #e6edf3">${b.approvalStatus}</td>
+            </tr>
+          `)
+          .join('\n')
+
+        win.document.write(rows)
+        await yieldToBrowser()
+      }
+
+      win.document.write(afterTable)
+      win.document.close()
+
+      setTimeout(() => {
+        win.focus()
+        win.print()
+      }, 500)
+    }
+
+    void writeRowsChunked()
   }
 
   if (loading) return (
@@ -433,174 +470,49 @@ export function BookingsView() {
         </div>
       )}
 
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Bookings</h1>
-          <p className="text-slate-500">Manage and approve booking requests.</p>
-        </div>
-        <div className="flex gap-2">
-          <div className="relative flex items-center gap-3">
-            <label className="text-sm text-slate-500">Month:</label>
-            <input
-              type="month"
-              value={monthFilter === 'ALL' ? '' : monthFilter}
-              onChange={(e) => setMonthFilter(e.target.value ? e.target.value : 'ALL')}
-              className="border border-slate-300 rounded-md px-2 py-1 text-sm"
-            />
-            <Button
-              variant="outline"
-              onClick={() => exportCSV(filteredBookings, monthFilter)}
-              title="Export CSV"
-            >
-              Export CSV
-            </Button>
-            <Button
-              onClick={() => exportPDF(filteredBookings)}
-              className="ml-2"
-            >
-              Export PDF
-            </Button>
-          </div>
-          <Button onClick={() => setModalType('WALK_IN')} className="flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Walk-In Booking
-          </Button>
-        </div>
-      </header>
+      <BookingsViewHeader
+        monthFilter={monthFilter}
+        onMonthFilterChange={(value) => setMonthFilter(value)}
+        onExportCSV={() => exportCSV(filteredBookings, monthFilter)}
+        onExportPDF={() => exportPDF(filteredBookings)}
+        onOpenWalkIn={() => setModalType('WALK_IN')}
+      />
 
       <Card noPadding>
-        <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              type="text"
-              placeholder="Search bookings..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <div className="relative">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2"
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <Filter className="w-4 h-4" />
-              Filters
-            </Button>
+        <BookingsViewFiltersBar
+          query={query}
+          onQueryChange={(value) => setQuery(value)}
+          showFilters={showFilters}
+          onToggleFilters={() => setShowFilters(!showFilters)}
+          statusFilter={statusFilter}
+          onStatusFilterChange={(value) => setStatusFilter(value)}
+          onCloseFilters={() => setShowFilters(false)}
+        />
 
-            {showFilters && (
-              <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-md shadow-md z-10 p-3">
-                <div className="text-sm text-slate-600 mb-2">Status</div>
-                <ul className="space-y-1">
-                  {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const).map((s) => (
-                    <li key={s}>
-                      <button
-                        onClick={() => { setStatusFilter(s); }}
-                        className={`w-full text-left text-sm py-1 px-2 rounded ${statusFilter === s ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
-                      >
-                        {s}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                
-                <div className="mt-3 pt-2 border-t border-slate-100">
-                  <button
-                    onClick={() => { setShowFilters(false); }}
-                    className="w-full text-xs text-slate-500 hover:text-slate-700"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <BookingsTable
+          bookings={filteredBookings}
+          onView={(booking) => {
+            setActiveBooking(booking)
+            setModalType('VIEW')
+          }}
+          onApprove={(booking) => {
+            setActiveBooking(booking)
+            setModalType('APPROVE')
+          }}
+          onReject={(booking) => {
+            setActiveBooking(booking)
+            setModalType('REJECT')
+          }}
+        />
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
-              <tr>
-                <th className="px-6 py-3 w-[150px]">Reference</th>
-                <th className="px-6 py-3">Client</th>
-                <th className="px-6 py-3">Location</th>
-                <th className="px-6 py-3">Date & Time</th>
-                <th className="px-6 py-3">Status</th>
-                <th className="px-6 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredBookings.map((booking) => (
-                <tr key={booking.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-slate-900 max-w-[150px]">
-                    <span className="block truncate" title={booking.bookingReference}>
-                      {booking.bookingReference}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-slate-600">
-                    <div className="text-slate-900 font-medium">{booking.submittedBy.name || booking.submittedBy.email}</div>
-                    {booking.submittedBy.companyName && (
-                      <div className="text-xs text-slate-500">{booking.submittedBy.companyName}</div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-slate-900 font-medium">{booking.room.name}</div>
-                    <div className="text-xs text-slate-500">{booking.building.name}</div>
-                  </td>
-                  <td className="px-6 py-4 text-slate-600 min-w-[240px]">
-                    <div>{formatDateRange(booking.startDate, booking.endDate)}</div>
-                    <div className="text-xs text-slate-400">
-                      {formatBookingTime(booking, getDisplayStartTime(booking), 'start')} - {formatBookingTime(booking, getDisplayEndTime(booking), 'end')}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge variant={booking.approvalStatus === 'APPROVED' ? 'success' : booking.approvalStatus === 'PENDING' ? 'warning' : 'danger'}>
-                      {booking.approvalStatus}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button onClick={() => { setActiveBooking(booking); setModalType('VIEW'); }} className="p-1 hover:bg-sky-100 text-sky-600 rounded-full" title="View booking"><Eye className="w-4 h-4" /></button>
-                      {booking.approvalStatus !== 'APPROVED' && (
-                        <button onClick={() => { setActiveBooking(booking); setModalType('APPROVE'); }} className="p-1 hover:bg-emerald-100 text-emerald-600 rounded-full" title="Approve booking"><Check className="w-4 h-4" /></button>
-                      )}
-                      {booking.approvalStatus !== 'REJECTED' && (
-                        <button onClick={() => { setActiveBooking(booking); setModalType('REJECT'); }} className="p-1 hover:bg-rose-100 text-rose-600 rounded-full" title="Reject booking"><X className="w-4 h-4" /></button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="px-4 py-3 border-t border-slate-200 bg-white flex items-center justify-between">
-          <p className="text-sm text-slate-500">
-            Showing page {currentPage} of {totalPages} • {totalCount} total bookings
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1 || loading}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage >= totalPages || loading}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
+        <BookingsPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          loading={loading}
+          onPrevious={() => setCurrentPage((p) => Math.max(1, p - 1))}
+          onNext={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+        />
       </Card>
 
       {activeBooking && (
@@ -618,11 +530,11 @@ export function BookingsView() {
               bookingType: activeBooking.bookingType,
               clientStatus: activeBooking.clientStatus,
               approvalStatus: activeBooking.approvalStatus,
-              dateRange: formatDateRange(activeBooking.startDate, activeBooking.endDate),
-              timeRange: `${formatBookingTime(activeBooking, getDisplayStartTime(activeBooking), 'start')} - ${formatBookingTime(activeBooking, getDisplayEndTime(activeBooking), 'end')}`,
-              submittedAt: formatDateTime(activeBooking.submittedAt),
-              approvalDate: formatDateTime(activeBooking.approvalDate),
-              cancellationDeadline: formatDateTime(activeBooking.cancellationDeadline),
+              dateRange: (bookingRows.find((b) => b.id === activeBooking.id)?._display.dateRange) || activeBooking.startDate,
+              timeRange: (bookingRows.find((b) => b.id === activeBooking.id)?._display.timeRange) || '-',
+              submittedAt: (bookingRows.find((b) => b.id === activeBooking.id)?._display.submittedAt) || '-',
+              approvalDate: (bookingRows.find((b) => b.id === activeBooking.id)?._display.approvalDate) || '-',
+              cancellationDeadline: (bookingRows.find((b) => b.id === activeBooking.id)?._display.cancellationDeadline) || '-',
               attendeeCount: activeBooking.attendeeCount,
               message: activeBooking.message,
               updatedByName: activeBooking.updatedBy?.name || null,

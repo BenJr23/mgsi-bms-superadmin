@@ -4,6 +4,7 @@ import { ApprovalStatus, BookingType } from '@/generated/prisma/client'
 import { getServerSession } from '@/lib/get-server'
 import { prisma } from '@/lib/prisma'
 import { sendBookingStatusEmail } from './email/email-bookings'
+import { unstable_cache, revalidateTag } from 'next/cache'
 
 export type BookingListItem = {
     id: string
@@ -24,6 +25,22 @@ export type BookingListItem = {
     room: { name: string }
     submittedBy: { name: string | null; email: string; companyName?: string | null }
     updatedBy?: { id: string; name?: string | null } | null
+}
+
+export type BookingRow = BookingListItem & {
+    _display: {
+        dateRange: string
+        timeRange: string
+        submittedAt: string
+        approvalDate: string
+        cancellationDeadline: string
+        startDateForExport: string
+        endDateForExport: string
+        startTimeForExport: string
+        endTimeForExport: string
+        startYear: number | null
+        startMonth: number | null
+    }
 }
 
 interface GetBookingsResult {
@@ -359,6 +376,66 @@ function getBookingSlotsForDateRange(
     return slots
 }
 
+function formatDateManilaShort(dt: Date): string {
+    return dt.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        timeZone: 'Asia/Manila',
+    })
+}
+
+function formatTimeLabel(dt: Date, timeZone: string): string {
+    return dt.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone,
+    })
+}
+
+function formatDateTimeManila(dt: Date): string {
+    return dt.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Asia/Manila',
+    })
+}
+
+function formatDateRangeManila(start: Date, end: Date): string {
+    const startText = formatDateManilaShort(start)
+    const endText = formatDateManilaShort(end)
+    if (startText === endText) return startText
+
+    const startYear = start.toLocaleDateString('en-US', { year: 'numeric', timeZone: 'Asia/Manila' })
+    const endYear = end.toLocaleDateString('en-US', { year: 'numeric', timeZone: 'Asia/Manila' })
+    const startMonth = start.toLocaleDateString('en-US', { month: 'short', timeZone: 'Asia/Manila' })
+    const endMonth = end.toLocaleDateString('en-US', { month: 'short', timeZone: 'Asia/Manila' })
+
+    if (startYear === endYear && startMonth === endMonth) {
+        const startDay = start.toLocaleDateString('en-US', { day: 'numeric', timeZone: 'Asia/Manila' })
+        const endDay = end.toLocaleDateString('en-US', { day: 'numeric', timeZone: 'Asia/Manila' })
+        return `${startMonth} ${startDay} - ${endDay}, ${startYear}`
+    }
+
+    if (startYear === endYear) {
+        const startDay = start.toLocaleDateString('en-US', { day: 'numeric', timeZone: 'Asia/Manila' })
+        return `${startMonth} ${startDay} - ${endText}`
+    }
+
+    return `${startText} - ${endText}`
+}
+
+export const getBookingsCached = unstable_cache(
+    async (input: GetBookingsInput = {}) => getBookings(input),
+    ['bookings:list'],
+    { revalidate: 60, tags: ['bookings'] }
+)
+
 export async function getBookings(input: GetBookingsInput = {}): Promise<GetBookingsResult> {
     try {
         const session = await getServerSession()
@@ -368,7 +445,7 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
         }
 
         const page = Math.max(1, input.page ?? 1)
-        const pageSize = Math.max(1, Math.min(100, input.pageSize ?? 10))
+        const pageSize = Math.max(1, Math.min(10, input.pageSize ?? 10))
         const skip = (page - 1) * pageSize
 
         const where = {
@@ -380,15 +457,25 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
             prisma.booking.count({ where }),
             prisma.booking.findMany({
                 where,
-                include: {
+                select: {
+                    id: true,
+                    bookingReference: true,
+                    startDate: true,
+                    endDate: true,
+                    dailyTimeStart: true,
+                    dailyTimeEnd: true,
+                    bookingType: true,
+                    clientStatus: true,
+                    approvalStatus: true,
+                    submittedAt: true,
+                    approvalDate: true,
+                    cancellationDeadline: true,
+                    message: true,
+                    attendeeCount: true,
                     building: { select: { buildingName: true } },
                     room: { select: { roomName: true } },
-                    submittedBy: {
-                        select: { name: true, email: true, companyName: true },
-                    },
-                    updatedBy: {
-                        select: { id: true, name: true },
-                    },
+                    submittedBy: { select: { name: true, email: true, companyName: true } },
+                    updatedBy: { select: { id: true, name: true } },
                 },
                 orderBy: { createdAt: 'desc' },
                 skip,
@@ -396,34 +483,59 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
             }),
         ])
 
-        const formatted: BookingListItem[] = bookings.map((booking) => ({
-            id: booking.id,
-            bookingReference: booking.bookingReference,
-            startDate: booking.startDate.toISOString(),
-            endDate: booking.endDate.toISOString(),
-            dailyTimeStart: booking.dailyTimeStart ? booking.dailyTimeStart.toISOString() : null,
-            dailyTimeEnd: booking.dailyTimeEnd ? booking.dailyTimeEnd.toISOString() : null,
-            bookingType: booking.bookingType,
-            clientStatus: booking.clientStatus,
-            approvalStatus: booking.approvalStatus,
-            submittedAt: booking.submittedAt.toISOString(),
-            approvalDate: booking.approvalDate ? booking.approvalDate.toISOString() : null,
-            cancellationDeadline: booking.cancellationDeadline
-                ? booking.cancellationDeadline.toISOString()
-                : null,
-            message: booking.message,
-            attendeeCount: booking.attendeeCount,
-            building: { name: booking.building.buildingName },
-            room: { name: booking.room.roomName },
-            submittedBy: {
-                name: booking.submittedBy.name,
-                email: booking.submittedBy.email,
-                companyName: booking.submittedBy.companyName,
-            },
-            updatedBy: booking.updatedBy
-                ? { id: booking.updatedBy.id, name: booking.updatedBy.name }
-                : null,
-        }))
+        const formatted: BookingRow[] = bookings.map((booking) => {
+            const startYear = booking.startDate ? booking.startDate.getFullYear() : null
+            const startMonth = booking.startDate ? booking.startDate.getMonth() + 1 : null
+
+            const dateRange = booking.startDate && booking.endDate
+                ? formatDateRangeManila(booking.startDate, booking.endDate)
+                : (booking.startDate?.toISOString() || '-')
+
+            const startTimeBase = booking.dailyTimeStart || booking.startDate
+            const endTimeBase = booking.dailyTimeEnd || booking.endDate
+            const startTimeTz = booking.dailyTimeStart ? 'UTC' : 'Asia/Manila'
+            const endTimeTz = booking.dailyTimeEnd ? 'UTC' : 'Asia/Manila'
+            const startTimeLabel = startTimeBase ? formatTimeLabel(startTimeBase, startTimeTz) : '--:--'
+            const endTimeLabel = endTimeBase ? formatTimeLabel(endTimeBase, endTimeTz) : '--:--'
+
+            return {
+                id: booking.id,
+                bookingReference: booking.bookingReference,
+                startDate: booking.startDate.toISOString(),
+                endDate: booking.endDate.toISOString(),
+                dailyTimeStart: booking.dailyTimeStart ? booking.dailyTimeStart.toISOString() : null,
+                dailyTimeEnd: booking.dailyTimeEnd ? booking.dailyTimeEnd.toISOString() : null,
+                bookingType: booking.bookingType,
+                clientStatus: booking.clientStatus,
+                approvalStatus: booking.approvalStatus,
+                submittedAt: booking.submittedAt.toISOString(),
+                approvalDate: booking.approvalDate ? booking.approvalDate.toISOString() : null,
+                cancellationDeadline: booking.cancellationDeadline ? booking.cancellationDeadline.toISOString() : null,
+                message: booking.message,
+                attendeeCount: booking.attendeeCount,
+                building: { name: booking.building.buildingName },
+                room: { name: booking.room.roomName },
+                submittedBy: {
+                    name: booking.submittedBy.name,
+                    email: booking.submittedBy.email,
+                    companyName: booking.submittedBy.companyName,
+                },
+                updatedBy: booking.updatedBy ? { id: booking.updatedBy.id, name: booking.updatedBy.name } : null,
+                _display: {
+                    dateRange,
+                    timeRange: `${startTimeLabel} - ${endTimeLabel}`,
+                    submittedAt: booking.submittedAt ? formatDateTimeManila(booking.submittedAt) : '-',
+                    approvalDate: booking.approvalDate ? formatDateTimeManila(booking.approvalDate) : '-',
+                    cancellationDeadline: booking.cancellationDeadline ? formatDateTimeManila(booking.cancellationDeadline) : '-',
+                    startDateForExport: formatDateManilaShort(booking.startDate),
+                    endDateForExport: formatDateManilaShort(booking.endDate),
+                    startTimeForExport: startTimeBase ? formatTimeLabel(startTimeBase, startTimeTz) : '--:--',
+                    endTimeForExport: endTimeBase ? formatTimeLabel(endTimeBase, endTimeTz) : '--:--',
+                    startYear,
+                    startMonth,
+                },
+            }
+        })
 
         const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
 
