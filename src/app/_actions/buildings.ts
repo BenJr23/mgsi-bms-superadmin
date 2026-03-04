@@ -3,6 +3,52 @@
 import { prisma } from '@/lib/prisma'
 import { BuildingStatus } from '@/generated/prisma/client'
 import { getServerSession } from '@/lib/get-server'
+import { redis } from '@/lib/redist'
+
+const BUILDINGS_CACHE_TTL_SECONDS = 300
+const BUILDINGS_CACHE_VERSION_KEY = 'buildings:list:version'
+const ROOMS_CACHE_VERSION_KEY = 'rooms:list:version'
+
+function getBuildingsCacheKey(version: number): string {
+  return `buildings:list:v${version}`
+}
+
+function getBuildingOptionsCacheKey(version: number): string {
+  return `buildings:options:v${version}`
+}
+
+function getBuildingByIdCacheKey(buildingId: string, version: number): string {
+  return `buildings:by-id:${buildingId}:v${version}`
+}
+
+async function getCacheVersion(versionKey: string): Promise<number> {
+  if (!redis) return 0
+
+  try {
+    const version = await redis.get<number>(versionKey)
+    return typeof version === 'number' && Number.isFinite(version) ? version : 0
+  } catch (error) {
+    console.error('Get building cache version error:', error)
+    return 0
+  }
+}
+
+async function invalidateBuildingAndRoomCaches(): Promise<void> {
+  if (!redis) return
+
+  try {
+    await Promise.all([
+      redis.incr(BUILDINGS_CACHE_VERSION_KEY),
+      redis.incr(ROOMS_CACHE_VERSION_KEY),
+    ])
+  } catch (error) {
+    console.error('Invalidate building/room cache error:', error)
+  }
+}
+
+function toDate(value: Date | string): Date {
+  return value instanceof Date ? value : new Date(value)
+}
 
 interface CreateBuildingInput {
   buildingName: string
@@ -76,6 +122,8 @@ export async function createBuilding(
       },
     })
 
+    await invalidateBuildingAndRoomCaches()
+
     return {
       success: true,
       data: {
@@ -103,6 +151,20 @@ export async function getBuildings(): Promise<GetBuildingsResult> {
       return { success: false, error: 'Not authenticated.' }
     }
 
+    const cacheVersion = await getCacheVersion(BUILDINGS_CACHE_VERSION_KEY)
+    const cacheKey = getBuildingOptionsCacheKey(cacheVersion)
+
+    if (redis) {
+      try {
+        const cached = await redis.get<GetBuildingsResult>(cacheKey)
+        if (cached?.success) {
+          return cached
+        }
+      } catch (error) {
+        console.error('Get buildings cache read error:', error)
+      }
+    }
+
     const buildings = await prisma.building.findMany({
       where: {
         deletedAt: null,
@@ -116,7 +178,17 @@ export async function getBuildings(): Promise<GetBuildingsResult> {
       },
     })
 
-    return { success: true, data: buildings }
+    const response: GetBuildingsResult = { success: true, data: buildings }
+
+    if (redis) {
+      try {
+        await redis.set(cacheKey, response, { ex: BUILDINGS_CACHE_TTL_SECONDS })
+      } catch (error) {
+        console.error('Get buildings cache write error:', error)
+      }
+    }
+
+    return response
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : 'Failed to fetch buildings.'
@@ -168,6 +240,20 @@ export async function getBuildingById(
       return { success: false, error: 'Not authenticated.' }
     }
 
+    const cacheVersion = await getCacheVersion(BUILDINGS_CACHE_VERSION_KEY)
+    const cacheKey = getBuildingByIdCacheKey(buildingId, cacheVersion)
+
+    if (redis) {
+      try {
+        const cached = await redis.get<GetBuildingByIdResult>(cacheKey)
+        if (cached?.success) {
+          return cached
+        }
+      } catch (error) {
+        console.error('Get building by id cache read error:', error)
+      }
+    }
+
     const building = await prisma.building.findFirst({
       where: {
         id: buildingId,
@@ -188,7 +274,17 @@ export async function getBuildingById(
       return { success: false, error: 'Building not found.' }
     }
 
-    return { success: true, data: building }
+    const response: GetBuildingByIdResult = { success: true, data: building }
+
+    if (redis) {
+      try {
+        await redis.set(cacheKey, response, { ex: BUILDINGS_CACHE_TTL_SECONDS })
+      } catch (error) {
+        console.error('Get building by id cache write error:', error)
+      }
+    }
+
+    return response
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : 'Failed to fetch building.'
@@ -280,6 +376,8 @@ export async function updateBuilding(
       },
     })
 
+    await invalidateBuildingAndRoomCaches()
+
     return {
       success: true,
       data: {
@@ -305,6 +403,26 @@ export async function getAllBuildings(): Promise<GetAllBuildingsResult> {
 
     if (!session?.user?.id) {
       return { success: false, error: 'Not authenticated.' }
+    }
+
+    const cacheVersion = await getCacheVersion(BUILDINGS_CACHE_VERSION_KEY)
+    const cacheKey = getBuildingsCacheKey(cacheVersion)
+
+    if (redis) {
+      try {
+        const cached = await redis.get<GetAllBuildingsResult>(cacheKey)
+        if (cached?.success && cached.data) {
+          return {
+            ...cached,
+            data: cached.data.map((building) => ({
+              ...building,
+              createdAt: toDate(building.createdAt),
+            })),
+          }
+        }
+      } catch (error) {
+        console.error('Get all buildings cache read error:', error)
+      }
     }
 
     const buildings = await prisma.building.findMany({
@@ -346,7 +464,20 @@ export async function getAllBuildings(): Promise<GetAllBuildingsResult> {
       roomCount: b.rooms.length,
     }))
 
-    return { success: true, data: buildingsWithCount }
+    const response: GetAllBuildingsResult = {
+      success: true,
+      data: buildingsWithCount,
+    }
+
+    if (redis) {
+      try {
+        await redis.set(cacheKey, response, { ex: BUILDINGS_CACHE_TTL_SECONDS })
+      } catch (error) {
+        console.error('Get all buildings cache write error:', error)
+      }
+    }
+
+    return response
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : 'Failed to fetch buildings.'
@@ -487,6 +618,8 @@ export async function deleteBuilding(
         deletedAt: new Date(),
       },
     })
+
+    await invalidateBuildingAndRoomCaches()
 
     return { success: true }
   } catch (error: unknown) {

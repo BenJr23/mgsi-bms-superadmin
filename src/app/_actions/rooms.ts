@@ -2,6 +2,52 @@
 
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from '@/lib/get-server'
+import { redis } from '@/lib/redist'
+
+const ROOMS_CACHE_TTL_SECONDS = 300
+const ROOMS_CACHE_VERSION_KEY = 'rooms:list:version'
+const BUILDINGS_CACHE_VERSION_KEY = 'buildings:list:version'
+
+function getAllRoomsCacheKey(params: {
+  page: number
+  pageSize: number
+  searchQuery?: string
+  buildingId?: string
+  version: number
+}): string {
+  const searchKey = params.searchQuery?.trim() ? params.searchQuery.trim().toLowerCase() : 'all'
+  const buildingKey = params.buildingId?.trim() || 'all'
+  return `rooms:list:v${params.version}:page:${params.page}:size:${params.pageSize}:search:${encodeURIComponent(searchKey)}:building:${buildingKey}`
+}
+
+function getRoomByIdCacheKey(roomId: string, version: number): string {
+  return `rooms:by-id:${roomId}:v${version}`
+}
+
+async function getCacheVersion(versionKey: string): Promise<number> {
+  if (!redis) return 0
+
+  try {
+    const version = await redis.get<number>(versionKey)
+    return typeof version === 'number' && Number.isFinite(version) ? version : 0
+  } catch (error) {
+    console.error('Get room cache version error:', error)
+    return 0
+  }
+}
+
+async function invalidateRoomAndBuildingCaches(): Promise<void> {
+  if (!redis) return
+
+  try {
+    await Promise.all([
+      redis.incr(ROOMS_CACHE_VERSION_KEY),
+      redis.incr(BUILDINGS_CACHE_VERSION_KEY),
+    ])
+  } catch (error) {
+    console.error('Invalidate room/building cache error:', error)
+  }
+}
 
 const normalizeAmenities = (amenities: unknown): string[] | null => {
   if (!Array.isArray(amenities)) return null
@@ -80,6 +126,8 @@ export async function createRoom(
       },
     })
 
+    await invalidateRoomAndBuildingCaches()
+
     return {
       success: true,
       data: {
@@ -146,6 +194,26 @@ export async function getAllRooms(
     const skip = (page - 1) * pageSize
     const searchQuery = input.searchQuery?.trim()
 
+    const cacheVersion = await getCacheVersion(ROOMS_CACHE_VERSION_KEY)
+    const cacheKey = getAllRoomsCacheKey({
+      page,
+      pageSize,
+      searchQuery,
+      buildingId: input.buildingId,
+      version: cacheVersion,
+    })
+
+    if (redis) {
+      try {
+        const cached = await redis.get<GetAllRoomsResult>(cacheKey)
+        if (cached?.success) {
+          return cached
+        }
+      } catch (error) {
+        console.error('Get all rooms cache read error:', error)
+      }
+    }
+
     const whereClause = {
       deletedAt: null,
       building: {
@@ -211,7 +279,7 @@ export async function getAllRooms(
       amenities: normalizeAmenities(room.amenities),
     }))
 
-    return {
+    const response: GetAllRoomsResult = {
       success: true,
       data: {
         rooms: normalizedRooms,
@@ -223,6 +291,16 @@ export async function getAllRooms(
         },
       },
     }
+
+    if (redis) {
+      try {
+        await redis.set(cacheKey, response, { ex: ROOMS_CACHE_TTL_SECONDS })
+      } catch (error) {
+        console.error('Get all rooms cache write error:', error)
+      }
+    }
+
+    return response
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : 'Failed to fetch rooms.'
@@ -262,6 +340,20 @@ export async function getRoomById(roomId: string): Promise<GetRoomByIdResult> {
       return { success: false, error: 'Not authenticated.' }
     }
 
+    const cacheVersion = await getCacheVersion(ROOMS_CACHE_VERSION_KEY)
+    const cacheKey = getRoomByIdCacheKey(roomId, cacheVersion)
+
+    if (redis) {
+      try {
+        const cached = await redis.get<GetRoomByIdResult>(cacheKey)
+        if (cached?.success) {
+          return cached
+        }
+      } catch (error) {
+        console.error('Get room by id cache read error:', error)
+      }
+    }
+
     const room = await prisma.room.findFirst({
       where: {
         id: roomId,
@@ -293,13 +385,23 @@ export async function getRoomById(roomId: string): Promise<GetRoomByIdResult> {
       return { success: false, error: 'Room not found.' }
     }
 
-    return {
+    const response: GetRoomByIdResult = {
       success: true,
       data: {
         ...room,
         amenities: normalizeAmenities(room.amenities),
       },
     }
+
+    if (redis) {
+      try {
+        await redis.set(cacheKey, response, { ex: ROOMS_CACHE_TTL_SECONDS })
+      } catch (error) {
+        console.error('Get room by id cache write error:', error)
+      }
+    }
+
+    return response
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : 'Failed to fetch room.'
@@ -394,6 +496,8 @@ export async function updateRoom(
         amenities: input.amenities && input.amenities.length > 0 ? input.amenities : undefined,
       },
     })
+
+    await invalidateRoomAndBuildingCaches()
 
     return {
       success: true,
@@ -525,6 +629,8 @@ export async function deleteRoom(roomId: string): Promise<DeleteRoomResult> {
         deletedAt: new Date(),
       },
     })
+
+    await invalidateRoomAndBuildingCaches()
 
     return { success: true }
   } catch (error: unknown) {
