@@ -4,6 +4,25 @@ import prisma from '@/lib/prisma';
 import nodemailer from 'nodemailer';
 import { getSession, requireAuth } from '@/lib/get-session';
 import { hashPassword } from 'better-auth/crypto';
+import { redis } from '@/lib/redist';
+
+const PROFILE_CACHE_TTL_SECONDS = 120;
+
+function getProfileCacheKey(userId: string): string {
+    return `profile:page:${userId}`;
+}
+
+async function invalidateProfileCache(userId: string): Promise<void> {
+    if (!redis) {
+        return;
+    }
+
+    try {
+        await redis.del(getProfileCacheKey(userId));
+    } catch (error) {
+        console.error('Profile cache invalidation error:', error);
+    }
+}
 
 export async function getCurrentUserForExport() {
     const session = await getSession();
@@ -393,6 +412,85 @@ export async function getCurrentUser() {
     }
 }
 
+export async function getProfilePageDataCached() {
+    try {
+        const user = await requireAuth();
+        const cacheKey = getProfileCacheKey(user.id);
+
+        if (redis) {
+            try {
+                const cached = await redis.get<{
+                    id: string;
+                    name: string;
+                    email: string;
+                    role: 'ADMIN' | 'SUPERADMIN';
+                    image: string | null;
+                    phoneNumber: string;
+                    companyName: string;
+                    createdAt: string | null;
+                    lastLogin: string | null;
+                }>(cacheKey);
+
+                if (cached) {
+                    return { success: true, data: cached };
+                }
+            } catch (error) {
+                console.error('Profile cache read error:', error);
+            }
+        }
+
+        const [profile, latestSession] = await Promise.all([
+            prisma.user.findUnique({
+                where: { id: user.id },
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    role: true,
+                    image: true,
+                    phoneNumber: true,
+                    companyName: true,
+                    createdAt: true,
+                },
+            }),
+            prisma.session.findFirst({
+                where: { userId: user.id },
+                orderBy: { createdAt: 'desc' },
+                select: { createdAt: true },
+            }),
+        ]);
+
+        if (!profile) {
+            return { success: false, error: 'User not found' };
+        }
+
+        const data = {
+            id: profile.id,
+            name: profile.name ?? '',
+            email: profile.email,
+            role: profile.role === 'SUPERADMIN' ? 'SUPERADMIN' as const : 'ADMIN' as const,
+            image: profile.image,
+            phoneNumber: profile.phoneNumber ?? '',
+            companyName: profile.companyName ?? '',
+            createdAt: profile.createdAt?.toISOString() ?? null,
+            lastLogin: latestSession?.createdAt?.toISOString() ?? null,
+        };
+
+        if (redis) {
+            try {
+                await redis.set(cacheKey, data, { ex: PROFILE_CACHE_TTL_SECONDS });
+            } catch (error) {
+                console.error('Profile cache write error:', error);
+            }
+        }
+
+        return { success: true, data };
+    } catch (err) {
+        console.error('Failed to fetch cached profile data:', err);
+        return { error: err instanceof Error ? err.message : 'Server error', success: false };
+    }
+}
+
 export async function getLastLogin() {
     try {
         const user = await requireAuth();
@@ -448,6 +546,8 @@ export async function updateUserProfile(data: { name: string; phoneNumber: strin
                 email: true,
             },
         });
+
+        await invalidateProfileCache(user.id);
 
         return { success: true, user: updatedUser };
     } catch (err) {
@@ -564,6 +664,8 @@ export async function uploadProfilePicture(formData: FormData) {
                 email: true,
             }
         });
+
+        await invalidateProfileCache(user.id);
 
         return {
             success: true,
