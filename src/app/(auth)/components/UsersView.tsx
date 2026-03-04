@@ -37,6 +37,7 @@ export function UsersView() {
   const [selectedResetUserId, setSelectedResetUserId] = useState<string | undefined>()
   const [selectedResetUserName, setSelectedResetUserName] = useState<string | undefined>()
   const [isLoading, setIsLoading] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalItems, setTotalItems] = useState(0)
@@ -44,8 +45,12 @@ export function UsersView() {
   const [error, setError] = useState<string | null>(null)
   const [imageErrorIds, setImageErrorIds] = useState<Set<string>>(new Set())
 
-  const loadUsers = async () => {
-    setIsLoading(true)
+  const loadUsers = async (refresh = false) => {
+    if (refresh) {
+      setIsRefreshing(true)
+    } else {
+      setIsLoading(true)
+    }
     setError(null)
     try {
       const result = await getUsers({
@@ -67,6 +72,7 @@ export function UsersView() {
       setUsers([])
     } finally {
       setIsLoading(false)
+      setIsRefreshing(false)
     }
   }
 
@@ -127,7 +133,11 @@ export function UsersView() {
   }
 
   const handleAddUserSuccess = () => {
-    loadUsers()
+    loadUsers(true) // Refresh cache after user operations
+  }
+
+  const refreshUsers = () => {
+    loadUsers(true) // Force refresh
   }
 
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1
@@ -288,10 +298,10 @@ export function UsersView() {
                   </td>
                 </tr>
               )}
-              {isLoading && (
+              {(isLoading || isRefreshing) && (
                 <tr>
                   <td className="px-6 py-6 text-sm text-slate-500" colSpan={5}>
-                    Loading users...
+                    {isRefreshing ? 'Refreshing users...' : 'Loading users...'}
                   </td>
                 </tr>
               )}
@@ -373,8 +383,11 @@ export function UsersView() {
           {users.length === 0 && !isLoading && (
             <div className="p-8 text-center text-slate-500">No users found.</div>
           )}
-          {isLoading && (
+          {(isLoading && !isRefreshing) && (
             <div className="p-8 text-center text-slate-500">Loading users...</div>
+          )}
+          {(isRefreshing) && (
+            <div className="p-8 text-center text-slate-500">Refreshing users...</div>
           )}
         </div>
 
