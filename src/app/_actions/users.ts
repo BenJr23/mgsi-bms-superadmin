@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { headers } from 'next/headers'
 import { hashPassword } from 'better-auth/crypto'
 import { sendCredentialsEmail } from './email/email-user'
+import { redis } from '@/lib/redist'
 
 interface CreateUserInput {
   name: string
@@ -168,6 +169,9 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserResu
       console.warn(`Email failed to send for user ${newUser.email}, but account was created`)
     }
 
+    // Invalidate cache after successful user creation
+    await invalidateUsersCache()
+
     return {
       success: true,
       userId: updatedUser.id,
@@ -176,6 +180,27 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserResu
     const message = err instanceof Error ? err.message : 'An unexpected error occurred'
     console.error('Error creating user:', message)
     return { success: false, error: message }
+  }
+}
+
+// Generate cache key for users list
+function generateUsersCacheKey(page: number, pageSize: number, searchQuery?: string): string {
+  const searchPart = searchQuery ? `:${searchQuery.trim().toLowerCase()}` : ''
+  return `users:list:${page}:${pageSize}${searchPart}`
+}
+
+// Invalidate all users-related cache
+async function invalidateUsersCache(): Promise<void> {
+  if (!redis) return
+  
+  try {
+    // Get all keys matching users pattern
+    const keys = await redis.keys('users:*')
+    if (keys.length > 0) {
+      await redis.del(...keys)
+    }
+  } catch (error) {
+    console.error('Error invalidating users cache:', error)
   }
 }
 
@@ -191,8 +216,20 @@ export async function getUsers(input: GetUsersInput = {}): Promise<ListUsersResu
 
     const page = Math.max(1, input.page ?? 1)
     const pageSize = Math.max(1, Math.min(100, input.pageSize ?? 10))
-    const skip = (page - 1) * pageSize
     const searchQuery = input.searchQuery?.trim()
+    const cacheKey = generateUsersCacheKey(page, pageSize, searchQuery)
+
+    // Try to get from cache first
+    if (redis) {
+      try {
+        const cachedResult = await redis.get<ListUsersResult>(cacheKey)
+        if (cachedResult) {
+          return cachedResult
+        }
+      } catch (error) {
+        console.error('Error reading from cache:', error)
+      }
+    }
 
     const whereClause = {
       deletedAt: null,
@@ -232,14 +269,14 @@ export async function getUsers(input: GetUsersInput = {}): Promise<ListUsersResu
           createdAt: true,
           deletedAt: true,
         },
-        skip,
+        skip: (page - 1) * pageSize,
         take: pageSize,
       }),
     ])
 
     const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
 
-    return {
+    const result = {
       success: true,
       data: {
         users: users.map((user) => ({
@@ -262,6 +299,17 @@ export async function getUsers(input: GetUsersInput = {}): Promise<ListUsersResu
         },
       },
     }
+
+    // Cache the result for 5 minutes (300 seconds)
+    if (redis) {
+      try {
+        await redis.set(cacheKey, result, { ex: 300 })
+      } catch (error) {
+        console.error('Error writing to cache:', error)
+      }
+    }
+
+    return result
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'An unexpected error occurred'
     console.error('Error fetching users:', message)
@@ -331,6 +379,9 @@ export async function updateUser(input: UpdateUserInput): Promise<UpdateUserResu
       }
     })
 
+    // Invalidate cache after successful user update
+    await invalidateUsersCache()
+
     return { success: true }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'An unexpected error occurred'
@@ -377,6 +428,9 @@ export async function deleteUser(userId: string): Promise<DeleteUserResult> {
         deletedAt: new Date(),
       },
     })
+
+    // Invalidate cache after successful user deletion
+    await invalidateUsersCache()
 
     return { success: true }
   } catch (err: unknown) {
@@ -434,6 +488,9 @@ export async function reactivateUser(userId: string): Promise<ReactivateUserResu
         deletedAt: null,
       },
     })
+
+    // Invalidate cache after successful user reactivation
+    await invalidateUsersCache()
 
     return { success: true }
   } catch (err: unknown) {
