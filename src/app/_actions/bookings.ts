@@ -59,7 +59,7 @@ interface GetBookingsInput {
     pageSize?: number
 }
 
-const BOOKINGS_CACHE_TTL_SECONDS = 60
+const BOOKINGS_CACHE_TTL_SECONDS = 300
 const BOOKINGS_CACHE_VERSION_KEY = 'bookings:list:version'
 
 function getBookingsCacheKey(page: number, pageSize: number, version: number): string {
