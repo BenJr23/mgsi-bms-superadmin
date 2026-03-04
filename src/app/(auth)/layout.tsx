@@ -4,6 +4,8 @@ import { getServerSession } from "@/lib/get-server";
 import { hasAllowedRole } from "@/lib/auth-utils";
 import { AuthShell } from "./components/AuthShell";
 
+export const dynamic = "force-dynamic";
+
 type AuthLayoutProps = {
     children: ReactNode;
 };
