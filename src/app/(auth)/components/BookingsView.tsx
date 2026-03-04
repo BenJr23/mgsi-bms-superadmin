@@ -11,7 +11,7 @@ import { BookingsTable } from './bookings/BookingsTable'
 import { BookingsPagination } from './bookings/BookingsPagination'
 
 import {
-  getBookings,
+  getBookingsCached,
   type BookingListItem,
   updateBookingApprovalStatus,
 } from '@/app/_actions/bookings';
@@ -171,7 +171,7 @@ export function BookingsView() {
 
       try {
         setLoading(true);
-        const result = await getBookings({ page: currentPage, pageSize: PAGE_SIZE });
+        const result = await getBookingsCached({ page: currentPage, pageSize: PAGE_SIZE });
         if (!result.success) {
           throw new Error(result.error || 'Failed to fetch bookings');
         }
@@ -455,13 +455,6 @@ export function BookingsView() {
     void writeRowsChunked()
   }
 
-  if (loading) return (
-    <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-      <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-      <p className="text-slate-500">Loading bookings...</p>
-    </div>
-  );
-
   return (
     <div className="space-y-6">
       {error && (
@@ -489,21 +482,28 @@ export function BookingsView() {
           onCloseFilters={() => setShowFilters(false)}
         />
 
-        <BookingsTable
-          bookings={filteredBookings}
-          onView={(booking) => {
-            setActiveBooking(booking)
-            setModalType('VIEW')
-          }}
-          onApprove={(booking) => {
-            setActiveBooking(booking)
-            setModalType('APPROVE')
-          }}
-          onReject={(booking) => {
-            setActiveBooking(booking)
-            setModalType('REJECT')
-          }}
-        />
+        {loading && bookings.length === 0 ? (
+          <div className="flex flex-col items-center justify-center min-h-[280px] space-y-3">
+            <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+            <p className="text-sm text-slate-500">Loading bookings...</p>
+          </div>
+        ) : (
+          <BookingsTable
+            bookings={filteredBookings}
+            onView={(booking) => {
+              setActiveBooking(booking)
+              setModalType('VIEW')
+            }}
+            onApprove={(booking) => {
+              setActiveBooking(booking)
+              setModalType('APPROVE')
+            }}
+            onReject={(booking) => {
+              setActiveBooking(booking)
+              setModalType('REJECT')
+            }}
+          />
+        )}
 
         <BookingsPagination
           currentPage={currentPage}
@@ -565,7 +565,7 @@ export function BookingsView() {
           const fetchBookings = async () => {
             try {
               setLoading(true);
-              const result = await getBookings({ page: currentPage, pageSize: PAGE_SIZE });
+              const result = await getBookingsCached({ page: currentPage, pageSize: PAGE_SIZE });
               if (result.success) {
                 setBookings(result.data || []);
                 setTotalPages(result.totalPages || 1);

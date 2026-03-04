@@ -3,8 +3,9 @@
 import { ApprovalStatus, BookingType } from '@/generated/prisma/client'
 import { getServerSession } from '@/lib/get-server'
 import { prisma } from '@/lib/prisma'
+import { redis } from '@/lib/redist'
 import { sendBookingStatusEmail } from './email/email-bookings'
-import { unstable_cache, revalidateTag } from 'next/cache'
+import { revalidateTag } from 'next/cache'
 
 export type BookingListItem = {
     id: string
@@ -56,6 +57,39 @@ interface GetBookingsResult {
 interface GetBookingsInput {
     page?: number
     pageSize?: number
+}
+
+const BOOKINGS_CACHE_TTL_SECONDS = 60
+const BOOKINGS_CACHE_VERSION_KEY = 'bookings:list:version'
+
+function getBookingsCacheKey(page: number, pageSize: number, version: number): string {
+    return `bookings:list:v${version}:page:${page}:size:${pageSize}`
+}
+
+async function getBookingsCacheVersion(): Promise<number> {
+    if (!redis) {
+        return 0
+    }
+
+    try {
+        const version = await redis.get<number>(BOOKINGS_CACHE_VERSION_KEY)
+        return typeof version === 'number' && Number.isFinite(version) ? version : 0
+    } catch (error) {
+        console.error('Get bookings cache version error:', error)
+        return 0
+    }
+}
+
+async function invalidateBookingsCache(): Promise<void> {
+    if (!redis) {
+        return
+    }
+
+    try {
+        await redis.incr(BOOKINGS_CACHE_VERSION_KEY)
+    } catch (error) {
+        console.error('Invalidate bookings cache error:', error)
+    }
 }
 
 interface UpdateBookingApprovalResult {
@@ -430,11 +464,9 @@ function formatDateRangeManila(start: Date, end: Date): string {
     return `${startText} - ${endText}`
 }
 
-export const getBookingsCached = unstable_cache(
-    async (input: GetBookingsInput = {}) => getBookings(input),
-    ['bookings:list'],
-    { revalidate: 60, tags: ['bookings'] }
-)
+export async function getBookingsCached(input: GetBookingsInput = {}): Promise<GetBookingsResult> {
+    return getBookings(input)
+}
 
 export async function getBookings(input: GetBookingsInput = {}): Promise<GetBookingsResult> {
     try {
@@ -447,6 +479,20 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
         const page = Math.max(1, input.page ?? 1)
         const pageSize = Math.max(1, Math.min(10, input.pageSize ?? 10))
         const skip = (page - 1) * pageSize
+
+        const cacheVersion = await getBookingsCacheVersion()
+        const cacheKey = getBookingsCacheKey(page, pageSize, cacheVersion)
+
+        if (redis) {
+            try {
+                const cached = await redis.get<GetBookingsResult>(cacheKey)
+                if (cached?.success) {
+                    return cached
+                }
+            } catch (error) {
+                console.error('Get bookings cache read error:', error)
+            }
+        }
 
         const where = {
             isActive: true,
@@ -539,7 +585,7 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
 
         const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
 
-        return {
+        const response: GetBookingsResult = {
             success: true,
             data: formatted,
             page,
@@ -547,6 +593,16 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
             totalCount,
             totalPages,
         }
+
+        if (redis) {
+            try {
+                await redis.set(cacheKey, response, { ex: BOOKINGS_CACHE_TTL_SECONDS })
+            } catch (error) {
+                console.error('Get bookings cache write error:', error)
+            }
+        }
+
+        return response
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Failed to fetch bookings.'
         console.error('Get bookings error:', message)
@@ -813,6 +869,9 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
             },
         })
 
+        await invalidateBookingsCache()
+        revalidateTag('bookings', 'max')
+
         return {
             success: true,
             data: {
@@ -883,6 +942,9 @@ export async function updateBookingApprovalStatus(
                 roomName: updatedBooking.room.roomName,
             })
         }
+
+        await invalidateBookingsCache()
+        revalidateTag('bookings', 'max')
 
         return {
             success: true,
