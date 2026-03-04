@@ -115,7 +115,7 @@ export function AuthShell({ children }: AuthShellProps) {
 
   return (
     <div className="relative flex h-screen bg-slate-50 font-sans text-slate-900">
-      <div className="pointer-events-none absolute left-0 right-0 top-16 z-30 h-[2px] bg-red-900" />
+      <div className="pointer-events-none absolute left-0 right-0 top-16 z-15 h-[2px] bg-red-900" />
       <div className="hidden md:block">
         <Sidebar userRole={userRole} onNavigate={navigateTo} />
       </div>
@@ -150,7 +150,7 @@ export function AuthShell({ children }: AuthShellProps) {
                 {notifOpen && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setNotifOpen(false)} />
-                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-slate-200 py-2 z-[99999] overflow-hidden">
+                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-slate-200 py-2 z-30 overflow-hidden">
                       <div className="px-4 py-2 border-b border-slate-100 flex justify-between items-center">
                         <span className="font-semibold text-sm">Latest Bookings</span>
                         <span className="text-xs text-red-900 font-medium">{notifCount} new (24h)</span>
@@ -186,7 +186,7 @@ export function AuthShell({ children }: AuthShellProps) {
                           setNotifOpen(false)
                         }}
                         className="w-full py-2 text-center text-xs font-medium text-red-900 hover:bg-red-50 border-t border-slate-100"
-                      >
+                      > 
                         View All Bookings
                       </button>
                     </div>
@@ -205,7 +205,7 @@ export function AuthShell({ children }: AuthShellProps) {
                 {dropdownOpen && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-slate-200 py-2 z-20">
+                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-slate-200 py-2 z-40">
                       <button
                         type="button"
                         onClick={() => {
