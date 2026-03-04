@@ -2,7 +2,6 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Bell, ChevronDown, Clock, LogOut, User } from 'lucide-react'
 import { useSession, signOut } from '@/lib/auth-client'
@@ -35,6 +34,7 @@ export function AuthShell({ children }: AuthShellProps) {
   const [notifOpen, setNotifOpen] = useState(false)
   const [notifCount, setNotifCount] = useState(0)
   const [latestBookings, setLatestBookings] = useState<any[]>([])
+  const [navigationTarget, setNavigationTarget] = useState<string | null>(null)
   const { data: session } = useSession()
 
   const sessionUser = session?.user as any
@@ -71,6 +71,32 @@ export function AuthShell({ children }: AuthShellProps) {
     return () => clearInterval(interval)
   }, [])
 
+  useEffect(() => {
+    if (!navigationTarget) {
+      return
+    }
+
+    if (pathname === navigationTarget) {
+      setNavigationTarget(null)
+      return
+    }
+
+    const timer = setTimeout(() => {
+      router.replace(navigationTarget)
+    }, 120)
+
+    return () => clearTimeout(timer)
+  }, [navigationTarget, pathname, router])
+
+  const navigateTo = (href: string) => {
+    if (href === pathname) {
+      return
+    }
+
+    setNavigationTarget(href)
+    router.push(href)
+  }
+
   const handleLogout = async () => {
     await signOut({
       fetchOptions: {
@@ -91,7 +117,7 @@ export function AuthShell({ children }: AuthShellProps) {
     <div className="relative flex h-screen bg-slate-50 font-sans text-slate-900">
       <div className="pointer-events-none absolute left-0 right-0 top-16 z-30 h-[2px] bg-red-900" />
       <div className="hidden md:block">
-        <Sidebar userRole={userRole} />
+        <Sidebar userRole={userRole} onNavigate={navigateTo} />
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -135,7 +161,7 @@ export function AuthShell({ children }: AuthShellProps) {
                             <button
                               key={booking.id}
                               onClick={() => {
-                                router.push('/bookings')
+                                navigateTo('/bookings')
                                 setNotifOpen(false)
                               }}
                               className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors"
@@ -156,7 +182,7 @@ export function AuthShell({ children }: AuthShellProps) {
                       </div>
                       <button
                         onClick={() => {
-                          router.push('/bookings')
+                          navigateTo('/bookings')
                           setNotifOpen(false)
                         }}
                         className="w-full py-2 text-center text-xs font-medium text-red-900 hover:bg-red-50 border-t border-slate-100"
@@ -180,9 +206,16 @@ export function AuthShell({ children }: AuthShellProps) {
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
                     <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-slate-200 py-2 z-20">
-                      <Link href="/profile" onClick={() => setDropdownOpen(false)} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigateTo('/profile')
+                          setDropdownOpen(false)
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
                         <User className="w-4 h-4" /> Profile
-                      </Link>
+                      </button>
                       <div className="my-1 border-t border-slate-200" />
                       <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
                         <LogOut className="w-4 h-4" /> Sign Out
@@ -206,7 +239,7 @@ export function AuthShell({ children }: AuthShellProps) {
             return (
               <button
                 key={item.id}
-                onClick={() => router.push(item.href)}
+                onClick={() => navigateTo(item.href)}
                 className="flex flex-col items-center justify-center gap-1 px-2 py-2 min-w-0 flex-1"
               >
                 <Icon size={22} className={`${isActive ? 'text-red-900' : 'text-slate-500'} transition-colors`} />
