@@ -10,7 +10,6 @@ const PROFILE_CACHE_TTL_SECONDS = 120;
 
 function getProfileCacheKey(userId: string): string {
     return `profile:page:${userId}`;
-    
 }
 
 async function invalidateProfileCache(userId: string): Promise<void> {
