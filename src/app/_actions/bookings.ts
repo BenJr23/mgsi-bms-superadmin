@@ -57,13 +57,21 @@ interface GetBookingsResult {
 interface GetBookingsInput {
     page?: number
     pageSize?: number
+    companyId?: string
+    buildingId?: string
+    roomId?: string
 }
 
 const BOOKINGS_CACHE_TTL_SECONDS = 300
 const BOOKINGS_CACHE_VERSION_KEY = 'bookings:list:version'
 
-function getBookingsCacheKey(page: number, pageSize: number, version: number): string {
-    return `bookings:list:v${version}:page:${page}:size:${pageSize}`
+function getBookingsCacheKey(page: number, pageSize: number, version: number, companyId?: string, buildingId?: string, roomId?: string): string {
+    const filters = []
+    if (companyId) filters.push(`company:${companyId}`)
+    if (buildingId) filters.push(`building:${buildingId}`)
+    if (roomId) filters.push(`room:${roomId}`)
+    const filterPart = filters.length > 0 ? `:${filters.join(':')}` : ''
+    return `bookings:list:v${version}:page:${page}:size:${pageSize}${filterPart}`
 }
 
 async function getBookingsCacheVersion(): Promise<number> {
@@ -479,9 +487,12 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
         const page = Math.max(1, input.page ?? 1)
         const pageSize = Math.max(1, Math.min(10, input.pageSize ?? 10))
         const skip = (page - 1) * pageSize
+        const companyId = input.companyId?.trim()
+        const buildingId = input.buildingId?.trim()
+        const roomId = input.roomId?.trim()
 
         const cacheVersion = await getBookingsCacheVersion()
-        const cacheKey = getBookingsCacheKey(page, pageSize, cacheVersion)
+        const cacheKey = getBookingsCacheKey(page, pageSize, cacheVersion, companyId, buildingId, roomId)
 
         if (redis) {
             try {
@@ -494,9 +505,12 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
             }
         }
 
-        const where = {
+        const where: any = {
             isActive: true,
             deletedAt: null,
+            ...(companyId && { submittedBy: { companyName: { equals: companyId, mode: 'insensitive' } } }),
+            ...(buildingId && { buildingId: { equals: buildingId } }),
+            ...(roomId && { roomId: { equals: roomId } }),
         }
 
         const [totalCount, bookings] = await prisma.$transaction([

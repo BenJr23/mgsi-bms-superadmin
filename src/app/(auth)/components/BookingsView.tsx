@@ -16,6 +16,8 @@ import {
   getBookingsCached,
   type BookingListItem,
   updateBookingApprovalStatus,
+  getBuildings,
+  getRoomsByBuilding,
 } from '@/app/_actions/bookings';
 import { getCurrentUserForExport } from '@/app/_actions/auth';
 
@@ -38,6 +40,12 @@ export function BookingsView() {
   const [showFilters, setShowFilters] = useState(false);
   const [monthFilter, setMonthFilter] = useState<'ALL' | string>('ALL');
   const [exportUser, setExportUser] = useState<{ name: string | null; email: string } | null>(null);
+  const [companyFilter, setCompanyFilter] = useState<string>('ALL');
+  const [buildingFilter, setBuildingFilter] = useState<string>('ALL');
+  const [roomFilter, setRoomFilter] = useState<string>('ALL');
+  const [availableCompanies, setAvailableCompanies] = useState<string[]>([]);
+  const [availableBuildings, setAvailableBuildings] = useState<{ id: string; name: string }[]>([]);
+  const [availableRooms, setAvailableRooms] = useState<{ id: string; name: string }[]>([]);
 
   const toSafeDate = (value: string) => {
     const dt = new Date(value)
@@ -168,12 +176,26 @@ export function BookingsView() {
     setActiveBooking(null);
   };
 
+  const clearFilters = () => {
+    setCompanyFilter('ALL');
+    setBuildingFilter('ALL');
+    setRoomFilter('ALL');
+    setStatusFilter('ALL');
+    setQuery('');
+  };
+
   useEffect(() => {
     const fetchBookings = async () => {
 
       try {
         setLoading(true);
-        const result = await getBookingsCached({ page: currentPage, pageSize: PAGE_SIZE });
+        const result = await getBookingsCached({ 
+          page: currentPage, 
+          pageSize: PAGE_SIZE,
+          companyId: companyFilter !== 'ALL' ? companyFilter : undefined,
+          buildingId: buildingFilter !== 'ALL' ? buildingFilter : undefined,
+          roomId: roomFilter !== 'ALL' ? roomFilter : undefined
+        });
         if (!result.success) {
           throw new Error(result.error || 'Failed to fetch bookings');
         }
@@ -187,7 +209,7 @@ export function BookingsView() {
       }
     };
     fetchBookings();
-  }, [currentPage]);
+  }, [currentPage, companyFilter, buildingFilter, roomFilter]);
 
   useEffect(() => {
     const fetchExportUser = async () => {
@@ -208,6 +230,59 @@ export function BookingsView() {
     const t = setTimeout(() => setDebouncedQuery(query.trim()), 300);
     return () => clearTimeout(t);
   }, [query]);
+
+  useEffect(() => {
+    const fetchFilterOptions = async () => {
+      try {
+        // Fetch buildings
+        const buildingsResult = await getBuildings();
+        if (buildingsResult.success) {
+          setAvailableBuildings(buildingsResult.data?.map(b => ({ id: b.id, name: b.buildingName })) || []);
+        }
+
+        // Fetch companies from all bookings (without pagination to get unique values)
+        const allBookingsResult = await getBookingsCached({ pageSize: 1000 }); // Get a large batch to get unique companies
+        if (allBookingsResult.success && allBookingsResult.data) {
+          const uniqueCompanies = Array.from(new Set(
+            allBookingsResult.data
+              .map(b => b.submittedBy.companyName)
+              .filter((company): company is string => company != null)
+          )).sort();
+          setAvailableCompanies(uniqueCompanies);
+        }
+      } catch (error) {
+        console.error('Error fetching filter options:', error);
+      }
+    };
+
+    fetchFilterOptions();
+  }, []);
+
+  useEffect(() => {
+    const fetchRooms = async () => {
+      if (buildingFilter !== 'ALL') {
+        try {
+          const roomsResult = await getRoomsByBuilding({ buildingId: buildingFilter });
+          if (roomsResult.success) {
+            setAvailableRooms(roomsResult.data?.map(r => ({ id: r.id, name: r.roomName })) || []);
+          }
+        } catch (error) {
+          console.error('Error fetching rooms:', error);
+        }
+      } else {
+        setAvailableRooms([]);
+      }
+      // Reset room filter when building changes
+      setRoomFilter('ALL');
+    };
+
+    fetchRooms();
+  }, [buildingFilter]);
+
+  useEffect(() => {
+    // Reset to page 1 when filters change to avoid showing empty results
+    setCurrentPage(1);
+  }, [companyFilter, buildingFilter, roomFilter]);
 
   const filteredBookings = useMemo(() => {
     const q = debouncedQuery.toLowerCase();
@@ -482,6 +557,16 @@ export function BookingsView() {
           statusFilter={statusFilter}
           onStatusFilterChange={(value) => setStatusFilter(value)}
           onCloseFilters={() => setShowFilters(false)}
+          companyFilter={companyFilter}
+          buildingFilter={buildingFilter}
+          roomFilter={roomFilter}
+          availableCompanies={availableCompanies}
+          availableBuildings={availableBuildings}
+          availableRooms={availableRooms}
+          onCompanyFilterChange={(value) => setCompanyFilter(value)}
+          onBuildingFilterChange={(value) => setBuildingFilter(value)}
+          onRoomFilterChange={(value) => setRoomFilter(value)}
+          onClearFilters={clearFilters}
         />
 
         {loading && bookings.length === 0 ? (
@@ -567,7 +652,7 @@ export function BookingsView() {
           const fetchBookings = async () => {
             try {
               setLoading(true);
-              const result = await getBookingsCached({ page: currentPage, pageSize: PAGE_SIZE });
+              const result = await getBookingsCached({ page: currentPage, pageSize: PAGE_SIZE, companyId: companyFilter !== 'ALL' ? companyFilter : undefined, buildingId: buildingFilter !== 'ALL' ? buildingFilter : undefined, roomId: roomFilter !== 'ALL' ? roomFilter : undefined });
               if (result.success) {
                 setBookings(result.data || []);
                 setTotalPages(result.totalPages || 1);
