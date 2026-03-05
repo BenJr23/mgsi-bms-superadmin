@@ -5,6 +5,7 @@ import { Card } from './ui/Card'
 import { Badge } from './ui/Badge'
 import { Users, Building2, DoorOpen, CalendarClock } from 'lucide-react'
 import { getDashboardStats, getRecentBookings, type RecentBooking } from '@/app/_actions/dashboard'
+import { getTodayBookingsPerLocation, type TodayLocationCount } from '@/app/_actions/dashboard'
 
 interface DashboardViewProps {
   onViewAllBookings?: () => void
@@ -18,7 +19,9 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
     occupancyRate: 0,
     occupancyWindowLabel: 'THIS_WEEK' as 'THIS_WEEK' | 'NEXT_WEEK',
   })
+
   const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([])
+  const [todayBookings, setTodayBookings] = useState<TodayLocationCount[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -28,19 +31,24 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
         setLoading(true)
         setError(null)
 
-        const [statsResult, bookingsResult] = await Promise.all([
+        const [statsResult, bookingsResult, todayResult] = await Promise.all([
           getDashboardStats(),
           getRecentBookings(),
+          getTodayBookingsPerLocation(),
         ])
 
         if (statsResult.success && statsResult.data) {
           setStats(statsResult.data)
-        } else {
+        } else if (!statsResult.success) {
           setError(statsResult.error || 'Failed to load stats')
         }
 
         if (bookingsResult.success && bookingsResult.data) {
           setRecentBookings(bookingsResult.data)
+        }
+
+        if (todayResult.success && todayResult.data) {
+          setTodayBookings(todayResult.data)
         }
       } catch (err) {
         console.error('Error fetching dashboard data:', err)
@@ -52,6 +60,30 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
 
     fetchDashboardData()
   }, [])
+
+  const formatDate = (isoDate: string) => {
+    const date = new Date(isoDate)
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  }
+
+  const todayDateLabel = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <div className="text-center py-8">
+            <p className="text-rose-600">{error}</p>
+          </div>
+        </Card>
+      </div>
+    )
+  }
 
   const statCards = [
     {
@@ -85,27 +117,6 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
     },
   ]
 
-  const formatDate = (isoDate: string) => {
-    const date = new Date(isoDate)
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-slate-500">Overview of your booking system performance.</p>
-        </div>
-        <Card>
-          <div className="text-center py-8">
-            <p className="text-rose-600">{error}</p>
-          </div>
-        </Card>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-6">
       <div>
@@ -115,39 +126,65 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {loading
+          ? [...Array(4)].map((_, i) => (
+              <Card key={i} className="h-28 animate-pulse">
+                <div className="h-full w-full bg-slate-200 rounded" />
+              </Card>
+            ))
+          : statCards.map((stat, index) => {
+              const Icon = stat.icon
+              return (
+                <Card key={index} className="p-4 hover:shadow-md transition">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-slate-500">{stat.label}</p>
+                      <h3 className="text-2xl font-bold text-slate-900 mt-1">{stat.value}</h3>
+                      {'helperText' in stat && (
+                        <p className="text-xs text-slate-500 mt-1">{stat.helperText}</p>
+                      )}
+                    </div>
+                    <div className={`p-2 rounded-lg ${stat.bg}`}>
+                      <Icon className={`w-5 h-5 ${stat.color}`} />
+                    </div>
+                  </div>
+                </Card>
+              )
+            })}
+      </div>
+
+      {/* Today's Bookings Per Location */}
+      <Card>
+        <div className="px-4 sm:px-6 py-4 border-b border-slate-100">
+          <h3 className="font-semibold text-slate-900">Today's Bookings</h3>
+          <p className="text-sm text-slate-500">{todayDateLabel}</p>
+        </div>
+
         {loading ? (
-          <>
+          <div className="p-6 animate-pulse grid grid-cols-2 md:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map((i) => (
-              <Card key={i}>
-                <div className="animate-pulse">
-                  <div className="h-4 bg-slate-200 rounded w-1/2 mb-2" />
-                  <div className="h-8 bg-slate-200 rounded w-3/4" />
-                </div>
+              <Card key={i} className="h-28 rounded-xl">
+                <div className="h-full w-full bg-slate-200 rounded" />
               </Card>
             ))}
-          </>
+          </div>
         ) : (
-          statCards.map((stat, index) => {
-            const Icon = stat.icon
-            return (
-              <Card key={index}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">{stat.label}</p>
-                    <h3 className="text-2xl font-bold text-slate-900 mt-1">{stat.value}</h3>
-                    {'helperText' in stat && (
-                      <p className="text-xs text-slate-500 mt-1">{stat.helperText}</p>
-                    )}
-                  </div>
-                  <div className={`p-2 rounded-lg ${stat.bg}`}>
-                    <Icon className={`w-5 h-5 ${stat.color}`} />
-                  </div>
+          <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+            {todayBookings.map((location) => (
+              <div
+                key={location.location}
+                className="rounded-xl bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 p-4 text-center hover:shadow-lg transition"
+              >
+                <div className="text-sm font-medium text-indigo-600">{location.location}</div>
+                <div className="mt-2 text-3xl font-bold text-slate-900">{location.total}</div>
+                <div className="text-xs text-slate-500 mt-1">
+                  {location.total === 1 ? 'Booking Today' : 'Bookings Today'}
                 </div>
-              </Card>
-            )
-          })
+              </div>
+            ))}
+          </div>
         )}
-      </div>
+      </Card>
 
       {/* Recent Bookings */}
       <Card noPadding>
@@ -203,8 +240,8 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
                             booking.approvalStatus === 'APPROVED'
                               ? 'success'
                               : booking.approvalStatus === 'PENDING'
-                                ? 'warning'
-                                : 'danger'
+                              ? 'warning'
+                              : 'danger'
                           }
                         >
                           {booking.approvalStatus}
@@ -235,8 +272,8 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
                         booking.approvalStatus === 'APPROVED'
                           ? 'success'
                           : booking.approvalStatus === 'PENDING'
-                            ? 'warning'
-                            : 'danger'
+                          ? 'warning'
+                          : 'danger'
                       }
                     >
                       {booking.approvalStatus}
