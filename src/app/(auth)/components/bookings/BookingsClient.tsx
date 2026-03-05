@@ -28,6 +28,9 @@ export function BookingsClient() {
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL')
+  const [companyFilter, setCompanyFilter] = useState('ALL')
+  const [buildingFilter, setBuildingFilter] = useState('ALL')
+  const [roomFilter, setRoomFilter] = useState('ALL')
   const [showFilters, setShowFilters] = useState(false)
   const [monthFilter, setMonthFilter] = useState<'ALL' | string>('ALL')
   const [exportUser, setExportUser] = useState<{ name: string | null; email: string } | null>(null)
@@ -77,10 +80,47 @@ export function BookingsClient() {
     return () => clearTimeout(t)
   }, [query])
 
+  const availableCompanies = useMemo(() => {
+    const companies = new Set<string>()
+    bookings.forEach((booking) => {
+      const companyName = booking.submittedBy.companyName?.trim()
+      if (companyName) companies.add(companyName)
+    })
+    return Array.from(companies).sort((a, b) => a.localeCompare(b))
+  }, [bookings])
+
+  const availableBuildings = useMemo(() => {
+    const buildingNames = new Set<string>()
+    bookings.forEach((booking) => {
+      const buildingName = booking.building.name?.trim()
+      if (buildingName) buildingNames.add(buildingName)
+    })
+    return Array.from(buildingNames)
+      .sort((a, b) => a.localeCompare(b))
+      .map((name) => ({ id: name, name }))
+  }, [bookings])
+
+  const availableRooms = useMemo(() => {
+    const roomNames = new Set<string>()
+    bookings
+      .filter((booking) => buildingFilter === 'ALL' || booking.building.name === buildingFilter)
+      .forEach((booking) => {
+        const roomName = booking.room.name?.trim()
+        if (roomName) roomNames.add(roomName)
+      })
+
+    return Array.from(roomNames)
+      .sort((a, b) => a.localeCompare(b))
+      .map((name) => ({ id: name, name }))
+  }, [bookings, buildingFilter])
+
   const filteredBookings = useMemo(() => {
     const q = debouncedQuery.toLowerCase()
     return bookings.filter((b) => {
       if (statusFilter !== 'ALL' && b.approvalStatus !== statusFilter) return false
+      if (companyFilter !== 'ALL' && (b.submittedBy.companyName || '') !== companyFilter) return false
+      if (buildingFilter !== 'ALL' && b.building.name !== buildingFilter) return false
+      if (roomFilter !== 'ALL' && b.room.name !== roomFilter) return false
       if (!q) return true
       return (
         b.bookingReference.toLowerCase().includes(q) ||
@@ -90,7 +130,7 @@ export function BookingsClient() {
         b.building.name.toLowerCase().includes(q)
       )
     })
-  }, [bookings, debouncedQuery, statusFilter])
+  }, [bookings, debouncedQuery, statusFilter, companyFilter, buildingFilter, roomFilter])
 
   const handleAction = useCallback(
     async (status: 'APPROVED' | 'REJECTED', message?: string) => {
@@ -367,6 +407,25 @@ export function BookingsClient() {
           onToggleFilters={() => setShowFilters(!showFilters)}
           statusFilter={statusFilter}
           onStatusFilterChange={(value) => setStatusFilter(value)}
+          companyFilter={companyFilter}
+          buildingFilter={buildingFilter}
+          roomFilter={roomFilter}
+          availableCompanies={availableCompanies}
+          availableBuildings={availableBuildings}
+          availableRooms={availableRooms}
+          onCompanyFilterChange={(value) => setCompanyFilter(value)}
+          onBuildingFilterChange={(value) => {
+            setBuildingFilter(value)
+            setRoomFilter('ALL')
+          }}
+          onRoomFilterChange={(value) => setRoomFilter(value)}
+          onClearFilters={() => {
+            setStatusFilter('ALL')
+            setCompanyFilter('ALL')
+            setBuildingFilter('ALL')
+            setRoomFilter('ALL')
+            setQuery('')
+          }}
           onCloseFilters={() => setShowFilters(false)}
         />
 
