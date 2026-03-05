@@ -79,10 +79,12 @@ interface GetBuildingsResult {
 }
 
 export async function createBuilding(
-  input: CreateBuildingInput,
-  userId: string
+  input: CreateBuildingInput
 ): Promise<CreateBuildingResult> {
   try {
+    const session = await getServerSession()
+    const userId = session?.user?.id
+
     // Validate required fields
     if (!input.buildingName?.trim()) {
       return { success: false, error: 'Building name is required.' }

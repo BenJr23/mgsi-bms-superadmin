@@ -4,7 +4,6 @@
 import React, { useEffect, useState } from 'react'
 import { X, ImageIcon, AlertCircle, Loader, Upload } from 'lucide-react'
 import { Button } from '../ui/Button'
-import { useSession } from '@/lib/auth-client'
 import { createBuilding, uploadBuildingImage } from '@/app/_actions/buildings'
 
 interface ModalProps {
@@ -117,7 +116,6 @@ interface AddBuildingModalProps {
 }
 
 export function AddBuildingModal({ isOpen, onClose, onSuccess }: AddBuildingModalProps) {
-  const { data: session } = useSession()
   const [form, setForm] = useState<BuildingFormData>(emptyForm)
   const [errors, setErrors] = useState<Partial<BuildingFormData>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -222,17 +220,12 @@ export function AddBuildingModal({ isOpen, onClose, onSuccess }: AddBuildingModa
     e.preventDefault()
     if (!validate()) return
 
-    if (!session?.user?.id) {
-      setSubmitError('User not authenticated.')
-      return
-    }
-
     setIsSubmitting(true)
     setSubmitError('')
     setSubmitSuccess('')
 
     try {
-      const result = await createBuilding(form, session.user.id)
+      const result = await createBuilding(form)
 
       if (result.success) {
         setSubmitSuccess(`Building "${result.data?.buildingName}" created successfully!`)
