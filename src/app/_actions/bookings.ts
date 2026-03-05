@@ -624,12 +624,27 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
     }
 }
 
+const BUILDINGS_CACHE_KEY = 'buildings:list'
+const BUILDINGS_CACHE_TTL_SECONDS = 600 // 10 minutes
+
 export async function getBuildings(): Promise<GetBuildingsResult> {
     try {
         const session = await getServerSession()
 
         if (!session?.user?.id) {
             return { success: false, error: 'Not authenticated.' }
+        }
+
+        // Try to get from Redis cache first
+        if (redis) {
+            try {
+                const cached = await redis.get<GetBuildingsResult>(BUILDINGS_CACHE_KEY)
+                if (cached?.success && cached?.data) {
+                    return cached
+                }
+            } catch (error) {
+                console.error('Redis get buildings cache error:', error)
+            }
         }
 
         const buildings = await prisma.building.findMany({
@@ -646,16 +661,30 @@ export async function getBuildings(): Promise<GetBuildingsResult> {
             orderBy: { buildingName: 'asc' }
         })
 
-        return {
+        const result: GetBuildingsResult = {
             success: true,
             data: buildings
         }
+
+        // Cache the result in Redis
+        if (redis) {
+            try {
+                await redis.set(BUILDINGS_CACHE_KEY, result, { ex: BUILDINGS_CACHE_TTL_SECONDS })
+            } catch (error) {
+                console.error('Redis set buildings cache error:', error)
+            }
+        }
+
+        return result
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Failed to fetch buildings.'
         console.error('Get buildings error:', message)
         return { success: false, error: message }
     }
 }
+
+const ROOMS_CACHE_KEY_PREFIX = 'rooms:building:'
+const ROOMS_CACHE_TTL_SECONDS = 600 // 10 minutes
 
 export async function getRoomsByBuilding(input: GetRoomsByBuildingInput): Promise<GetRoomsResult> {
     try {
@@ -669,6 +698,20 @@ export async function getRoomsByBuilding(input: GetRoomsByBuildingInput): Promis
 
         if (!buildingId?.trim()) {
             return { success: false, error: 'Building ID is required.' }
+        }
+
+        const cacheKey = `${ROOMS_CACHE_KEY_PREFIX}${buildingId}`
+
+        // Try to get from Redis cache first
+        if (redis) {
+            try {
+                const cached = await redis.get<GetRoomsResult>(cacheKey)
+                if (cached?.success && cached?.data) {
+                    return cached
+                }
+            } catch (error) {
+                console.error('Redis get rooms cache error:', error)
+            }
         }
 
         const rooms = await prisma.room.findMany({
@@ -688,10 +731,21 @@ export async function getRoomsByBuilding(input: GetRoomsByBuildingInput): Promis
             orderBy: { roomName: 'asc' }
         })
 
-        return {
+        const result: GetRoomsResult = {
             success: true,
             data: rooms
         }
+
+        // Cache the result in Redis
+        if (redis) {
+            try {
+                await redis.set(cacheKey, result, { ex: ROOMS_CACHE_TTL_SECONDS })
+            } catch (error) {
+                console.error('Redis set rooms cache error:', error)
+            }
+        }
+
+        return result
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Failed to fetch rooms.'
         console.error('Get rooms error:', message)

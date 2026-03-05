@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState, useTransition, useDeferredValue } from 'react'
 import { Loader2 } from 'lucide-react'
 import { ApproveBookingModal } from '../Modals/ApproveBookingModal'
 import { RejectBookingModal } from '../Modals/RejectBookingModal'
@@ -34,6 +34,13 @@ export function BookingsClient() {
   const [showFilters, setShowFilters] = useState(false)
   const [monthFilter, setMonthFilter] = useState<'ALL' | string>('ALL')
   const [exportUser, setExportUser] = useState<{ name: string | null; email: string } | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  // Use deferred values for smoother filtering
+  const deferredStatusFilter = useDeferredValue(statusFilter)
+  const deferredCompanyFilter = useDeferredValue(companyFilter)
+  const deferredBuildingFilter = useDeferredValue(buildingFilter)
+  const deferredRoomFilter = useDeferredValue(roomFilter)
 
   const closeModal = useCallback(() => {
     setModalType('NONE')
@@ -117,10 +124,10 @@ export function BookingsClient() {
   const filteredBookings = useMemo(() => {
     const q = debouncedQuery.toLowerCase()
     return bookings.filter((b) => {
-      if (statusFilter !== 'ALL' && b.approvalStatus !== statusFilter) return false
-      if (companyFilter !== 'ALL' && (b.submittedBy.companyName || '') !== companyFilter) return false
-      if (buildingFilter !== 'ALL' && b.building.name !== buildingFilter) return false
-      if (roomFilter !== 'ALL' && b.room.name !== roomFilter) return false
+      if (deferredStatusFilter !== 'ALL' && b.approvalStatus !== deferredStatusFilter) return false
+      if (deferredCompanyFilter !== 'ALL' && (b.submittedBy.companyName || '') !== deferredCompanyFilter) return false
+      if (deferredBuildingFilter !== 'ALL' && b.building.name !== deferredBuildingFilter) return false
+      if (deferredRoomFilter !== 'ALL' && b.room.name !== deferredRoomFilter) return false
       if (!q) return true
       return (
         b.bookingReference.toLowerCase().includes(q) ||
@@ -130,7 +137,7 @@ export function BookingsClient() {
         b.building.name.toLowerCase().includes(q)
       )
     })
-  }, [bookings, debouncedQuery, statusFilter, companyFilter, buildingFilter, roomFilter])
+  }, [bookings, debouncedQuery, deferredStatusFilter, deferredCompanyFilter, deferredBuildingFilter, deferredRoomFilter])
 
   const handleAction = useCallback(
     async (status: 'APPROVED' | 'REJECTED', message?: string) => {
@@ -406,24 +413,28 @@ export function BookingsClient() {
           showFilters={showFilters}
           onToggleFilters={() => setShowFilters(!showFilters)}
           statusFilter={statusFilter}
-          onStatusFilterChange={(value) => setStatusFilter(value)}
+          onStatusFilterChange={(value) => startTransition(() => setStatusFilter(value))}
           companyFilter={companyFilter}
           buildingFilter={buildingFilter}
           roomFilter={roomFilter}
           availableCompanies={availableCompanies}
           availableBuildings={availableBuildings}
           availableRooms={availableRooms}
-          onCompanyFilterChange={(value) => setCompanyFilter(value)}
+          onCompanyFilterChange={(value) => startTransition(() => setCompanyFilter(value))}
           onBuildingFilterChange={(value) => {
-            setBuildingFilter(value)
-            setRoomFilter('ALL')
+            startTransition(() => {
+              setBuildingFilter(value)
+              setRoomFilter('ALL')
+            })
           }}
-          onRoomFilterChange={(value) => setRoomFilter(value)}
+          onRoomFilterChange={(value) => startTransition(() => setRoomFilter(value))}
           onClearFilters={() => {
-            setStatusFilter('ALL')
-            setCompanyFilter('ALL')
-            setBuildingFilter('ALL')
-            setRoomFilter('ALL')
+            startTransition(() => {
+              setStatusFilter('ALL')
+              setCompanyFilter('ALL')
+              setBuildingFilter('ALL')
+              setRoomFilter('ALL')
+            })
             setQuery('')
           }}
           onCloseFilters={() => setShowFilters(false)}
