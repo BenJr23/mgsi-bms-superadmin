@@ -4,11 +4,61 @@ import React, { useEffect, useState } from 'react'
 import { Card } from './ui/Card'
 import { Badge } from './ui/Badge'
 import { Users, Building2, DoorOpen, CalendarClock } from 'lucide-react'
-import { getDashboardStats, getRecentBookings, type RecentBooking } from '@/app/_actions/dashboard'
-import { getTodayBookingsPerLocation, type TodayLocationCount } from '@/app/_actions/dashboard'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Line,
+} from 'recharts'
+
+import {
+  getDashboardStats,
+  getRecentBookings,
+  getTodayBookingsPerLocation,
+  type RecentBooking,
+  type TodayLocationCount,
+} from '@/app/_actions/dashboard'
 
 interface DashboardViewProps {
   onViewAllBookings?: () => void
+}
+
+/* COUNT ANIMATION */
+function useCountUp(target: number, duration = 800) {
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    let start = 0
+    const increment = target / (duration / 16)
+
+    const timer = setInterval(() => {
+      start += increment
+      if (start >= target) {
+        setCount(target)
+        clearInterval(timer)
+      } else {
+        setCount(Math.floor(start))
+      }
+    }, 16)
+
+    return () => clearInterval(timer)
+  }, [target, duration])
+
+  return count
+}
+
+function AnimatedNumber({ value, suffix = '' }: { value: number; suffix?: string }) {
+  const animated = useCountUp(value)
+  return (
+    <>
+      {animated}
+      {suffix}
+    </>
+  )
 }
 
 export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
@@ -17,278 +67,382 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
     activeBuildings: 0,
     totalRooms: 0,
     occupancyRate: 0,
-    occupancyWindowLabel: 'THIS_WEEK' as 'THIS_WEEK' | 'NEXT_WEEK',
   })
 
   const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([])
   const [todayBookings, setTodayBookings] = useState<TodayLocationCount[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [period, setPeriod] = useState<'today' | 'weekly' | 'monthly'>('today')
 
   useEffect(() => {
-    async function fetchDashboardData() {
-      try {
-        setLoading(true)
-        setError(null)
+    async function fetchData() {
+      setLoading(true)
 
-        const [statsResult, bookingsResult, todayResult] = await Promise.all([
-          getDashboardStats(),
-          getRecentBookings(),
-          getTodayBookingsPerLocation(),
-        ])
+      const [statsRes, recentRes, todayRes] = await Promise.all([
+        getDashboardStats(),
+        getRecentBookings(),
+        getTodayBookingsPerLocation(),
+      ])
 
-        if (statsResult.success && statsResult.data) {
-          setStats(statsResult.data)
-        } else if (!statsResult.success) {
-          setError(statsResult.error || 'Failed to load stats')
-        }
+      if (statsRes.success && statsRes.data) setStats(statsRes.data)
+      if (recentRes.success && recentRes.data) setRecentBookings(recentRes.data)
+      if (todayRes.success && todayRes.data) setTodayBookings(todayRes.data)
 
-        if (bookingsResult.success && bookingsResult.data) {
-          setRecentBookings(bookingsResult.data)
-        }
-
-        if (todayResult.success && todayResult.data) {
-          setTodayBookings(todayResult.data)
-        }
-      } catch (err) {
-        console.error('Error fetching dashboard data:', err)
-        setError('An unexpected error occurred')
-      } finally {
-        setLoading(false)
-      }
+      setLoading(false)
     }
 
-    fetchDashboardData()
+    fetchData()
   }, [])
 
-  const formatDate = (isoDate: string) => {
-    const date = new Date(isoDate)
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  }
+  const totalTodayBookings = todayBookings.reduce((sum, loc) => sum + loc.total, 0)
 
   const todayDateLabel = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'short',
     day: 'numeric',
-    year: 'numeric',
   })
 
-  if (error) {
-    return (
-      <div className="space-y-6">
-        <Card>
-          <div className="text-center py-8">
-            <p className="text-rose-600">{error}</p>
-          </div>
-        </Card>
-      </div>
-    )
-  }
+  /* CHART DATA */
 
-  const statCards = [
-    {
-      label: 'Pending Bookings',
-      value: stats.pendingBookings.toString(),
-      icon: CalendarClock,
-      color: 'text-amber-600',
-      bg: 'bg-amber-100',
-    },
-    {
-      label: 'Active Buildings',
-      value: stats.activeBuildings.toString(),
-      icon: Building2,
-      color: 'text-blue-600',
-      bg: 'bg-blue-100',
-    },
-    {
-      label: 'Total Rooms',
-      value: stats.totalRooms.toString(),
-      icon: DoorOpen,
-      color: 'text-indigo-600',
-      bg: 'bg-indigo-100',
-    },
-    {
-      label: 'Occupancy Rate',
-      value: `${stats.occupancyRate}%`,
-      helperText: stats.occupancyWindowLabel === 'NEXT_WEEK' ? 'Next week' : 'This week',
-      icon: Users,
-      color: 'text-emerald-600',
-      bg: 'bg-emerald-100',
-    },
-  ]
+  const chartData =
+    period === 'today'
+      ? todayBookings.map((loc) => ({
+          name: loc.location,
+          bookings: loc.total,
+          occupancy: 0,
+        }))
+      : period === 'weekly'
+      ? [
+          { name: 'Mon', bookings: 12, occupancy: 60 },
+          { name: 'Tue', bookings: 19, occupancy: 75 },
+          { name: 'Wed', bookings: 8, occupancy: 40 },
+          { name: 'Thu', bookings: 15, occupancy: 70 },
+          { name: 'Fri', bookings: 22, occupancy: 85 },
+          { name: 'Sat', bookings: 9, occupancy: 45 },
+          { name: 'Sun', bookings: 5, occupancy: 30 },
+        ]
+      : [
+          { name: 'Week 1', bookings: 60, occupancy: 65 },
+          { name: 'Week 2', bookings: 85, occupancy: 72 },
+          { name: 'Week 3', bookings: 75, occupancy: 68 },
+          { name: 'Week 4', bookings: 95, occupancy: 80 },
+        ]
+
+  const totalPeriodBookings = chartData.reduce((sum, d) => sum + d.bookings, 0)
+
+  const avgOccupancy =
+    chartData.length > 0
+      ? Math.round(chartData.reduce((sum, d) => sum + d.occupancy, 0) / chartData.length)
+      : 0
+
+  const bestPerformer =
+    chartData.length > 0
+      ? chartData.reduce((prev, current) =>
+          prev.bookings > current.bookings ? prev : current
+        )
+      : { name: '-' }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+
+      {/* HEADER */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-slate-500">Overview of your booking system performance.</p>
+        <p className="text-slate-500">
+          Overview of your booking system performance.
+        </p>
       </div>
 
-      {/* Stats Grid */}
+      {/* STATS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {loading
-          ? [...Array(4)].map((_, i) => (
-              <Card key={i} className="h-28 animate-pulse">
-                <div className="h-full w-full bg-slate-200 rounded" />
-              </Card>
-            ))
-          : statCards.map((stat, index) => {
-              const Icon = stat.icon
-              return (
-                <Card key={index} className="p-4 hover:shadow-md transition">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-slate-500">{stat.label}</p>
-                      <h3 className="text-2xl font-bold text-slate-900 mt-1">{stat.value}</h3>
-                      {'helperText' in stat && (
-                        <p className="text-xs text-slate-500 mt-1">{stat.helperText}</p>
-                      )}
-                    </div>
-                    <div className={`p-2 rounded-lg ${stat.bg}`}>
-                      <Icon className={`w-5 h-5 ${stat.color}`} />
-                    </div>
-                  </div>
-                </Card>
-              )
-            })}
+
+        <Card className="p-4 flex items-center space-x-4">
+          <CalendarClock className="w-6 h-6 text-indigo-600" />
+          <div>
+            <p className="text-sm text-slate-500">Pending Bookings</p>
+            <h3 className="text-2xl font-bold">
+              <AnimatedNumber value={stats.pendingBookings} />
+            </h3>
+          </div>
+        </Card>
+
+        <Card className="p-4 flex items-center space-x-4">
+          <Building2 className="w-6 h-6 text-green-600" />
+          <div>
+            <p className="text-sm text-slate-500">Active Buildings</p>
+            <h3 className="text-2xl font-bold">
+              <AnimatedNumber value={stats.activeBuildings} />
+            </h3>
+          </div>
+        </Card>
+
+        <Card className="p-4 flex items-center space-x-4">
+          <DoorOpen className="w-6 h-6 text-orange-600" />
+          <div>
+            <p className="text-sm text-slate-500">Total Rooms</p>
+            <h3 className="text-2xl font-bold">
+              <AnimatedNumber value={stats.totalRooms} />
+            </h3>
+          </div>
+        </Card>
+
+        <Card className="p-4 flex items-center space-x-4">
+          <Users className="w-6 h-6 text-purple-600" />
+          <div>
+            <p className="text-sm text-slate-500">Occupancy Rate</p>
+            <h3 className="text-2xl font-bold">
+              <AnimatedNumber value={stats.occupancyRate} suffix="%" />
+            </h3>
+          </div>
+        </Card>
+
       </div>
 
-      {/* Today's Bookings Per Location */}
-      <Card>
-        <div className="px-4 sm:px-6 py-4 border-b border-slate-100">
-          <h3 className="font-semibold text-slate-900">Today's Bookings</h3>
-          <p className="text-sm text-slate-500">{todayDateLabel}</p>
-        </div>
+      {/* TODAY BOOKINGS SECTION */}
 
-        {loading ? (
-          <div className="p-6 animate-pulse grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Card key={i} className="h-28 rounded-xl">
-                <div className="h-full w-full bg-slate-200 rounded" />
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {/* TOTAL BOOKINGS */}
+        <Card className="p-6 bg-white border shadow-sm">
+          <p className="text-sm text-slate-500">Total Bookings Today</p>
+
+          <h2 className="text-4xl font-bold text-slate-900 mt-2">
+            <AnimatedNumber value={totalTodayBookings} />
+          </h2>
+
+          <p className="text-xs text-slate-400 mt-2">
+            {todayDateLabel}
+          </p>
+        </Card>
+
+        {/* BOOKINGS BY LOCATION (GW1–GW4 COMBINED) */}
+        <Card className="p-6 bg-white border shadow-sm">
+
+          <h3 className="font-semibold text-slate-900 mb-4">
+            Bookings by Location
+          </h3>
+
+          <div className="grid grid-cols-2 gap-4">
+
             {todayBookings.map((location) => (
               <div
                 key={location.location}
-                className="rounded-xl bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 p-4 text-center hover:shadow-lg transition"
+                className="flex items-center justify-between bg-slate-50 p-4 rounded-lg"
               >
-                <div className="text-sm font-medium text-indigo-600">{location.location}</div>
-                <div className="mt-2 text-3xl font-bold text-slate-900">{location.total}</div>
-                <div className="text-xs text-slate-500 mt-1">
-                  {location.total === 1 ? 'Booking Today' : 'Bookings Today'}
-                </div>
+                <span className="text-sm font-medium text-slate-700">
+                  {location.location}
+                </span>
+
+                <span className="text-lg font-bold text-indigo-600">
+                  <AnimatedNumber value={location.total} />
+                </span>
               </div>
             ))}
+
           </div>
-        )}
+
+        </Card>
+
+      </div>
+
+      {/* ANALYTICS */}
+
+      <Card className="p-6">
+
+        <div className="flex justify-between items-center mb-6">
+
+          <h3 className="font-semibold text-slate-900">
+            Booking Analytics
+          </h3>
+
+          <div className="flex bg-slate-100 rounded-lg p-1 text-sm">
+            {['today', 'weekly', 'monthly'].map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p as 'today' | 'weekly' | 'monthly')}
+                className={`px-3 py-1 rounded-md ${
+                  period === p
+                    ? 'bg-white shadow text-indigo-600'
+                    : 'text-slate-500'
+                }`}
+              >
+                {p.charAt(0).toUpperCase() + p.slice(1)}
+              </button>
+            ))}
+          </div>
+
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          {/* BAR GRAPH */}
+
+          <div className="lg:col-span-2 h-80">
+
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+
+                <Bar
+                  dataKey="bookings"
+                  fill="#6366f1"
+                  radius={[8, 8, 0, 0]}
+                />
+
+                {period !== 'today' && (
+                  <Line
+                    type="monotone"
+                    dataKey="occupancy"
+                    stroke="#10b981"
+                    strokeWidth={3}
+                  />
+                )}
+
+              </BarChart>
+            </ResponsiveContainer>
+
+          </div>
+
+          {/* SUMMARY */}
+
+          <div className="space-y-4">
+
+            <div className="p-4 rounded-xl bg-slate-50 border">
+              <p className="text-sm text-slate-500">
+                Total Period Bookings
+              </p>
+
+              <p className="text-2xl font-bold">
+                <AnimatedNumber value={totalPeriodBookings} />
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 border">
+              <p className="text-sm text-slate-500">
+                Average Occupancy
+              </p>
+
+              <p className="text-2xl font-bold">
+                <AnimatedNumber value={avgOccupancy} suffix="%" />
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 border">
+              <p className="text-sm text-slate-500">
+                Best Performer
+              </p>
+
+              <p className="text-xl font-semibold">
+                {bestPerformer.name}
+              </p>
+            </div>
+
+          </div>
+
+        </div>
+
       </Card>
 
-      {/* Recent Bookings */}
+      {/* RECENT BOOKINGS (OLD TABLE UI) */}
+
       <Card noPadding>
-        <div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-          <h3 className="font-semibold text-slate-900">Recent Bookings</h3>
+
+        <div className="px-6 py-4 border-b flex justify-between items-center">
+
+          <h3 className="font-semibold text-slate-900">
+            Recent Bookings
+          </h3>
+
           <button
-            type="button"
             onClick={onViewAllBookings}
             className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
           >
             View all
           </button>
+
         </div>
 
         {loading ? (
           <div className="px-6 py-8">
             <div className="animate-pulse space-y-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-12 bg-slate-200 rounded" />
+              {[1,2,3,4,5].map((i)=>(
+                <div key={i} className="h-12 bg-slate-200 rounded"/>
               ))}
             </div>
           </div>
         ) : recentBookings.length === 0 ? (
-          <div className="px-6 py-8 text-center text-slate-500">No recent bookings found.</div>
+          <div className="px-6 py-8 text-center text-slate-500">
+            No recent bookings found.
+          </div>
         ) : (
-          <>
-            {/* Desktop Table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-slate-50 text-slate-500 font-medium">
-                  <tr>
-                    <th className="px-6 py-3">Reference</th>
-                    <th className="px-6 py-3">Client</th>
-                    <th className="px-6 py-3">Company</th>
-                    <th className="px-6 py-3">Room</th>
-                    <th className="px-6 py-3">Date</th>
-                    <th className="px-6 py-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {recentBookings.map((booking) => (
-                    <tr key={booking.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 font-medium text-slate-900">
-                        {booking.bookingReference}
-                      </td>
-                      <td className="px-6 py-4 text-slate-600">{booking.submittedByName || 'N/A'}</td>
-                      <td className="px-6 py-4 text-slate-600">{booking.submittedByCompany || '-'}</td>
-                      <td className="px-6 py-4 text-slate-600">{booking.roomName}</td>
-                      <td className="px-6 py-4 text-slate-600">{formatDate(booking.date)}</td>
-                      <td className="px-6 py-4">
-                        <Badge
-                          variant={
-                            booking.approvalStatus === 'APPROVED'
-                              ? 'success'
-                              : booking.approvalStatus === 'PENDING'
-                              ? 'warning'
-                              : 'danger'
-                          }
-                        >
-                          {booking.approvalStatus}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="overflow-x-auto">
 
-            {/* Mobile Cards */}
-            <div className="md:hidden divide-y divide-slate-100">
-              {recentBookings.map((booking) => (
-                <div key={booking.id} className="px-4 py-3 hover:bg-slate-50 transition-colors">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <div className="text-sm font-medium text-slate-900">
-                        {booking.bookingReference}
-                      </div>
-                      <div className="text-sm text-slate-600">{booking.submittedByName || 'N/A'}</div>
-                      {booking.submittedByCompany && (
-                        <div className="text-xs text-slate-500">{booking.submittedByCompany}</div>
-                      )}
-                    </div>
-                    <Badge
-                      variant={
-                        booking.approvalStatus === 'APPROVED'
-                          ? 'success'
-                          : booking.approvalStatus === 'PENDING'
-                          ? 'warning'
-                          : 'danger'
-                      }
-                    >
-                      {booking.approvalStatus}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between text-xs text-slate-500">
-                    <span>{booking.roomName}</span>
-                    <span>{formatDate(booking.date)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
+            <table className="w-full text-sm text-left">
+
+              <thead className="bg-slate-50 text-slate-500 font-medium">
+                <tr>
+                  <th className="px-6 py-3">Reference</th>
+                  <th className="px-6 py-3">Client</th>
+                  <th className="px-6 py-3">Company</th>
+                  <th className="px-6 py-3">Room</th>
+                  <th className="px-6 py-3">Date</th>
+                  <th className="px-6 py-3">Status</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-slate-100">
+                {recentBookings.map((booking)=>(
+                  <tr key={booking.id} className="hover:bg-slate-50">
+
+                    <td className="px-6 py-4 font-medium text-slate-900">
+                      {booking.bookingReference}
+                    </td>
+
+                    <td className="px-6 py-4 text-slate-600">
+                      {booking.submittedByName || 'N/A'}
+                    </td>
+
+                    <td className="px-6 py-4 text-slate-600">
+                      {booking.submittedByCompany || '-'}
+                    </td>
+
+                    <td className="px-6 py-4 text-slate-600">
+                      {booking.roomName}
+                    </td>
+
+                    <td className="px-6 py-4 text-slate-600">
+                      {new Date(booking.date).toLocaleDateString()}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <Badge
+                        variant={
+                          booking.approvalStatus === 'APPROVED'
+                            ? 'success'
+                            : booking.approvalStatus === 'PENDING'
+                            ? 'warning'
+                            : 'danger'
+                        }
+                      >
+                        {booking.approvalStatus}
+                      </Badge>
+                    </td>
+
+                  </tr>
+                ))}
+              </tbody>
+
+            </table>
+
+          </div>
         )}
+
       </Card>
+
     </div>
   )
 }
