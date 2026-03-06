@@ -10,7 +10,6 @@ const PROFILE_CACHE_TTL_SECONDS = 120;
 
 function getProfileCacheKey(userId: string): string {
     return `profile:page:${userId}`;
-    
 }
 
 async function invalidateProfileCache(userId: string): Promise<void> {
@@ -38,6 +37,26 @@ export async function getCurrentUserForExport() {
             id: session.user.id,
             name: (session.user as { name?: string | null }).name ?? null,
             email: session.user.email,
+        },
+    };
+}
+
+export async function getCurrentSessionAction() {
+    const session = await getSession();
+
+    if (!session?.user?.id) {
+        return { success: false as const, error: 'Not authenticated.' };
+    }
+
+    return {
+        success: true as const,
+        data: {
+            id: session.user.id,
+            email: session.user.email,
+            name: (session.user as { name?: string | null }).name ?? null,
+            role: (session.user as { role?: string | null }).role ?? null,
+            companyName: (session.user as { companyName?: string | null }).companyName ?? null,
+            image: (session.user as { image?: string | null }).image ?? null,
         },
     };
 }
