@@ -67,11 +67,22 @@ interface GetBookingsInput {
 const BOOKINGS_CACHE_TTL_SECONDS = 300
 const BOOKINGS_CACHE_VERSION_KEY = 'bookings:list:version'
 
-function getBookingsCacheKey(page: number, pageSize: number, version: number, companyId?: string, buildingId?: string, roomId?: string): string {
+function getBookingsCacheKey(
+    page: number,
+    pageSize: number,
+    version: number,
+    companyId?: string,
+    buildingId?: string,
+    roomId?: string,
+    status?: string,
+    query?: string
+): string {
     const filters = []
     if (companyId) filters.push(`company:${companyId}`)
     if (buildingId) filters.push(`building:${buildingId}`)
     if (roomId) filters.push(`room:${roomId}`)
+    if (status && status !== 'ALL') filters.push(`status:${status}`)
+    if (query) filters.push(`query:${query.toLowerCase()}`)
     const filterPart = filters.length > 0 ? `:${filters.join(':')}` : ''
     return `bookings:list:v${version}:page:${page}:size:${pageSize}${filterPart}`
 }
@@ -520,7 +531,16 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
         const query = input.query?.trim()
 
         const cacheVersion = await getBookingsCacheVersion()
-        const cacheKey = getBookingsCacheKey(page, pageSize, cacheVersion, companyId, buildingId, roomId)
+        const cacheKey = getBookingsCacheKey(
+            page,
+            pageSize,
+            cacheVersion,
+            companyId,
+            buildingId,
+            roomId,
+            status,
+            query
+        )
 
         if (redis) {
             try {
