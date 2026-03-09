@@ -74,12 +74,11 @@ export async function getCompanies(): Promise<GetCompaniesResult> {
         }
 
         // Try to get from cache first
-        let cachedData: string | null = null
         if (redis) {
             try {
-                cachedData = await redis.get(COMPANIES_CACHE_KEY)
+                const cachedData = await redis.get<CompanyStats[]>(COMPANIES_CACHE_KEY)
                 if (cachedData) {
-                    return { success: true, data: JSON.parse(cachedData) }
+                    return { success: true, data: cachedData }
                 }
             } catch (error) {
                 console.error('Cache read error:', error)
@@ -131,7 +130,7 @@ export async function getCompanies(): Promise<GetCompaniesResult> {
         // Cache the result
         if (redis) {
             try {
-                await redis.setex(COMPANIES_CACHE_KEY, CACHE_TTL_SECONDS, JSON.stringify(companiesStats))
+                await redis.set(COMPANIES_CACHE_KEY, companiesStats, { ex: CACHE_TTL_SECONDS })
             } catch (error) {
                 console.error('Cache write error:', error)
             }
@@ -152,12 +151,11 @@ export async function getCompanyDetails(companyId: string): Promise<GetCompanyDe
         }
 
         // Try cache first
-        let cachedData: string | null = null
         if (redis) {
             try {
-                cachedData = await redis.get(`${COMPANY_DETAIL_CACHE_KEY_PREFIX}${companyId}`)
+                const cachedData = await redis.get<GetCompanyDetailsResult['data']>(`${COMPANY_DETAIL_CACHE_KEY_PREFIX}${companyId}`)
                 if (cachedData) {
-                    return { success: true, data: JSON.parse(cachedData) }
+                    return { success: true, data: cachedData }
                 }
             } catch (error) {
                 console.error('Cache read error:', error)
@@ -221,7 +219,7 @@ export async function getCompanyDetails(companyId: string): Promise<GetCompanyDe
         // Cache the result
         if (redis) {
             try {
-                await redis.setex(`${COMPANY_DETAIL_CACHE_KEY_PREFIX}${companyId}`, CACHE_TTL_SECONDS, JSON.stringify(result))
+                await redis.set(`${COMPANY_DETAIL_CACHE_KEY_PREFIX}${companyId}`, result, { ex: CACHE_TTL_SECONDS })
             } catch (error) {
                 console.error('Cache write error:', error)
             }
