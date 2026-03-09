@@ -86,6 +86,7 @@ const TIME_OPTIONS = Array.from({ length: 10 }, (_, index) => {
 })
 
 const MANILA_WEEKEND_DAYS = new Set([0, 6])
+const DATE_SELECTION_WINDOW_DAYS = 365
 
 const dateKeyToOrdinal = (dateKey: string): number => {
   const [year, month, day] = dateKey.split('-').map(Number)
@@ -126,6 +127,44 @@ const formatDateKeyLabel = (dateKey: string): string => {
   })
 }
 
+const formatDateOptionLabel = (dateKey: string): string => {
+  const [year, month, day] = dateKey.split('-').map(Number)
+  if (!year || !month || !day) return dateKey
+
+  const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
+  return date.toLocaleDateString('en-PH', {
+    timeZone: 'Asia/Manila',
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+const getNextWeekdayDateKey = (baseDate: Date): string => {
+  const candidate = new Date(baseDate)
+  while (MANILA_WEEKEND_DAYS.has(candidate.getDay())) {
+    candidate.setDate(candidate.getDate() + 1)
+  }
+
+  return `${candidate.getFullYear()}-${pad(candidate.getMonth() + 1)}-${pad(candidate.getDate())}`
+}
+
+const buildDateOptions = (
+  startDateKey: string,
+  days: number = DATE_SELECTION_WINDOW_DAYS,
+) => {
+  const startOrdinal = dateKeyToOrdinal(startDateKey)
+  return Array.from({ length: days }, (_, index) => {
+    const dateKey = ordinalToDateKey(startOrdinal + index)
+    return {
+      value: dateKey,
+      label: formatDateOptionLabel(dateKey),
+      isWeekend: isWeekendDateKey(dateKey),
+    }
+  })
+}
+
 const getBlockedBookingDate = (
   startDateKey: string,
   endDateKey: string,
@@ -148,9 +187,7 @@ const getBlockedBookingDate = (
 
 const getDefaultForm = (): WalkInFormData => {
   const now = new Date()
-  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
-    now.getDate(),
-  )}`
+  const startDateKey = getNextWeekdayDateKey(now)
   const currentMinutes = now.getHours() * 60 + now.getMinutes()
   const roundedMinutes = Math.ceil(currentMinutes / 60) * 60
   const startMinutes = clampToBusinessTime(roundedMinutes)
@@ -166,8 +203,8 @@ const getDefaultForm = (): WalkInFormData => {
     buildingId: '',
     roomId: '',
     bookingType: 'HOURLY',
-    dateStart: todayStr,
-    dateEnd: todayStr,
+    dateStart: startDateKey,
+    dateEnd: startDateKey,
     timeStart: currentTime,
     timeEnd: endTime,
     attendeeCount: '',
@@ -200,6 +237,7 @@ export function WalkInBookingModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string>('')
   const [unavailableSlots, setUnavailableSlots] = useState<RoomUnavailableSlot[]>([])
+  const defaultStartDateKey = useMemo(() => getDefaultForm().dateStart, [])
 
   const selectedBuilding = useMemo(
     () => buildings.find((b) => b.id === form.buildingId),
@@ -209,6 +247,16 @@ export function WalkInBookingModal({
   const selectedRoom = useMemo(
     () => rooms.find((r) => r.id === form.roomId),
     [rooms, form.roomId],
+  )
+
+  const weekdayStartDateOptions = useMemo(
+    () => buildDateOptions(defaultStartDateKey),
+    [defaultStartDateKey],
+  )
+
+  const weekdayEndDateOptions = useMemo(
+    () => buildDateOptions(form.dateStart || defaultStartDateKey),
+    [defaultStartDateKey, form.dateStart],
   )
 
   const unavailableSlotsEndDate = useMemo(() => {
@@ -334,7 +382,24 @@ export function WalkInBookingModal({
     }
 
     setErrors((prev) => ({ ...prev, [key]: undefined }))
-    field(key, value)
+    setForm((prev) => {
+      if (key === 'dateStart') {
+        const nextEndDate = prev.bookingType === 'DAILY' && prev.dateEnd < value
+          ? value
+          : prev.dateEnd
+
+        return {
+          ...prev,
+          dateStart: value,
+          dateEnd: nextEndDate,
+        }
+      }
+
+      return {
+        ...prev,
+        [key]: value,
+      }
+    })
   }
 
   const formatPhilippinePhone = (value: string): string => {
@@ -763,13 +828,21 @@ export function WalkInBookingModal({
                 <label className="text-sm font-medium text-slate-700 block mb-1.5">
                   Start Date <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="date"
+                <select
                   value={form.dateStart}
                   onChange={(e) => handleDateFieldChange('dateStart', e.target.value)}
-                  min={getDefaultForm().dateStart}
                   className={inputClass(errors.dateStart)}
-                />
+                >
+                  {weekdayStartDateOptions.map((option) => (
+                    <option
+                      key={`daily-start-${option.value}`}
+                      value={option.value}
+                      disabled={option.isWeekend}
+                    >
+                      {option.label}{option.isWeekend ? ' (Weekend)' : ''}
+                    </option>
+                  ))}
+                </select>
                 <ErrorMsg msg={errors.dateStart} />
                 <p className="mt-1 text-[11px] text-slate-500">
                   Saturdays and Sundays are not bookable.
@@ -779,13 +852,21 @@ export function WalkInBookingModal({
                 <label className="text-sm font-medium text-slate-700 block mb-1.5">
                   End Date <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="date"
+                <select
                   value={form.dateEnd}
                   onChange={(e) => handleDateFieldChange('dateEnd', e.target.value)}
-                  min={form.dateStart || getDefaultForm().dateStart}
                   className={inputClass(errors.dateEnd)}
-                />
+                >
+                  {weekdayEndDateOptions.map((option) => (
+                    <option
+                      key={`daily-end-${option.value}`}
+                      value={option.value}
+                      disabled={option.isWeekend}
+                    >
+                      {option.label}{option.isWeekend ? ' (Weekend)' : ''}
+                    </option>
+                  ))}
+                </select>
                 <ErrorMsg msg={errors.dateEnd} />
               </div>
               <div>
@@ -853,13 +934,21 @@ export function WalkInBookingModal({
                 <label className="text-sm font-medium text-slate-700 block mb-1.5">
                   Date <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="date"
+                <select
                   value={form.dateStart}
                   onChange={(e) => handleDateFieldChange('dateStart', e.target.value)}
-                  min={getDefaultForm().dateStart}
                   className={inputClass(errors.dateStart)}
-                />
+                >
+                  {weekdayStartDateOptions.map((option) => (
+                    <option
+                      key={`hourly-date-${option.value}`}
+                      value={option.value}
+                      disabled={option.isWeekend}
+                    >
+                      {option.label}{option.isWeekend ? ' (Weekend)' : ''}
+                    </option>
+                  ))}
+                </select>
                 <ErrorMsg msg={errors.dateStart} />
                 <p className="mt-1 text-[11px] text-slate-500">
                   Saturdays and Sundays are not bookable.
