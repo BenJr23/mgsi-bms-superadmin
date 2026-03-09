@@ -86,12 +86,6 @@ const TIME_OPTIONS = Array.from({ length: 10 }, (_, index) => {
 })
 
 const MANILA_WEEKEND_DAYS = new Set([0, 6])
-const HOLIDAY_DATE_KEYS = new Set(
-  (process.env.NEXT_PUBLIC_BOOKING_HOLIDAY_DATES ?? '')
-    .split(',')
-    .map((value) => value.trim())
-    .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value)),
-)
 
 const dateKeyToOrdinal = (dateKey: string): number => {
   const [year, month, day] = dateKey.split('-').map(Number)
@@ -135,7 +129,7 @@ const formatDateKeyLabel = (dateKey: string): string => {
 const getBlockedBookingDate = (
   startDateKey: string,
   endDateKey: string,
-): { dateKey: string; reason: 'weekend' | 'holiday' } | null => {
+): string | null => {
   if (!startDateKey || !endDateKey) return null
 
   const startOrdinal = dateKeyToOrdinal(startDateKey)
@@ -145,10 +139,7 @@ const getBlockedBookingDate = (
   for (let day = startOrdinal; day <= endOrdinal; day += 1) {
     const dateKey = ordinalToDateKey(day)
     if (isWeekendDateKey(dateKey)) {
-      return { dateKey, reason: 'weekend' }
-    }
-    if (HOLIDAY_DATE_KEYS.has(dateKey)) {
-      return { dateKey, reason: 'holiday' }
+      return dateKey
     }
   }
 
@@ -330,6 +321,22 @@ export function WalkInBookingModal({
       [key]: value,
     }))
 
+  const handleDateFieldChange = (
+    key: 'dateStart' | 'dateEnd',
+    value: string,
+  ) => {
+    if (value && isWeekendDateKey(value)) {
+      setErrors((prev) => ({
+        ...prev,
+        [key]: 'Bookings are not allowed on Saturdays and Sundays.',
+      }))
+      return
+    }
+
+    setErrors((prev) => ({ ...prev, [key]: undefined }))
+    field(key, value)
+  }
+
   const formatPhilippinePhone = (value: string): string => {
     const digits = value.replace(/\D/g, '')
     const cleaned = digits.slice(-10)
@@ -381,8 +388,7 @@ export function WalkInBookingModal({
         form.bookingType === 'DAILY' ? form.dateEnd || form.dateStart : form.dateStart
       const blockedDate = getBlockedBookingDate(form.dateStart, dateEndForPolicy)
       if (blockedDate) {
-        const reason = blockedDate.reason === 'weekend' ? 'weekends' : 'holidays'
-        e.dateStart = `Booking creation is not allowed on ${reason} (${blockedDate.dateKey}).`
+        e.dateStart = `Booking creation is not allowed on Saturdays and Sundays (${blockedDate}).`
       }
     }
 
@@ -760,13 +766,13 @@ export function WalkInBookingModal({
                 <input
                   type="date"
                   value={form.dateStart}
-                  onChange={(e) => field('dateStart', e.target.value)}
+                  onChange={(e) => handleDateFieldChange('dateStart', e.target.value)}
                   min={getDefaultForm().dateStart}
                   className={inputClass(errors.dateStart)}
                 />
                 <ErrorMsg msg={errors.dateStart} />
                 <p className="mt-1 text-[11px] text-slate-500">
-                  Weekends and configured holidays are not bookable.
+                  Saturdays and Sundays are not bookable.
                 </p>
               </div>
               <div>
@@ -776,7 +782,7 @@ export function WalkInBookingModal({
                 <input
                   type="date"
                   value={form.dateEnd}
-                  onChange={(e) => field('dateEnd', e.target.value)}
+                  onChange={(e) => handleDateFieldChange('dateEnd', e.target.value)}
                   min={form.dateStart || getDefaultForm().dateStart}
                   className={inputClass(errors.dateEnd)}
                 />
@@ -850,13 +856,13 @@ export function WalkInBookingModal({
                 <input
                   type="date"
                   value={form.dateStart}
-                  onChange={(e) => field('dateStart', e.target.value)}
+                  onChange={(e) => handleDateFieldChange('dateStart', e.target.value)}
                   min={getDefaultForm().dateStart}
                   className={inputClass(errors.dateStart)}
                 />
                 <ErrorMsg msg={errors.dateStart} />
                 <p className="mt-1 text-[11px] text-slate-500">
-                  Weekends and configured holidays are not bookable.
+                  Saturdays and Sundays are not bookable.
                 </p>
               </div>
               <div>

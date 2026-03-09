@@ -93,13 +93,6 @@ Optional auth helpers:
 TRUSTED_ORIGINS="http://localhost:3000"
 ```
 
-Optional booking policy dates (comma-separated Manila dates):
-
-```env
-BOOKING_HOLIDAY_DATES="2026-01-01,2026-04-09,2026-12-25"
-NEXT_PUBLIC_BOOKING_HOLIDAY_DATES="2026-01-01,2026-04-09,2026-12-25"
-```
-
 ## Local Development
 
 1. Install dependencies:
