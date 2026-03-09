@@ -192,6 +192,8 @@ export function BookingsView() {
         const result = await getBookingsCached({ 
           page: currentPage, 
           pageSize: PAGE_SIZE,
+          status: statusFilter,
+          query: debouncedQuery || undefined,
           companyId: companyFilter !== 'ALL' ? companyFilter : undefined,
           buildingId: buildingFilter !== 'ALL' ? buildingFilter : undefined,
           roomId: roomFilter !== 'ALL' ? roomFilter : undefined
@@ -209,7 +211,7 @@ export function BookingsView() {
       }
     };
     fetchBookings();
-  }, [currentPage, companyFilter, buildingFilter, roomFilter]);
+  }, [currentPage, companyFilter, buildingFilter, roomFilter, statusFilter, debouncedQuery]);
 
   useEffect(() => {
     const fetchExportUser = async () => {
@@ -282,24 +284,9 @@ export function BookingsView() {
   useEffect(() => {
     // Reset to page 1 when filters change to avoid showing empty results
     setCurrentPage(1);
-  }, [companyFilter, buildingFilter, roomFilter]);
+  }, [companyFilter, buildingFilter, roomFilter, statusFilter, debouncedQuery]);
 
-  const filteredBookings = useMemo(() => {
-    const q = debouncedQuery.toLowerCase();
-    return bookingRows.filter((b) => {
-      if (statusFilter !== 'ALL' && b.approvalStatus !== statusFilter) return false;
-
-      if (!q) return true;
-
-      return (
-        b.bookingReference.toLowerCase().includes(q) ||
-        (b.submittedBy.name || '').toLowerCase().includes(q) ||
-        b.submittedBy.email.toLowerCase().includes(q) ||
-        b.room.name.toLowerCase().includes(q) ||
-        b.building.name.toLowerCase().includes(q)
-      );
-    });
-  }, [bookingRows, debouncedQuery, statusFilter]);
+  const filteredBookings = useMemo(() => bookingRows, [bookingRows]);
 
   const handleAction = async (status: 'APPROVED' | 'REJECTED', message?: string) => {
     if (!activeBooking) {
@@ -652,7 +639,7 @@ export function BookingsView() {
           const fetchBookings = async () => {
             try {
               setLoading(true);
-              const result = await getBookingsCached({ page: currentPage, pageSize: PAGE_SIZE, companyId: companyFilter !== 'ALL' ? companyFilter : undefined, buildingId: buildingFilter !== 'ALL' ? buildingFilter : undefined, roomId: roomFilter !== 'ALL' ? roomFilter : undefined });
+              const result = await getBookingsCached({ page: currentPage, pageSize: PAGE_SIZE, status: statusFilter, query: debouncedQuery || undefined, companyId: companyFilter !== 'ALL' ? companyFilter : undefined, buildingId: buildingFilter !== 'ALL' ? buildingFilter : undefined, roomId: roomFilter !== 'ALL' ? roomFilter : undefined });
               if (result.success) {
                 setBookings(result.data || []);
                 setTotalPages(result.totalPages || 1);

@@ -60,6 +60,8 @@ interface GetBookingsInput {
     companyId?: string
     buildingId?: string
     roomId?: string
+    status?: 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'
+    query?: string
 }
 
 const BOOKINGS_CACHE_TTL_SECONDS = 300
@@ -514,6 +516,8 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
         const companyId = input.companyId?.trim()
         const buildingId = input.buildingId?.trim()
         const roomId = input.roomId?.trim()
+        const status = input.status?.trim()
+        const query = input.query?.trim()
 
         const cacheVersion = await getBookingsCacheVersion()
         const cacheKey = getBookingsCacheKey(page, pageSize, cacheVersion, companyId, buildingId, roomId)
@@ -532,9 +536,21 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
         const where: any = {
             isActive: true,
             deletedAt: null,
+            ...(status && status !== 'ALL' ? { approvalStatus: status } : {}),
             ...(companyId && { submittedBy: { companyName: { equals: companyId, mode: 'insensitive' } } }),
             ...(buildingId && { buildingId: { equals: buildingId } }),
             ...(roomId && { roomId: { equals: roomId } }),
+            ...(query
+                ? {
+                    OR: [
+                        { bookingReference: { contains: query, mode: 'insensitive' } },
+                        { submittedBy: { name: { contains: query, mode: 'insensitive' } } },
+                        { submittedBy: { email: { contains: query, mode: 'insensitive' } } },
+                        { room: { roomName: { contains: query, mode: 'insensitive' } } },
+                        { building: { buildingName: { contains: query, mode: 'insensitive' } } },
+                    ],
+                }
+                : {}),
         }
 
         const [totalCount, bookings] = await prisma.$transaction([
