@@ -155,6 +155,7 @@ model Booking {
   approvalDate         DateTime?
   cancellationDeadline DateTime?
   message              String?
+  walkInCompanyName    String?
   attendeeCount        Int?
   creditHoursUsed      Float          @default(0)
   buildingId           String

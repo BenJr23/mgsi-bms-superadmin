@@ -591,6 +591,7 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
                     approvalDate: true,
                     cancellationDeadline: true,
                     message: true,
+                    walkInCompanyName: true,
                     attendeeCount: true,
                     building: { select: { buildingName: true } },
                     room: { select: { roomName: true } },
@@ -638,7 +639,7 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
                 submittedBy: {
                     name: booking.submittedBy.name,
                     email: booking.submittedBy.email,
-                    companyName: booking.submittedBy.company?.name || null,
+                    companyName: booking.submittedBy.company?.name || booking.walkInCompanyName || null,
                 },
                 updatedBy: booking.updatedBy ? { id: booking.updatedBy.id, name: booking.updatedBy.name } : null,
                 _display: {
@@ -988,6 +989,7 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
                 updatedById: session.user.id,
                 attendeeCount: attendeeCount ?? null,
                 message: message?.trim() || null,
+                walkInCompanyName: companyName?.trim() || null,
                 isActive: true
             },
             include: {
