@@ -3,6 +3,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
+import { DayPicker } from 'react-day-picker'
+import 'react-day-picker/dist/style.css'
 import {
   createWalkInBooking,
   getBuildings,
@@ -14,6 +16,7 @@ import {
 } from '@/app/_actions/bookings'
 import {
   Building2,
+  Calendar,
   DoorOpen,
   Clock,
   Users,
@@ -26,6 +29,7 @@ import {
 } from 'lucide-react'
 
 type BookingType = 'HOURLY' | 'DAILY'
+type DatePickerPanel = 'NONE' | 'DAILY_START' | 'DAILY_END' | 'HOURLY_DATE'
 
 const BUSINESS_START_MINUTES = 9 * 60
 const BUSINESS_END_MINUTES = 18 * 60
@@ -85,9 +89,18 @@ const TIME_OPTIONS = Array.from({ length: 10 }, (_, index) => {
   }
 })
 
+const MANILA_WEEKEND_DAYS = new Set([0, 6])
+
 const dateKeyToOrdinal = (dateKey: string): number => {
   const [year, month, day] = dateKey.split('-').map(Number)
   return Math.floor(Date.UTC(year, month - 1, day) / 86400000)
+}
+
+const isWeekendDateKey = (dateKey: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return false
+  const [year, month, day] = dateKey.split('-').map(Number)
+  const dayOfWeek = new Date(Date.UTC(year, month - 1, day, 12, 0, 0)).getUTCDay()
+  return MANILA_WEEKEND_DAYS.has(dayOfWeek)
 }
 
 const ordinalToDateKey = (ordinal: number): string => {
@@ -117,11 +130,61 @@ const formatDateKeyLabel = (dateKey: string): string => {
   })
 }
 
+const formatDateFieldLabel = (dateKey: string): string => {
+  const [year, month, day] = dateKey.split('-').map(Number)
+  if (!year || !month || !day) return 'Select date'
+
+  const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
+  return date.toLocaleDateString('en-PH', {
+    timeZone: 'Asia/Manila',
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+const getNextWeekdayDateKey = (baseDate: Date): string => {
+  const candidate = new Date(baseDate)
+  while (MANILA_WEEKEND_DAYS.has(candidate.getDay())) {
+    candidate.setDate(candidate.getDate() + 1)
+  }
+
+  return `${candidate.getFullYear()}-${pad(candidate.getMonth() + 1)}-${pad(candidate.getDate())}`
+}
+
+const dateKeyToLocalDate = (dateKey: string): Date | undefined => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return undefined
+  const [year, month, day] = dateKey.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
+const localDateToDateKey = (date: Date): string =>
+  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+
+const getBlockedBookingDate = (
+  startDateKey: string,
+  endDateKey: string,
+): string | null => {
+  if (!startDateKey || !endDateKey) return null
+
+  const startOrdinal = dateKeyToOrdinal(startDateKey)
+  const endOrdinal = dateKeyToOrdinal(endDateKey)
+  if (!Number.isFinite(startOrdinal) || !Number.isFinite(endOrdinal)) return null
+
+  for (let day = startOrdinal; day <= endOrdinal; day += 1) {
+    const dateKey = ordinalToDateKey(day)
+    if (isWeekendDateKey(dateKey)) {
+      return dateKey
+    }
+  }
+
+  return null
+}
+
 const getDefaultForm = (): WalkInFormData => {
   const now = new Date()
-  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
-    now.getDate(),
-  )}`
+  const startDateKey = getNextWeekdayDateKey(now)
   const currentMinutes = now.getHours() * 60 + now.getMinutes()
   const roundedMinutes = Math.ceil(currentMinutes / 60) * 60
   const startMinutes = clampToBusinessTime(roundedMinutes)
@@ -137,8 +200,8 @@ const getDefaultForm = (): WalkInFormData => {
     buildingId: '',
     roomId: '',
     bookingType: 'HOURLY',
-    dateStart: todayStr,
-    dateEnd: todayStr,
+    dateStart: startDateKey,
+    dateEnd: startDateKey,
     timeStart: currentTime,
     timeEnd: endTime,
     attendeeCount: '',
@@ -171,6 +234,7 @@ export function WalkInBookingModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string>('')
   const [unavailableSlots, setUnavailableSlots] = useState<RoomUnavailableSlot[]>([])
+  const [openDatePickerPanel, setOpenDatePickerPanel] = useState<DatePickerPanel>('NONE')
 
   const selectedBuilding = useMemo(
     () => buildings.find((b) => b.id === form.buildingId),
@@ -180,6 +244,21 @@ export function WalkInBookingModal({
   const selectedRoom = useMemo(
     () => rooms.find((r) => r.id === form.roomId),
     [rooms, form.roomId],
+  )
+
+  const selectedStartDate = useMemo(
+    () => dateKeyToLocalDate(form.dateStart),
+    [form.dateStart],
+  )
+
+  const selectedEndDate = useMemo(
+    () => dateKeyToLocalDate(form.dateEnd),
+    [form.dateEnd],
+  )
+
+  const minSelectableDate = useMemo(
+    () => dateKeyToLocalDate(getNextWeekdayDateKey(new Date())),
+    [],
   )
 
   const unavailableSlotsEndDate = useMemo(() => {
@@ -213,6 +292,7 @@ export function WalkInBookingModal({
 
     setForm(getDefaultForm())
     setUnavailableSlots([])
+    setOpenDatePickerPanel('NONE')
 
     const fetchBuildings = async () => {
       setLoadingBuildings(true)
@@ -292,6 +372,49 @@ export function WalkInBookingModal({
       [key]: value,
     }))
 
+  const handleDateFieldChange = (
+    key: 'dateStart' | 'dateEnd',
+    value: string,
+  ) => {
+    if (value && isWeekendDateKey(value)) {
+      setErrors((prev) => ({
+        ...prev,
+        [key]: 'Bookings are not allowed on Saturdays and Sundays.',
+      }))
+      return
+    }
+
+    setErrors((prev) => ({ ...prev, [key]: undefined }))
+    setForm((prev) => {
+      if (key === 'dateStart') {
+        const nextEndDate = prev.bookingType === 'DAILY' && prev.dateEnd < value
+          ? value
+          : prev.dateEnd
+
+        return {
+          ...prev,
+          dateStart: value,
+          dateEnd: nextEndDate,
+        }
+      }
+
+      return {
+        ...prev,
+        [key]: value,
+      }
+    })
+  }
+
+  const handleDayPickerChange = (
+    key: 'dateStart' | 'dateEnd',
+    date?: Date,
+    panel?: DatePickerPanel,
+  ) => {
+    if (!date) return
+    handleDateFieldChange(key, localDateToDateKey(date))
+    if (panel) setOpenDatePickerPanel('NONE')
+  }
+
   const formatPhilippinePhone = (value: string): string => {
     const digits = value.replace(/\D/g, '')
     const cleaned = digits.slice(-10)
@@ -337,6 +460,15 @@ export function WalkInBookingModal({
     if (!form.timeEnd) e.timeEnd = 'End time is required.'
     if (form.timeStart && form.timeEnd && form.timeStart >= form.timeEnd)
       e.timeEnd = 'End time must be after start time.'
+
+    if (form.dateStart && !e.dateStart && !e.dateEnd) {
+      const dateEndForPolicy =
+        form.bookingType === 'DAILY' ? form.dateEnd || form.dateStart : form.dateStart
+      const blockedDate = getBlockedBookingDate(form.dateStart, dateEndForPolicy)
+      if (blockedDate) {
+        e.dateStart = `Booking creation is not allowed on Saturdays and Sundays (${blockedDate}).`
+      }
+    }
 
     const startMinutes = timeToMinutes(form.timeStart)
     const endMinutes = timeToMinutes(form.timeEnd)
@@ -473,6 +605,7 @@ export function WalkInBookingModal({
     setForm(getDefaultForm())
     setErrors({})
     setSubmitError('')
+    setOpenDatePickerPanel('NONE')
     onClose()
   }
 
@@ -709,26 +842,71 @@ export function WalkInBookingModal({
                 <label className="text-sm font-medium text-slate-700 block mb-1.5">
                   Start Date <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="date"
-                  value={form.dateStart}
-                  onChange={(e) => field('dateStart', e.target.value)}
-                  min={getDefaultForm().dateStart}
-                  className={inputClass(errors.dateStart)}
-                />
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenDatePickerPanel((current) =>
+                        current === 'DAILY_START' ? 'NONE' : 'DAILY_START',
+                      )
+                    }
+                    className={`${inputClass(errors.dateStart)} flex items-center justify-between`}
+                  >
+                    <span>{formatDateFieldLabel(form.dateStart)}</span>
+                    <Calendar className="w-4 h-4 text-slate-400" />
+                  </button>
+
+                  {openDatePickerPanel === 'DAILY_START' && (
+                    <div className="absolute z-30 mt-2 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+                      <DayPicker
+                        mode="single"
+                        selected={selectedStartDate}
+                        onSelect={(date) => handleDayPickerChange('dateStart', date, 'DAILY_START')}
+                        disabled={[
+                          { dayOfWeek: [0, 6] },
+                          ...(minSelectableDate ? [{ before: minSelectableDate }] : []),
+                        ]}
+                      />
+                    </div>
+                  )}
+                </div>
                 <ErrorMsg msg={errors.dateStart} />
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Saturdays and Sundays are not bookable.
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-slate-700 block mb-1.5">
                   End Date <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="date"
-                  value={form.dateEnd}
-                  onChange={(e) => field('dateEnd', e.target.value)}
-                  min={form.dateStart || getDefaultForm().dateStart}
-                  className={inputClass(errors.dateEnd)}
-                />
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenDatePickerPanel((current) =>
+                        current === 'DAILY_END' ? 'NONE' : 'DAILY_END',
+                      )
+                    }
+                    className={`${inputClass(errors.dateEnd)} flex items-center justify-between`}
+                  >
+                    <span>{formatDateFieldLabel(form.dateEnd)}</span>
+                    <Calendar className="w-4 h-4 text-slate-400" />
+                  </button>
+
+                  {openDatePickerPanel === 'DAILY_END' && (
+                    <div className="absolute z-30 mt-2 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+                      <DayPicker
+                        mode="single"
+                        selected={selectedEndDate}
+                        onSelect={(date) => handleDayPickerChange('dateEnd', date, 'DAILY_END')}
+                        disabled={[
+                          { dayOfWeek: [0, 6] },
+                          ...(selectedStartDate ? [{ before: selectedStartDate }] : []),
+                        ]}
+                      />
+                    </div>
+                  )}
+                </div>
                 <ErrorMsg msg={errors.dateEnd} />
               </div>
               <div>
@@ -796,14 +974,38 @@ export function WalkInBookingModal({
                 <label className="text-sm font-medium text-slate-700 block mb-1.5">
                   Date <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="date"
-                  value={form.dateStart}
-                  onChange={(e) => field('dateStart', e.target.value)}
-                  min={getDefaultForm().dateStart}
-                  className={inputClass(errors.dateStart)}
-                />
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenDatePickerPanel((current) =>
+                        current === 'HOURLY_DATE' ? 'NONE' : 'HOURLY_DATE',
+                      )
+                    }
+                    className={`${inputClass(errors.dateStart)} flex items-center justify-between`}
+                  >
+                    <span>{formatDateFieldLabel(form.dateStart)}</span>
+                    <Calendar className="w-4 h-4 text-slate-400" />
+                  </button>
+
+                  {openDatePickerPanel === 'HOURLY_DATE' && (
+                    <div className="absolute z-30 mt-2 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+                      <DayPicker
+                        mode="single"
+                        selected={selectedStartDate}
+                        onSelect={(date) => handleDayPickerChange('dateStart', date, 'HOURLY_DATE')}
+                        disabled={[
+                          { dayOfWeek: [0, 6] },
+                          ...(minSelectableDate ? [{ before: minSelectableDate }] : []),
+                        ]}
+                      />
+                    </div>
+                  )}
+                </div>
                 <ErrorMsg msg={errors.dateStart} />
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Saturdays and Sundays are not bookable.
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-slate-700 block mb-1.5">
