@@ -29,10 +29,11 @@ type ProfileViewProps = {
   userCompany: string;
   userCreatedAt: string | null;
   lastLogin: string | null;
-  onProfileUpdate?: (updates: { name?: string; image?: string; phoneNumber?: string; companyName?: string }) => void;
+  onProfileUpdate?: (updates: { name?: string; image?: string; phoneNumber?: string; companyName?: string; email?: string }) => void;
 };
 
 export function ProfileView({ userName, userEmail, userRole, userImage, userPhone, userCompany, userCreatedAt, lastLogin, onProfileUpdate }: ProfileViewProps) {
+  const isSuperAdmin = userRole === 'SUPERADMIN';
   const [isPasswordUpdating, setIsPasswordUpdating] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
@@ -123,10 +124,25 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
         return;
       }
 
+      const trimmedEmail = formData.email.trim();
+      if (!trimmedEmail) {
+        setPersonalInfoError('Email is required.');
+        return;
+      }
+
+      if (isSuperAdmin) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(trimmedEmail)) {
+          setPersonalInfoError('Please enter a valid email address.');
+          return;
+        }
+      }
+
       const result = await updateUserProfile({
         name: formData.name,
         phoneNumber: `+63${phoneDigitsOnly}`,
         companyName: formData.company,
+        email: isSuperAdmin ? trimmedEmail : undefined,
       });
 
       if (!result.success) {
@@ -141,7 +157,8 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
         onProfileUpdate({
           name: formData.name,
           phoneNumber: `+63${phoneDigitsOnly}`,
-          companyName: formData.company.trim() || ''
+          companyName: formData.company.trim() || '',
+          email: isSuperAdmin ? trimmedEmail : undefined,
         });
       }
       
@@ -157,6 +174,7 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
     setFormData((prev) => ({
       ...prev,
       name: userName,
+      email: userEmail,
       phone: formatPhilippinePhone(userPhone),
       company: userCompany
     }));
@@ -280,7 +298,11 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const hasPersonalInfoChanges = formData.name !== userName || formData.phone !== formatPhilippinePhone(userPhone) || formData.company !== userCompany;
+  const hasPersonalInfoChanges =
+    formData.name !== userName ||
+    formData.phone !== formatPhilippinePhone(userPhone) ||
+    formData.company !== userCompany ||
+    (isSuperAdmin && formData.email !== userEmail);
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -457,13 +479,22 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
                   <input
                     type="email"
                     value={formData.email}
-                    readOnly
-                    className="w-full pl-9 pr-10 py-2 border border-slate-200 bg-slate-50 text-slate-500 rounded-md cursor-not-allowed" />
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    readOnly={!isPersonalInfoEditing || !isSuperAdmin}
+                    className={`w-full pl-9 pr-10 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-red-900 focus:border-transparent ${
+                      isPersonalInfoEditing && isSuperAdmin
+                        ? 'border-slate-300 bg-white text-slate-900'
+                        : 'border-slate-200 bg-slate-50 text-slate-500 cursor-not-allowed'
+                    }`} />
 
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  {(!isPersonalInfoEditing || !isSuperAdmin) && (
+                    <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  )}
                 </div>
                 <p className="text-xs text-slate-500">
-                  Contact system administrator to change your email address.
+                  {isSuperAdmin
+                    ? 'As SUPERADMIN, you can update your email while editing personal information.'
+                    : 'Contact system administrator to change your email address.'}
                 </p>
               </div>
             </div>

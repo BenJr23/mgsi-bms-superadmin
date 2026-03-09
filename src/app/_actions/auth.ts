@@ -537,7 +537,7 @@ export async function getLastLogin() {
     }
 }
 
-export async function updateUserProfile(data: { name: string; phoneNumber: string; companyName?: string }) {
+export async function updateUserProfile(data: { name: string; phoneNumber: string; companyName?: string; email?: string }) {
     try {
         const user = await requireAuth();
 
@@ -550,6 +550,44 @@ export async function updateUserProfile(data: { name: string; phoneNumber: strin
             return { error: "Phone number is required", success: false };
         }
 
+        const currentUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: {
+                role: true,
+                email: true,
+            },
+        });
+
+        if (!currentUser) {
+            return { error: "User not found", success: false };
+        }
+
+        const normalizedEmail = data.email?.trim().toLowerCase();
+        const shouldUpdateEmail =
+            typeof normalizedEmail === 'string' &&
+            normalizedEmail.length > 0 &&
+            normalizedEmail !== currentUser.email.toLowerCase();
+
+        if (shouldUpdateEmail && currentUser.role !== 'SUPERADMIN') {
+            return { error: "Only super admins can update their email address.", success: false };
+        }
+
+        if (shouldUpdateEmail) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(normalizedEmail)) {
+                return { error: "Please enter a valid email address.", success: false };
+            }
+
+            const existingUser = await prisma.user.findUnique({
+                where: { email: normalizedEmail },
+                select: { id: true },
+            });
+
+            if (existingUser && existingUser.id !== user.id) {
+                return { error: "Email address is already in use.", success: false };
+            }
+        }
+
         // Update user in database
         const updatedUser = await prisma.user.update({
             where: { id: user.id },
@@ -557,6 +595,7 @@ export async function updateUserProfile(data: { name: string; phoneNumber: strin
                 name: data.name.trim(),
                 phoneNumber: data.phoneNumber.trim(),
                 ...(data.companyName !== undefined && { companyName: data.companyName.trim() || null }),
+                ...(shouldUpdateEmail ? { email: normalizedEmail } : {}),
             },
             select: {
                 id: true,
