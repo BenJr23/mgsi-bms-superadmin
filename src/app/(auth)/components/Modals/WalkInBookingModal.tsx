@@ -3,6 +3,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
+import { DayPicker } from 'react-day-picker'
+import 'react-day-picker/dist/style.css'
 import {
   createWalkInBooking,
   getBuildings,
@@ -86,7 +88,6 @@ const TIME_OPTIONS = Array.from({ length: 10 }, (_, index) => {
 })
 
 const MANILA_WEEKEND_DAYS = new Set([0, 6])
-const DATE_SELECTION_WINDOW_DAYS = 365
 
 const dateKeyToOrdinal = (dateKey: string): number => {
   const [year, month, day] = dateKey.split('-').map(Number)
@@ -127,20 +128,6 @@ const formatDateKeyLabel = (dateKey: string): string => {
   })
 }
 
-const formatDateOptionLabel = (dateKey: string): string => {
-  const [year, month, day] = dateKey.split('-').map(Number)
-  if (!year || !month || !day) return dateKey
-
-  const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
-  return date.toLocaleDateString('en-PH', {
-    timeZone: 'Asia/Manila',
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
 const getNextWeekdayDateKey = (baseDate: Date): string => {
   const candidate = new Date(baseDate)
   while (MANILA_WEEKEND_DAYS.has(candidate.getDay())) {
@@ -150,20 +137,14 @@ const getNextWeekdayDateKey = (baseDate: Date): string => {
   return `${candidate.getFullYear()}-${pad(candidate.getMonth() + 1)}-${pad(candidate.getDate())}`
 }
 
-const buildDateOptions = (
-  startDateKey: string,
-  days: number = DATE_SELECTION_WINDOW_DAYS,
-) => {
-  const startOrdinal = dateKeyToOrdinal(startDateKey)
-  return Array.from({ length: days }, (_, index) => {
-    const dateKey = ordinalToDateKey(startOrdinal + index)
-    return {
-      value: dateKey,
-      label: formatDateOptionLabel(dateKey),
-      isWeekend: isWeekendDateKey(dateKey),
-    }
-  })
+const dateKeyToLocalDate = (dateKey: string): Date | undefined => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return undefined
+  const [year, month, day] = dateKey.split('-').map(Number)
+  return new Date(year, month - 1, day)
 }
+
+const localDateToDateKey = (date: Date): string =>
+  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 
 const getBlockedBookingDate = (
   startDateKey: string,
@@ -237,7 +218,6 @@ export function WalkInBookingModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string>('')
   const [unavailableSlots, setUnavailableSlots] = useState<RoomUnavailableSlot[]>([])
-  const defaultStartDateKey = useMemo(() => getDefaultForm().dateStart, [])
 
   const selectedBuilding = useMemo(
     () => buildings.find((b) => b.id === form.buildingId),
@@ -249,14 +229,19 @@ export function WalkInBookingModal({
     [rooms, form.roomId],
   )
 
-  const weekdayStartDateOptions = useMemo(
-    () => buildDateOptions(defaultStartDateKey),
-    [defaultStartDateKey],
+  const selectedStartDate = useMemo(
+    () => dateKeyToLocalDate(form.dateStart),
+    [form.dateStart],
   )
 
-  const weekdayEndDateOptions = useMemo(
-    () => buildDateOptions(form.dateStart || defaultStartDateKey),
-    [defaultStartDateKey, form.dateStart],
+  const selectedEndDate = useMemo(
+    () => dateKeyToLocalDate(form.dateEnd),
+    [form.dateEnd],
+  )
+
+  const minSelectableDate = useMemo(
+    () => dateKeyToLocalDate(getNextWeekdayDateKey(new Date())),
+    [],
   )
 
   const unavailableSlotsEndDate = useMemo(() => {
@@ -400,6 +385,14 @@ export function WalkInBookingModal({
         [key]: value,
       }
     })
+  }
+
+  const handleDayPickerChange = (
+    key: 'dateStart' | 'dateEnd',
+    date?: Date,
+  ) => {
+    if (!date) return
+    handleDateFieldChange(key, localDateToDateKey(date))
   }
 
   const formatPhilippinePhone = (value: string): string => {
@@ -828,21 +821,17 @@ export function WalkInBookingModal({
                 <label className="text-sm font-medium text-slate-700 block mb-1.5">
                   Start Date <span className="text-rose-500">*</span>
                 </label>
-                <select
-                  value={form.dateStart}
-                  onChange={(e) => handleDateFieldChange('dateStart', e.target.value)}
-                  className={inputClass(errors.dateStart)}
-                >
-                  {weekdayStartDateOptions.map((option) => (
-                    <option
-                      key={`daily-start-${option.value}`}
-                      value={option.value}
-                      disabled={option.isWeekend}
-                    >
-                      {option.label}{option.isWeekend ? ' (Weekend)' : ''}
-                    </option>
-                  ))}
-                </select>
+                <div className="rounded-md border border-slate-300 p-2 bg-white">
+                  <DayPicker
+                    mode="single"
+                    selected={selectedStartDate}
+                    onSelect={(date) => handleDayPickerChange('dateStart', date)}
+                    disabled={[
+                      { dayOfWeek: [0, 6] },
+                      ...(minSelectableDate ? [{ before: minSelectableDate }] : []),
+                    ]}
+                  />
+                </div>
                 <ErrorMsg msg={errors.dateStart} />
                 <p className="mt-1 text-[11px] text-slate-500">
                   Saturdays and Sundays are not bookable.
@@ -852,21 +841,17 @@ export function WalkInBookingModal({
                 <label className="text-sm font-medium text-slate-700 block mb-1.5">
                   End Date <span className="text-rose-500">*</span>
                 </label>
-                <select
-                  value={form.dateEnd}
-                  onChange={(e) => handleDateFieldChange('dateEnd', e.target.value)}
-                  className={inputClass(errors.dateEnd)}
-                >
-                  {weekdayEndDateOptions.map((option) => (
-                    <option
-                      key={`daily-end-${option.value}`}
-                      value={option.value}
-                      disabled={option.isWeekend}
-                    >
-                      {option.label}{option.isWeekend ? ' (Weekend)' : ''}
-                    </option>
-                  ))}
-                </select>
+                <div className="rounded-md border border-slate-300 p-2 bg-white">
+                  <DayPicker
+                    mode="single"
+                    selected={selectedEndDate}
+                    onSelect={(date) => handleDayPickerChange('dateEnd', date)}
+                    disabled={[
+                      { dayOfWeek: [0, 6] },
+                      ...(selectedStartDate ? [{ before: selectedStartDate }] : []),
+                    ]}
+                  />
+                </div>
                 <ErrorMsg msg={errors.dateEnd} />
               </div>
               <div>
@@ -934,21 +919,17 @@ export function WalkInBookingModal({
                 <label className="text-sm font-medium text-slate-700 block mb-1.5">
                   Date <span className="text-rose-500">*</span>
                 </label>
-                <select
-                  value={form.dateStart}
-                  onChange={(e) => handleDateFieldChange('dateStart', e.target.value)}
-                  className={inputClass(errors.dateStart)}
-                >
-                  {weekdayStartDateOptions.map((option) => (
-                    <option
-                      key={`hourly-date-${option.value}`}
-                      value={option.value}
-                      disabled={option.isWeekend}
-                    >
-                      {option.label}{option.isWeekend ? ' (Weekend)' : ''}
-                    </option>
-                  ))}
-                </select>
+                <div className="rounded-md border border-slate-300 p-2 bg-white">
+                  <DayPicker
+                    mode="single"
+                    selected={selectedStartDate}
+                    onSelect={(date) => handleDayPickerChange('dateStart', date)}
+                    disabled={[
+                      { dayOfWeek: [0, 6] },
+                      ...(minSelectableDate ? [{ before: minSelectableDate }] : []),
+                    ]}
+                  />
+                </div>
                 <ErrorMsg msg={errors.dateStart} />
                 <p className="mt-1 text-[11px] text-slate-500">
                   Saturdays and Sundays are not bookable.
