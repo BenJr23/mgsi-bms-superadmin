@@ -85,9 +85,24 @@ const TIME_OPTIONS = Array.from({ length: 10 }, (_, index) => {
   }
 })
 
+const MANILA_WEEKEND_DAYS = new Set([0, 6])
+const HOLIDAY_DATE_KEYS = new Set(
+  (process.env.NEXT_PUBLIC_BOOKING_HOLIDAY_DATES ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value)),
+)
+
 const dateKeyToOrdinal = (dateKey: string): number => {
   const [year, month, day] = dateKey.split('-').map(Number)
   return Math.floor(Date.UTC(year, month - 1, day) / 86400000)
+}
+
+const isWeekendDateKey = (dateKey: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return false
+  const [year, month, day] = dateKey.split('-').map(Number)
+  const dayOfWeek = new Date(Date.UTC(year, month - 1, day, 12, 0, 0)).getUTCDay()
+  return MANILA_WEEKEND_DAYS.has(dayOfWeek)
 }
 
 const ordinalToDateKey = (ordinal: number): string => {
@@ -115,6 +130,29 @@ const formatDateKeyLabel = (dateKey: string): string => {
     day: 'numeric',
     year: 'numeric',
   })
+}
+
+const getBlockedBookingDate = (
+  startDateKey: string,
+  endDateKey: string,
+): { dateKey: string; reason: 'weekend' | 'holiday' } | null => {
+  if (!startDateKey || !endDateKey) return null
+
+  const startOrdinal = dateKeyToOrdinal(startDateKey)
+  const endOrdinal = dateKeyToOrdinal(endDateKey)
+  if (!Number.isFinite(startOrdinal) || !Number.isFinite(endOrdinal)) return null
+
+  for (let day = startOrdinal; day <= endOrdinal; day += 1) {
+    const dateKey = ordinalToDateKey(day)
+    if (isWeekendDateKey(dateKey)) {
+      return { dateKey, reason: 'weekend' }
+    }
+    if (HOLIDAY_DATE_KEYS.has(dateKey)) {
+      return { dateKey, reason: 'holiday' }
+    }
+  }
+
+  return null
 }
 
 const getDefaultForm = (): WalkInFormData => {
@@ -337,6 +375,16 @@ export function WalkInBookingModal({
     if (!form.timeEnd) e.timeEnd = 'End time is required.'
     if (form.timeStart && form.timeEnd && form.timeStart >= form.timeEnd)
       e.timeEnd = 'End time must be after start time.'
+
+    if (form.dateStart && !e.dateStart && !e.dateEnd) {
+      const dateEndForPolicy =
+        form.bookingType === 'DAILY' ? form.dateEnd || form.dateStart : form.dateStart
+      const blockedDate = getBlockedBookingDate(form.dateStart, dateEndForPolicy)
+      if (blockedDate) {
+        const reason = blockedDate.reason === 'weekend' ? 'weekends' : 'holidays'
+        e.dateStart = `Booking creation is not allowed on ${reason} (${blockedDate.dateKey}).`
+      }
+    }
 
     const startMinutes = timeToMinutes(form.timeStart)
     const endMinutes = timeToMinutes(form.timeEnd)
@@ -717,6 +765,9 @@ export function WalkInBookingModal({
                   className={inputClass(errors.dateStart)}
                 />
                 <ErrorMsg msg={errors.dateStart} />
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Weekends and configured holidays are not bookable.
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-slate-700 block mb-1.5">
@@ -804,6 +855,9 @@ export function WalkInBookingModal({
                   className={inputClass(errors.dateStart)}
                 />
                 <ErrorMsg msg={errors.dateStart} />
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Weekends and configured holidays are not bookable.
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-slate-700 block mb-1.5">

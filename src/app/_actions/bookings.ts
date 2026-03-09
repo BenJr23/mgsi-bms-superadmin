@@ -315,6 +315,14 @@ const MANILA_AMPM_TIME_FORMATTER = new Intl.DateTimeFormat('en-US', {
     hour12: true,
 })
 
+const MANILA_WEEKEND_DAYS = new Set([0, 6])
+const BOOKING_HOLIDAY_DATES = new Set(
+    (process.env.BOOKING_HOLIDAY_DATES ?? process.env.NEXT_PUBLIC_BOOKING_HOLIDAY_DATES ?? '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value))
+)
+
 function parseDateKey(dateKey: string): { year: number; month: number; day: number } | null {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
         return null
@@ -351,6 +359,31 @@ function formatDailyWallClockLabel(date: Date): string {
 
 function ordinalToDateKey(ordinal: number): string {
     return toManilaDateKey(new Date(ordinal * 86400000))
+}
+
+function isWeekendDateKey(dateKey: string): boolean {
+    const parsed = parseDateKey(dateKey)
+    if (!parsed) return false
+
+    const dayOfWeek = new Date(Date.UTC(parsed.year, parsed.month - 1, parsed.day, 12, 0, 0)).getUTCDay()
+    return MANILA_WEEKEND_DAYS.has(dayOfWeek)
+}
+
+function getBlockedBookingDate(startDate: Date, endDate: Date): { dateKey: string; reason: 'weekend' | 'holiday' } | null {
+    const startOrdinal = dateKeyToOrdinal(toManilaDateKey(startDate))
+    const endOrdinal = dateKeyToOrdinal(toManilaDateKey(endDate))
+
+    for (let ordinal = startOrdinal; ordinal <= endOrdinal; ordinal += 1) {
+        const dateKey = ordinalToDateKey(ordinal)
+        if (isWeekendDateKey(dateKey)) {
+            return { dateKey, reason: 'weekend' }
+        }
+        if (BOOKING_HOLIDAY_DATES.has(dateKey)) {
+            return { dateKey, reason: 'holiday' }
+        }
+    }
+
+    return null
 }
 
 function getBookingSlotsForDateRange(
@@ -795,6 +828,15 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
 
         if (bookingType !== 'HOURLY' && bookingType !== 'DAILY') {
             return { success: false, error: 'Invalid booking type.' }
+        }
+
+        const blockedDate = getBlockedBookingDate(startDate, endDate)
+        if (blockedDate) {
+            const label = blockedDate.reason === 'weekend' ? 'weekends' : 'holidays'
+            return {
+                success: false,
+                error: `Booking creation is not allowed on ${label}. Blocked date: ${blockedDate.dateKey}.`,
+            }
         }
 
         if (bookingType === 'DAILY') {
