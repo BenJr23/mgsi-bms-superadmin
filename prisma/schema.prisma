@@ -19,7 +19,7 @@ model User {
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
   role              UserRole    @default(CLIENT)
-  companyName       String?
+  companyId         String?
   phoneNumber       String?
   contractEndDate   DateTime?
   createdById       String?
@@ -31,10 +31,26 @@ model User {
   rejectedBookings  Rejection[]
   createdRooms      Room[]
   sessions          Session[]
+  company           Company?    @relation(fields: [companyId], references: [id])
   createdBy         User?       @relation("UserCreator", fields: [createdById], references: [id])
   createdUsers      User[]      @relation("UserCreator")
 
+  @@index([companyId])
   @@map("users")
+}
+
+model Company {
+  id                 String    @id @default(uuid())
+  name               String    @unique
+  allottedCreditHours Float    @default(0)
+  usedCreditHours    Float     @default(0)
+  deletedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  users              User[]
+  bookings           Booking[]
+
+  @@map("companies")
 }
 
 model Session {
@@ -140,8 +156,10 @@ model Booking {
   cancellationDeadline DateTime?
   message              String?
   attendeeCount        Int?
+  creditHoursUsed      Float          @default(0)
   buildingId           String
   roomId               String
+  companyId            String?
   submittedById        String
   updatedById          String?
   isActive             Boolean        @default(true)
@@ -150,12 +168,14 @@ model Booking {
   updatedAt            DateTime       @updatedAt
   building             Building       @relation(fields: [buildingId], references: [id])
   room                 Room           @relation(fields: [roomId], references: [id])
+  company              Company?       @relation(fields: [companyId], references: [id])
   submittedBy          User           @relation("SubmittedBookings", fields: [submittedById], references: [id])
   updatedBy            User?          @relation("UpdatedBookings", fields: [updatedById], references: [id])
   rejections           Rejection[]
 
   @@index([roomId, startDate, endDate])
   @@index([buildingId])
+  @@index([companyId])
   @@index([approvalStatus])
   @@map("bookings")
 }
