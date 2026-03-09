@@ -105,7 +105,7 @@ export async function getCompanies(): Promise<GetCompaniesResult> {
             const pendingBookings = company.bookings.filter((b) => b.approvalStatus === 'PENDING')
             const rejectedBookings = company.bookings.filter((b) => b.approvalStatus === 'REJECTED')
 
-            const totalCreditHoursUsed = approvedBookings.reduce((sum, b) => sum + b.creditHoursUsed, 0)
+            const totalCreditHoursUsed = company.usedCreditHours
             const remainingCreditHours = company.allottedCreditHours - totalCreditHoursUsed
             const utilizationPercentage = company.allottedCreditHours > 0
                 ? Math.round((totalCreditHoursUsed / company.allottedCreditHours) * 100)
@@ -185,7 +185,7 @@ export async function getCompanyDetails(companyId: string): Promise<GetCompanyDe
         const pendingBookings = company.bookings.filter((b) => b.approvalStatus === 'PENDING')
         const rejectedBookings = company.bookings.filter((b) => b.approvalStatus === 'REJECTED')
 
-        const totalCreditHoursUsed = approvedBookings.reduce((sum, b) => sum + b.creditHoursUsed, 0)
+        const totalCreditHoursUsed = company.usedCreditHours
         const remainingCreditHours = company.allottedCreditHours - totalCreditHoursUsed
         const utilizationPercentage = company.allottedCreditHours > 0
             ? Math.round((totalCreditHoursUsed / company.allottedCreditHours) * 100)
@@ -448,7 +448,7 @@ export async function updateCompany(input: UpdateCompanyInput): Promise<UpdateCo
         const pendingBookings = updatedCompany.bookings.filter((b) => b.approvalStatus === 'PENDING')
         const rejectedBookings = updatedCompany.bookings.filter((b) => b.approvalStatus === 'REJECTED')
 
-        const totalCreditHoursUsed = approvedBookings.reduce((sum, b) => sum + b.creditHoursUsed, 0)
+        const totalCreditHoursUsed = updatedCompany.usedCreditHours
         const remainingCreditHours = updatedCompany.allottedCreditHours - totalCreditHoursUsed
         const utilizationPercentage = updatedCompany.allottedCreditHours > 0
             ? Math.round((totalCreditHoursUsed / updatedCompany.allottedCreditHours) * 100)
