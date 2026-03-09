@@ -2,6 +2,7 @@
 
 import { getServerSession } from '@/lib/get-server'
 import { prisma } from '@/lib/prisma'
+import { redis } from '@/lib/redist'
 
 export type DashboardStats = {
   pendingBookings: number
@@ -26,6 +27,14 @@ export type TodayLocationCount = {
   total: number
 }
 
+export type DashboardPeriod = 'weekly' | 'monthly'
+
+export type DashboardAnalyticsPoint = {
+  name: string
+  bookings: number
+  occupancy: number
+}
+
 interface GetDashboardStatsResult {
   success: boolean
   data?: DashboardStats
@@ -41,6 +50,12 @@ interface GetRecentBookingsResult {
 interface GetTodayBookingsPerLocationResult {
   success: boolean
   data?: TodayLocationCount[]
+  error?: string
+}
+
+interface GetBookingAnalyticsResult {
+  success: boolean
+  data?: DashboardAnalyticsPoint[]
   error?: string
 }
 
@@ -101,11 +116,64 @@ function clampRange(start: number, end: number, clampStart: number, clampEnd: nu
   return effectiveStart < effectiveEnd ? [effectiveStart, effectiveEnd] : null
 }
 
+function toOrdinalDateBounds(startOrdinal: number, endOrdinal: number): { startDate: Date; endDate: Date } {
+  return {
+    startDate: new Date(startOrdinal * 86400000),
+    endDate: new Date((endOrdinal + 1) * 86400000 - 1),
+  }
+}
+
+function getDayNameFromOrdinal(ordinal: number): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Manila',
+    weekday: 'short',
+  }).format(new Date(ordinal * 86400000))
+}
+
+const DASHBOARD_CACHE_VERSION = 3
+const DASHBOARD_CACHE_VERSION_KEY = 'dashboard:cache:version'
+
+async function getDashboardCacheVersion(): Promise<number> {
+  if (!redis) return 0
+  try {
+    const version = await redis.get<number>(DASHBOARD_CACHE_VERSION_KEY)
+    return typeof version === 'number' && Number.isFinite(version) ? version : 0
+  } catch (error) {
+    console.error('Get dashboard cache version error:', error)
+    return 0
+  }
+}
+
+export async function invalidateDashboardCache(): Promise<void> {
+  if (!redis) return
+  try {
+    await redis.incr(DASHBOARD_CACHE_VERSION_KEY)
+  } catch (error) {
+    console.error('Invalidate dashboard cache error:', error)
+  }
+}
+
+function getCacheContextKey(dateKey: string, runtimeVersion: number): string {
+  return `v${DASHBOARD_CACHE_VERSION}.${runtimeVersion}:${dateKey}`
+}
+
 // ---------------------- GET DASHBOARD STATS ----------------------
 export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
   try {
     const session = await getServerSession()
     if (!session?.user?.id) return { success: false, error: 'Not authenticated.' }
+
+    const todayKey = toManilaDateKey(new Date())
+    const runtimeVersion = await getDashboardCacheVersion()
+    const cacheKey = `dashboard:stats:${getCacheContextKey(todayKey, runtimeVersion)}`
+    if (redis) {
+      try {
+        const cached = await redis.get<GetDashboardStatsResult>(cacheKey)
+        if (cached) return cached
+      } catch (error) {
+        console.error('Get dashboard stats cache read error:', error)
+      }
+    }
 
     const pendingCount = await prisma.booking.count({
       where: { approvalStatus: 'PENDING', isActive: true, deletedAt: null },
@@ -213,7 +281,7 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
     const rawOccupancyRate = totalAvailableHours > 0 ? (totalBookedHours / totalAvailableHours) * 100 : 0
     const occupancyRate = parseFloat(rawOccupancyRate.toFixed(2))
 
-    return {
+    const result: GetDashboardStatsResult = {
       success: true,
       data: {
         pendingBookings: pendingCount,
@@ -223,6 +291,16 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
         occupancyWindowLabel,
       },
     }
+
+    if (redis) {
+      try {
+        await redis.set(cacheKey, result, { ex: 60 })
+      } catch (error) {
+        console.error('Get dashboard stats cache write error:', error)
+      }
+    }
+
+    return result
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to fetch dashboard stats.'
     console.error('Get dashboard stats error:', message)
@@ -235,6 +313,18 @@ export async function getRecentBookings(): Promise<GetRecentBookingsResult> {
   try {
     const session = await getServerSession()
     if (!session?.user?.id) return { success: false, error: 'Not authenticated.' }
+
+    const todayKey = toManilaDateKey(new Date())
+    const runtimeVersion = await getDashboardCacheVersion()
+    const cacheKey = `dashboard:recent:${getCacheContextKey(todayKey, runtimeVersion)}`
+    if (redis) {
+      try {
+        const cached = await redis.get<GetRecentBookingsResult>(cacheKey)
+        if (cached) return cached
+      } catch (error) {
+        console.error('Get recent bookings cache read error:', error)
+      }
+    }
 
     const bookings = await prisma.booking.findMany({
       where: { isActive: true, deletedAt: null },
@@ -256,7 +346,17 @@ export async function getRecentBookings(): Promise<GetRecentBookingsResult> {
       approvalStatus: booking.approvalStatus,
     }))
 
-    return { success: true, data: formatted }
+    const result: GetRecentBookingsResult = { success: true, data: formatted }
+
+    if (redis) {
+      try {
+        await redis.set(cacheKey, result, { ex: 60 })
+      } catch (error) {
+        console.error('Get recent bookings cache write error:', error)
+      }
+    }
+
+    return result
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to fetch recent bookings.'
     console.error('Get recent bookings error:', message)
@@ -273,9 +373,20 @@ export async function getTodayBookingsPerLocation(): Promise<GetTodayBookingsPer
     const now = new Date()
     const todayParts = MANILA_DATE_FORMATTER.formatToParts(now)
     const todayKey = `${todayParts.find(p => p.type==='year')?.value}-${todayParts.find(p => p.type==='month')?.value}-${todayParts.find(p => p.type==='day')?.value}`
+    const runtimeVersion = await getDashboardCacheVersion()
+    const cacheKey = `dashboard:today-by-location:${getCacheContextKey(todayKey, runtimeVersion)}`
 
-    const todayStart = new Date(todayKey)
-    const todayEnd = new Date(todayStart.getTime() + 24*60*60*1000 - 1)
+    if (redis) {
+      try {
+        const cached = await redis.get<GetTodayBookingsPerLocationResult>(cacheKey)
+        if (cached) return cached
+      } catch (error) {
+        console.error('Get today bookings per location cache read error:', error)
+      }
+    }
+
+    const todayStart = new Date(`${todayKey}T00:00:00+08:00`)
+    const todayEnd = new Date(`${todayKey}T23:59:59.999+08:00`)
 
     const bookings = await prisma.booking.findMany({
       where: {
@@ -283,7 +394,7 @@ export async function getTodayBookingsPerLocation(): Promise<GetTodayBookingsPer
         deletedAt: null,
         startDate: { lte: todayEnd },
         endDate: { gte: todayStart },
-        room: { deletedAt: null, building: { deletedAt: null } }
+        room: { deletedAt: null, building: { status: 'ACTIVE', deletedAt: null } }
       },
       select: {
         room: { select: { building: { select: { buildingName: true } } } }
@@ -297,10 +408,143 @@ export async function getTodayBookingsPerLocation(): Promise<GetTodayBookingsPer
     }
 
     const data = Object.entries(locationMap).map(([location, total]) => ({ location: location as 'GW1'|'GW2'|'GW3'|'GW4', total }))
-    return { success: true, data }
+    const result: GetTodayBookingsPerLocationResult = { success: true, data }
+
+    if (redis) {
+      try {
+        await redis.set(cacheKey, result, { ex: 60 })
+      } catch (error) {
+        console.error('Get today bookings per location cache write error:', error)
+      }
+    }
+
+    return result
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to fetch today bookings.'
     console.error('Get today bookings error:', message)
+    return { success: false, error: message }
+  }
+}
+
+export async function getBookingAnalytics(period: DashboardPeriod): Promise<GetBookingAnalyticsResult> {
+  try {
+    const session = await getServerSession()
+    if (!session?.user?.id) return { success: false, error: 'Not authenticated.' }
+
+    const todayKey = toManilaDateKey(new Date())
+    const runtimeVersion = await getDashboardCacheVersion()
+    const cacheKey = `dashboard:analytics:${period}:${getCacheContextKey(todayKey, runtimeVersion)}`
+
+    if (redis) {
+      try {
+        const cached = await redis.get<GetBookingAnalyticsResult>(cacheKey)
+        if (cached) return cached
+      } catch (error) {
+        console.error('Get booking analytics cache read error:', error)
+      }
+    }
+
+    const activeRoomsCount = await prisma.room.count({
+      where: { deletedAt: null, building: { status: 'ACTIVE', deletedAt: null } },
+    })
+
+    const todayOrdinal = dateKeyToOrdinal(todayKey)
+    let rangeStartOrdinal = todayOrdinal
+    let rangeEndOrdinal = todayOrdinal
+    let labels: string[] = []
+
+    if (period === 'weekly') {
+      const weekday = ordinalToWeekday(todayOrdinal)
+      const mondayOffset = weekday === 0 ? 6 : weekday - 1
+      rangeStartOrdinal = todayOrdinal - mondayOffset
+      rangeEndOrdinal = rangeStartOrdinal + 4
+      labels = Array.from({ length: 5 }, (_, index) => getDayNameFromOrdinal(rangeStartOrdinal + index))
+    } else {
+      const [year, month] = todayKey.split('-').map(Number)
+      rangeStartOrdinal = Math.floor(Date.UTC(year, month - 1, 1) / 86400000)
+      rangeEndOrdinal = Math.floor(Date.UTC(year, month, 0) / 86400000)
+      const dayCount = rangeEndOrdinal - rangeStartOrdinal + 1
+      const weekBucketCount = Math.ceil(dayCount / 7)
+      labels = Array.from({ length: weekBucketCount }, (_, index) => `Week ${index + 1}`)
+    }
+
+    const { startDate, endDate } = toOrdinalDateBounds(rangeStartOrdinal, rangeEndOrdinal)
+
+    const bookings = await prisma.booking.findMany({
+      where: {
+        isActive: true,
+        deletedAt: null,
+        approvalDate: { gte: startDate, lte: endDate },
+        room: { deletedAt: null, building: { status: 'ACTIVE', deletedAt: null } },
+      },
+      select: {
+        roomId: true,
+        approvalDate: true,
+      },
+    })
+
+    const bookingCountByBucket = new Map<number, number>()
+    const occupiedRoomDaysByBucket = new Map<number, Set<string>>()
+    const dayCountByBucket = new Map<number, Set<number>>()
+
+    const resolveBucketIndex = (dayOrdinal: number): number => {
+      if (period === 'weekly') {
+        return dayOrdinal - rangeStartOrdinal
+      }
+
+      const dayOfMonth = Number(toManilaDateKey(new Date(dayOrdinal * 86400000)).split('-')[2])
+      return Math.floor((dayOfMonth - 1) / 7)
+    }
+
+    for (const booking of bookings) {
+      if (!booking.approvalDate) continue
+
+      const approvalOrdinal = dateKeyToOrdinal(toManilaDateKey(booking.approvalDate))
+      if (approvalOrdinal < rangeStartOrdinal || approvalOrdinal > rangeEndOrdinal) continue
+
+      const dayOfWeek = ordinalToWeekday(approvalOrdinal)
+      if (dayOfWeek === 0 || dayOfWeek === 6) continue
+
+      const bucketIndex = resolveBucketIndex(approvalOrdinal)
+      bookingCountByBucket.set(bucketIndex, (bookingCountByBucket.get(bucketIndex) ?? 0) + 1)
+
+      const occupiedRoomDays = occupiedRoomDaysByBucket.get(bucketIndex) ?? new Set<string>()
+      occupiedRoomDays.add(`${booking.roomId}:${approvalOrdinal}`)
+      occupiedRoomDaysByBucket.set(bucketIndex, occupiedRoomDays)
+
+      const bucketDays = dayCountByBucket.get(bucketIndex) ?? new Set<number>()
+      bucketDays.add(approvalOrdinal)
+      dayCountByBucket.set(bucketIndex, bucketDays)
+    }
+
+    const data: DashboardAnalyticsPoint[] = labels.map((name, index) => {
+      const bookingsCount = bookingCountByBucket.get(index) ?? 0
+      const occupiedRoomDays = occupiedRoomDaysByBucket.get(index)?.size ?? 0
+      const activeDaysInBucket = dayCountByBucket.get(index)?.size ?? (period === 'weekly' ? 1 : 7)
+      const availableRoomDays = Math.max(1, activeRoomsCount * activeDaysInBucket)
+      const occupancy = Number(((occupiedRoomDays / availableRoomDays) * 100).toFixed(2))
+
+      return {
+        name,
+        bookings: bookingsCount,
+        occupancy,
+      }
+    })
+
+    const result: GetBookingAnalyticsResult = { success: true, data }
+
+    if (redis) {
+      try {
+        await redis.set(cacheKey, result, { ex: 300 })
+      } catch (error) {
+        console.error('Get booking analytics cache write error:', error)
+      }
+    }
+
+    return result
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch booking analytics.'
+    console.error('Get booking analytics error:', message)
     return { success: false, error: message }
   }
 }
