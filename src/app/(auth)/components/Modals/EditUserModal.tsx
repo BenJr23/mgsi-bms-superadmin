@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Button } from '../ui/Button'
 import { updateUser } from '@/app/_actions/users'
+import { getCompanies } from '@/app/_actions/companies'
 import { Modal } from './AddUserModal'
 import {
 	User,
@@ -15,13 +16,15 @@ import {
 	ImageIcon,
 } from 'lucide-react'
 
+import type { CompanyStats } from '@/app/_actions/companies'
+
 type UserRole = 'CLIENT' | 'ADMIN' | 'SUPERADMIN'
 
 interface UserFormData {
 	name: string
 	email: string
 	role: UserRole
-	companyName: string
+	companyId: string
 	phoneNumber: string
 	contractEndDate: string
 	image: string
@@ -32,7 +35,7 @@ export interface EditableUser {
 	name: string
 	email: string
 	role: UserRole
-	companyName: string | null
+	company: { id: string; name: string } | null
 	phoneNumber: string | null
 	contractEndDate: string | null
 	image: string | null
@@ -102,7 +105,7 @@ export function EditUserModal({ isOpen, onClose, onSuccess, user }: EditUserModa
 				name: '',
 				email: '',
 				role: 'CLIENT',
-				companyName: '',
+				companyId: '',
 				phoneNumber: '',
 				contractEndDate: '',
 				image: '',
@@ -113,7 +116,7 @@ export function EditUserModal({ isOpen, onClose, onSuccess, user }: EditUserModa
 			name: user.name,
 			email: user.email,
 			role: user.role,
-			companyName: user.companyName ?? '',
+			companyId: user.company?.id ?? '',
 			phoneNumber: user.phoneNumber ? formatPhilippinePhone(user.phoneNumber) : '',
 			contractEndDate: user.contractEndDate ? user.contractEndDate.slice(0, 10) : '',
 			image: user.image ?? '',
@@ -125,6 +128,27 @@ export function EditUserModal({ isOpen, onClose, onSuccess, user }: EditUserModa
 	const [isSubmitting, setIsSubmitting] = useState(false)
 	const [submitError, setSubmitError] = useState('')
 	const [submitSuccess, setSubmitSuccess] = useState('')
+	const [companies, setCompanies] = useState<CompanyStats[]>([])
+	const [loadingCompanies, setLoadingCompanies] = useState(false)
+
+	useEffect(() => {
+		const fetchCompanies = async () => {
+			if (!isOpen) return
+			setLoadingCompanies(true)
+			try {
+				const result = await getCompanies()
+				if (result.success && result.data) {
+					setCompanies(result.data)
+				}
+			} catch (error) {
+				console.error('Error fetching companies:', error)
+			} finally {
+				setLoadingCompanies(false)
+			}
+		}
+
+		fetchCompanies()
+	}, [isOpen])
 
 	useEffect(() => {
 		if (isOpen) {
@@ -145,7 +169,6 @@ export function EditUserModal({ isOpen, onClose, onSuccess, user }: EditUserModa
 		setForm((prev) => ({
 			...prev,
 			role,
-			companyName: role !== 'CLIENT' && !prev.companyName ? 'My GreatWork Spaces' : prev.companyName,
 			contractEndDate: role === 'CLIENT' ? prev.contractEndDate : '',
 		}))
 	}
@@ -185,7 +208,7 @@ export function EditUserModal({ isOpen, onClose, onSuccess, user }: EditUserModa
 				name: form.name,
 				email: form.email,
 				role: form.role,
-				companyName: form.companyName,
+				companyId: form.companyId || undefined,
 				phoneNumber: form.phoneNumber,
 				contractEndDate: form.role === 'CLIENT' ? form.contractEndDate : '',
 				image: form.image,
@@ -335,22 +358,31 @@ export function EditUserModal({ isOpen, onClose, onSuccess, user }: EditUserModa
 						</div>
 						<ErrorMsg msg={errors.email} />
 					</div>
-
-					<div>
-						<label className="text-sm font-medium text-slate-700 block mb-1.5">
-							Company Name
-						</label>
-						<div className="relative">
-							<Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-							<input
-								type="text"
-								value={form.companyName}
-								onChange={(e) => field('companyName', e.target.value)}
-								className={`${inputClass()} pl-9`}
-							/>
-						</div>
+				{/* Company */}
+				<div>
+					<label className="text-sm font-medium text-slate-700 block mb-1.5">
+						Company
+						{form.role === 'CLIENT' && <span className="text-rose-500">*</span>}
+					</label>
+					<div className="relative">
+						<Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+						<select
+							value={form.companyId}
+							onChange={(e) => field('companyId', e.target.value)}
+							disabled={loadingCompanies}
+							className={`${inputClass()} pl-9 appearance-none cursor-pointer`}
+						>
+							<option value="">
+								{loadingCompanies ? 'Loading companies...' : 'Select a company (optional)'}
+							</option>
+							{companies.map((company) => (
+								<option key={company.id} value={company.id}>
+									{company.name}
+								</option>
+							))}
+						</select>
 					</div>
-
+				</div>
 					{form.role === 'CLIENT' && (
 						<div>
 							<label className="text-sm font-medium text-slate-700 block mb-1.5">

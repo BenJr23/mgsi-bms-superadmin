@@ -22,6 +22,7 @@ function getPageTitle(pathname: string): string {
   if (pathname === '/calendar') return 'Calendar'
   if (pathname === '/reports') return 'Reports'
   if (pathname === '/users') return 'Users'
+  if (pathname === '/companies') return 'Companies'
   if (pathname === '/profile') return 'Profile'
   if (pathname === '/settings') return 'Settings'
   return 'Dashboard'

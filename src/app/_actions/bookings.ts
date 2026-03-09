@@ -557,7 +557,7 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
             isActive: true,
             deletedAt: null,
             ...(status && status !== 'ALL' ? { approvalStatus: status } : {}),
-            ...(companyId && { submittedBy: { companyName: { equals: companyId, mode: 'insensitive' } } }),
+            ...(companyId && { submittedBy: { companyId: { equals: companyId } } }),
             ...(buildingId && { buildingId: { equals: buildingId } }),
             ...(roomId && { roomId: { equals: roomId } }),
             ...(query
@@ -594,7 +594,7 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
                     attendeeCount: true,
                     building: { select: { buildingName: true } },
                     room: { select: { roomName: true } },
-                    submittedBy: { select: { name: true, email: true, companyName: true } },
+                    submittedBy: { select: { name: true, email: true, company: { select: { name: true } } } },
                     updatedBy: { select: { id: true, name: true } },
                 },
                 orderBy: { createdAt: 'desc' },
@@ -638,7 +638,7 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
                 submittedBy: {
                     name: booking.submittedBy.name,
                     email: booking.submittedBy.email,
-                    companyName: booking.submittedBy.companyName,
+                    companyName: booking.submittedBy.company?.name || null,
                 },
                 updatedBy: booking.updatedBy ? { id: booking.updatedBy.id, name: booking.updatedBy.name } : null,
                 _display: {
@@ -948,7 +948,6 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
                     email: email.toLowerCase().trim(),
                     name: name.trim(),
                     phoneNumber: phoneNumber?.trim() || null,
-                    companyName: companyName?.trim() || null,
                     emailVerified: false, // Walk-in clients have unverified emails by default
                 },
                 select: { id: true, name: true, email: true, emailVerified: true }
@@ -957,17 +956,12 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
             const userUpdateData: {
                 name: string
                 phoneNumber?: string | null
-                companyName?: string | null
             } = {
                 name: name.trim(),
             }
 
             if (typeof phoneNumber === 'string') {
                 userUpdateData.phoneNumber = phoneNumber.trim() || null
-            }
-
-            if (typeof companyName === 'string') {
-                userUpdateData.companyName = companyName.trim() || null
             }
 
             await prisma.user.update({

@@ -16,7 +16,7 @@ interface UserRow {
   name: string
   email: string
   role: 'CLIENT' | 'ADMIN' | 'SUPERADMIN'
-  companyName: string | null
+  company: { id: string; name: string } | null
   phoneNumber: string | null
   contractEndDate: string | null
   image: string | null

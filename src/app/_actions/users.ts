@@ -11,8 +11,8 @@ interface CreateUserInput {
   name: string
   email: string
   role: 'CLIENT' | 'ADMIN' | 'SUPERADMIN'
-  companyName: string
-  phoneNumber: string
+  companyId?: string
+  phoneNumber?: string
   contractEndDate?: string
   image?: string
 }
@@ -40,7 +40,7 @@ interface ListUsersResult {
       name: string
       email: string
       role: 'CLIENT' | 'ADMIN' | 'SUPERADMIN'
-      companyName: string | null
+      company: { id: string; name: string } | null
       phoneNumber: string | null
       contractEndDate: string | null
       image: string | null
@@ -61,8 +61,8 @@ interface UpdateUserInput {
   name: string
   email: string
   role: 'CLIENT' | 'ADMIN' | 'SUPERADMIN'
-  companyName: string
-  phoneNumber: string
+  companyId?: string
+  phoneNumber?: string
   contractEndDate?: string
   image?: string
 }
@@ -141,7 +141,7 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserResu
         image: input.image || null,
         phoneNumber: input.phoneNumber || null,
         contractEndDate: input.contractEndDate ? new Date(input.contractEndDate) : null,
-        companyName: input.companyName || null,
+        companyId: input.companyId || null,
       },
     })
 
@@ -262,7 +262,7 @@ export async function getUsers(input: GetUsersInput = {}): Promise<ListUsersResu
           name: true,
           email: true,
           role: true,
-          companyName: true,
+          company: { select: { id: true, name: true } },
           phoneNumber: true,
           contractEndDate: true,
           image: true,
@@ -284,7 +284,7 @@ export async function getUsers(input: GetUsersInput = {}): Promise<ListUsersResu
           name: user.name,
           email: user.email,
           role: user.role,
-          companyName: user.companyName,
+          company: user.company,
           phoneNumber: user.phoneNumber,
           contractEndDate: user.contractEndDate ? user.contractEndDate.toISOString() : null,
           image: user.image,
@@ -362,7 +362,7 @@ export async function updateUser(input: UpdateUserInput): Promise<UpdateUserResu
           image: input.image || null,
           phoneNumber: input.phoneNumber || null,
           contractEndDate: input.contractEndDate ? new Date(input.contractEndDate) : null,
-          companyName: input.companyName || null,
+          companyId: input.companyId || null,
         },
       })
 

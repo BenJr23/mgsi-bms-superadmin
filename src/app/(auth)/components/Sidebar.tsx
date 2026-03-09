@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   CalendarCheck,
   Building2,
+  Briefcase,
   DoorOpen,
   Calendar,
   BarChart3,
@@ -71,6 +72,13 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
     label: 'Users',
     href: '/users',
     icon: Users,
+    roles: ['SUPERADMIN']
+  },
+  {
+    id: 'companies',
+    label: 'Companies',
+    href: '/companies',
+    icon: Briefcase,
     roles: ['SUPERADMIN']
   }
 ]

@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from '../ui/Button'
 import { createUser } from '@/app/_actions/users'
+import { getCompanies } from '@/app/_actions/companies'
 import { ReactivateUserModal } from './ReactivateUserModal'
 import {
   X,
@@ -13,6 +14,8 @@ import {
   AlertCircle,
   ImageIcon,
 } from 'lucide-react'
+
+import type { CompanyStats } from '@/app/_actions/companies'
 
 interface ModalProps {
   isOpen: boolean
@@ -99,7 +102,7 @@ interface UserFormData {
   name: string
   email: string
   role: UserRole
-  companyName: string
+  companyId: string
   phoneNumber: string
   contractEndDate: string
   image: string
@@ -108,7 +111,7 @@ const emptyForm: UserFormData = {
   name: '',
   email: '',
   role: 'CLIENT',
-  companyName: '',
+  companyId: '',
   phoneNumber: '',
   contractEndDate: '',
   image: '',
@@ -169,6 +172,27 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
   const [isReactivateModalOpen, setIsReactivateModalOpen] = useState(false)
   const [reactivateUserId, setReactivateUserId] = useState<string | undefined>()
   const [reactivateUserEmail, setReactivateUserEmail] = useState<string | undefined>()
+  const [companies, setCompanies] = useState<CompanyStats[]>([])
+  const [loadingCompanies, setLoadingCompanies] = useState(false)
+
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      if (!isOpen) return
+      setLoadingCompanies(true)
+      try {
+        const result = await getCompanies()
+        if (result.success && result.data) {
+          setCompanies(result.data)
+        }
+      } catch (error) {
+        console.error('Error fetching companies:', error)
+      } finally {
+        setLoadingCompanies(false)
+      }
+    }
+
+    fetchCompanies()
+  }, [isOpen])
 
   const formatPhilippinePhone = (value: string): string => {
     // Extract only digits
@@ -199,7 +223,6 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
     setForm((prev) => ({
       ...prev,
       role,
-      companyName: role !== 'CLIENT' ? 'My GreatWork Spaces' : '',
     }))
   }
   const validate = (): boolean => {
@@ -235,7 +258,7 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
         name: form.name,
         email: form.email,
         role: form.role,
-        companyName: form.companyName,
+        companyId: form.companyId || undefined,
         phoneNumber: form.phoneNumber,
         contractEndDate: form.contractEndDate,
         image: form.image,
@@ -429,20 +452,29 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
             <ErrorMsg msg={errors.email} />
           </div>
 
-          {/* Company Name */}
+          {/* Company */}
           <div>
             <label className="text-sm font-medium text-slate-700 block mb-1.5">
-              Company Name
+              Company
+              {form.role === 'CLIENT' && <span className="text-rose-500">*</span>}
             </label>
             <div className="relative">
               <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="e.g. Acme Corp"
-                value={form.companyName}
-                onChange={(e) => field('companyName', e.target.value)}
-                className={`${inputClass()} pl-9`}
-              />
+              <select
+                value={form.companyId}
+                onChange={(e) => field('companyId', e.target.value)}
+                disabled={loadingCompanies}
+                className={`${inputClass()} pl-9 appearance-none cursor-pointer`}
+              >
+                <option value="">
+                  {loadingCompanies ? 'Loading companies...' : 'Select a company (optional)'}
+                </option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
