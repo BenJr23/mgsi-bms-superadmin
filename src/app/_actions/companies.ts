@@ -326,6 +326,18 @@ interface CreateCompanyResult {
     error?: string
 }
 
+interface UpdateCompanyInput {
+    id: string
+    name: string
+    allottedCreditHours: number
+}
+
+interface UpdateCompanyResult {
+    success: boolean
+    data?: CompanyStats
+    error?: string
+}
+
 export async function createCompany(input: CreateCompanyInput): Promise<CreateCompanyResult> {
     try {
         const session = await getServerSession()
@@ -380,5 +392,90 @@ export async function createCompany(input: CreateCompanyInput): Promise<CreateCo
     } catch (error) {
         console.error('Create company error:', error)
         return { success: false, error: 'Failed to create company' }
+    }
+}
+
+export async function updateCompany(input: UpdateCompanyInput): Promise<UpdateCompanyResult> {
+    try {
+        const session = await getServerSession()
+        if (!session) {
+            return { success: false, error: 'Unauthorized' }
+        }
+
+        if (!input.id?.trim()) {
+            return { success: false, error: 'Company ID is required' }
+        }
+
+        if (!input.name?.trim()) {
+            return { success: false, error: 'Company name is required' }
+        }
+
+        if (input.allottedCreditHours < 0) {
+            return { success: false, error: 'Allotted credit hours cannot be negative' }
+        }
+
+        const existingCompany = await prisma.company.findFirst({
+            where: {
+                name: input.name.trim(),
+                deletedAt: null,
+                NOT: { id: input.id },
+            },
+            select: { id: true },
+        })
+
+        if (existingCompany) {
+            return { success: false, error: 'Company with this name already exists' }
+        }
+
+        const updatedCompany = await prisma.company.update({
+            where: { id: input.id },
+            data: {
+                name: input.name.trim(),
+                allottedCreditHours: input.allottedCreditHours,
+            },
+            include: {
+                bookings: {
+                    where: { deletedAt: null },
+                    select: {
+                        creditHoursUsed: true,
+                        approvalStatus: true,
+                    },
+                },
+            },
+        })
+
+        const approvedBookings = updatedCompany.bookings.filter((b) => b.approvalStatus === 'APPROVED')
+        const pendingBookings = updatedCompany.bookings.filter((b) => b.approvalStatus === 'PENDING')
+        const rejectedBookings = updatedCompany.bookings.filter((b) => b.approvalStatus === 'REJECTED')
+
+        const totalCreditHoursUsed = approvedBookings.reduce((sum, b) => sum + b.creditHoursUsed, 0)
+        const remainingCreditHours = updatedCompany.allottedCreditHours - totalCreditHoursUsed
+        const utilizationPercentage = updatedCompany.allottedCreditHours > 0
+            ? Math.round((totalCreditHoursUsed / updatedCompany.allottedCreditHours) * 100)
+            : 0
+
+        await invalidateCompaniesCache()
+        await invalidateCompanyDetailCache(updatedCompany.id)
+
+        return {
+            success: true,
+            data: {
+                id: updatedCompany.id,
+                name: updatedCompany.name,
+                allottedCreditHours: updatedCompany.allottedCreditHours,
+                usedCreditHours: totalCreditHoursUsed,
+                remainingCreditHours,
+                utilizationPercentage,
+                approvedBookingsCount: approvedBookings.length,
+                pendingBookingsCount: pendingBookings.length,
+                rejectedBookingsCount: rejectedBookings.length,
+                totalBookingsCount: updatedCompany.bookings.length,
+                createdAt: updatedCompany.createdAt.toISOString(),
+                updatedAt: updatedCompany.updatedAt.toISOString(),
+            },
+        }
+    } catch (error) {
+        console.error('Update company error:', error)
+        return { success: false, error: 'Failed to update company' }
     }
 }

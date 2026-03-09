@@ -8,6 +8,7 @@ import { Building2, AlertTriangle, Zap, Plus } from 'lucide-react'
 import { getCompanies, getCompanyUtilizationReport } from '@/app/_actions/companies'
 import type { CompanyStats } from '@/app/_actions/companies'
 import { AddCompanyModal } from './Modals/AddCompanyModal'
+import { EditCompanyModal } from './Modals/EditCompanyModal'
 
 export function CompaniesView() {
   const [companies, setCompanies] = useState<CompanyStats[]>([])
@@ -15,6 +16,8 @@ export function CompaniesView() {
   const [error, setError] = useState<string | null>(null)
   const [report, setReport] = useState<any>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [selectedCompany, setSelectedCompany] = useState<CompanyStats | null>(null)
 
   const fetchData = async () => {
     try {
@@ -44,6 +47,16 @@ export function CompaniesView() {
   useEffect(() => {
     fetchData()
   }, [])
+
+  const openEditModal = (company: CompanyStats) => {
+    setSelectedCompany(company)
+    setIsEditModalOpen(true)
+  }
+
+  const closeEditModal = () => {
+    setSelectedCompany(null)
+    setIsEditModalOpen(false)
+  }
 
   if (loading) {
     return (
@@ -183,6 +196,15 @@ export function CompaniesView() {
                         {isNearLimit && <Badge variant="warning" className="text-xs flex-shrink-0">Near</Badge>}
                       </div>
                     </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openEditModal(company)}
+                      className="text-xs"
+                    >
+                      Edit
+                    </Button>
                   </div>
 
                   {/* Progress Bar */}
@@ -222,6 +244,16 @@ export function CompaniesView() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSuccess={fetchData}
+      />
+      <EditCompanyModal
+        isOpen={isEditModalOpen}
+        onClose={closeEditModal}
+        onSuccess={fetchData}
+        company={selectedCompany ? {
+          id: selectedCompany.id,
+          name: selectedCompany.name,
+          allottedCreditHours: selectedCompany.allottedCreditHours,
+        } : null}
       />
     </div>
   )
