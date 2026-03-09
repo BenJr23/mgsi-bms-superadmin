@@ -10,7 +10,7 @@ export const auth = betterAuth({
     user: {
         additionalFields: {
             role: { type: "string" },
-            companyName: { type: "string" },
+            companyId: { type: "string" },
             phoneNumber: { type: "string" },
             passwordVerified: { type: "boolean" },
         }

@@ -55,7 +55,7 @@ export async function getCurrentSessionAction() {
             email: session.user.email,
             name: (session.user as { name?: string | null }).name ?? null,
             role: (session.user as { role?: string | null }).role ?? null,
-            companyName: (session.user as { companyName?: string | null }).companyName ?? null,
+            companyId: (session.user as { companyId?: string | null }).companyId ?? null,
             image: (session.user as { image?: string | null }).image ?? null,
         },
     };
@@ -416,7 +416,12 @@ export async function getCurrentUser() {
                 email: true,
                 name: true,
                 role: true,
-                companyName: true,
+                company: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
                 passwordVerified: true,
             },
         });
@@ -469,7 +474,7 @@ export async function getProfilePageDataCached() {
                     role: true,
                     image: true,
                     phoneNumber: true,
-                    companyName: true,
+                    company: { select: { name: true } },
                     createdAt: true,
                 },
             }),
@@ -491,7 +496,7 @@ export async function getProfilePageDataCached() {
             role: profile.role === 'SUPERADMIN' ? 'SUPERADMIN' as const : 'ADMIN' as const,
             image: profile.image,
             phoneNumber: profile.phoneNumber ?? '',
-            companyName: profile.companyName ?? '',
+            companyName: profile.company?.name ?? '',
             createdAt: profile.createdAt?.toISOString() ?? null,
             lastLogin: latestSession?.createdAt?.toISOString() ?? null,
         };
@@ -537,7 +542,7 @@ export async function getLastLogin() {
     }
 }
 
-export async function updateUserProfile(data: { name: string; phoneNumber: string; companyName?: string; email?: string }) {
+export async function updateUserProfile(data: { name: string; phoneNumber: string; companyId?: string; email?: string }) {
     try {
         const user = await requireAuth();
 
@@ -594,14 +599,19 @@ export async function updateUserProfile(data: { name: string; phoneNumber: strin
             data: {
                 name: data.name.trim(),
                 phoneNumber: data.phoneNumber.trim(),
-                ...(data.companyName !== undefined && { companyName: data.companyName.trim() || null }),
+                ...(data.companyId !== undefined && { companyId: data.companyId.trim() || null }),
                 ...(shouldUpdateEmail ? { email: normalizedEmail } : {}),
             },
             select: {
                 id: true,
                 name: true,
                 phoneNumber: true,
-                companyName: true,
+                company: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
                 email: true,
             },
         });

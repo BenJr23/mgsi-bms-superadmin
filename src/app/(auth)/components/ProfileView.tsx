@@ -29,7 +29,7 @@ type ProfileViewProps = {
   userCompany: string;
   userCreatedAt: string | null;
   lastLogin: string | null;
-  onProfileUpdate?: (updates: { name?: string; image?: string; phoneNumber?: string; companyName?: string; email?: string }) => void;
+  onProfileUpdate?: (updates: { name?: string; image?: string; phoneNumber?: string; email?: string }) => void;
 };
 
 export function ProfileView({ userName, userEmail, userRole, userImage, userPhone, userCompany, userCreatedAt, lastLogin, onProfileUpdate }: ProfileViewProps) {
@@ -141,7 +141,6 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
       const result = await updateUserProfile({
         name: formData.name,
         phoneNumber: `+63${phoneDigitsOnly}`,
-        companyName: formData.company,
         email: isSuperAdmin ? trimmedEmail : undefined,
       });
 
@@ -157,7 +156,6 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
         onProfileUpdate({
           name: formData.name,
           phoneNumber: `+63${phoneDigitsOnly}`,
-          companyName: formData.company.trim() || '',
           email: isSuperAdmin ? trimmedEmail : undefined,
         });
       }
@@ -301,7 +299,6 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
   const hasPersonalInfoChanges =
     formData.name !== userName ||
     formData.phone !== formatPhilippinePhone(userPhone) ||
-    formData.company !== userCompany ||
     (isSuperAdmin && formData.email !== userEmail);
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -451,23 +448,16 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
               <div className="space-y-2 md:col-span-2">
                 <label className="text-sm font-medium text-slate-700">
                   Company Name
-                  <span className="text-slate-400 font-normal ml-1">(optional)</span>
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Acme Corporation"
+                  placeholder="No company assigned"
                   value={formData.company}
-                  onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    company: e.target.value
-                  })
-                  }
-                  disabled={!isPersonalInfoEditing}
-                  className={`w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-900 focus:border-transparent ${
-                    isPersonalInfoEditing ? '' : 'bg-slate-50 cursor-not-allowed text-slate-600'
-                  }`} />
-
+                  disabled={true}
+                  className="w-full px-3 py-2 border border-slate-200 bg-slate-50 cursor-not-allowed text-slate-600 rounded-md" />
+                <p className="text-xs text-slate-500">
+                  Contact your administrator to change your company assignment.
+                </p>
               </div>
 
               <div className="space-y-2 md:col-span-2">

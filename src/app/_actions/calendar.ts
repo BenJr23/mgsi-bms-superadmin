@@ -58,7 +58,14 @@ async function warmAdjacentCache(currentYear: number, currentMonth: number, buil
                     approvalStatus: true,
                     room: { select: { roomName: true } },
                     building: { select: { id: true, buildingName: true } },
-                    submittedBy: { select: { name: true, companyName: true } },
+                    submittedBy: { 
+                        select: { 
+                            name: true, 
+                            company: { 
+                                select: { name: true } 
+                            } 
+                        } 
+                    },
                 },
                 orderBy: { startDate: 'asc' },
             })
@@ -73,7 +80,7 @@ async function warmAdjacentCache(currentYear: number, currentMonth: number, buil
                 buildingId: booking.building.id,
                 approvalStatus: booking.approvalStatus,
                 submittedByName: booking.submittedBy.name,
-                companyName: booking.submittedBy.companyName,
+                companyName: booking.submittedBy.company?.name || null,
             }))
 
             const result = { success: true, data: formatted }
@@ -194,7 +201,14 @@ export async function getCalendarBookings(
                     approvalStatus: true,
                     room: { select: { roomName: true } },
                     building: { select: { id: true, buildingName: true } },
-                    submittedBy: { select: { name: true, companyName: true } },
+                    submittedBy: { 
+                        select: { 
+                            name: true, 
+                            company: { 
+                                select: { name: true } 
+                            } 
+                        } 
+                    },
                 },
                 orderBy: { startDate: 'asc' },
             }),
@@ -229,7 +243,7 @@ export async function getCalendarBookings(
             buildingId: booking.building.id,
             approvalStatus: booking.approvalStatus,
             submittedByName: booking.submittedBy.name,
-            companyName: booking.submittedBy.companyName,
+            companyName: booking.submittedBy.company?.name || null,
         }))
 
         const buildingsForUi: BuildingFilterOption[] =

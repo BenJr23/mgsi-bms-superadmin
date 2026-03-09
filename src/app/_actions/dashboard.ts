@@ -329,7 +329,14 @@ export async function getRecentBookings(): Promise<GetRecentBookingsResult> {
     const bookings = await prisma.booking.findMany({
       where: { isActive: true, deletedAt: null },
       include: { 
-        submittedBy: { select: { name: true, companyName: true } },
+        submittedBy: { 
+          select: { 
+            name: true, 
+            company: { 
+              select: { name: true } 
+            } 
+          } 
+        },
         room: { select: { roomName: true } },
       },
       orderBy: { submittedAt: 'desc' },
@@ -340,7 +347,7 @@ export async function getRecentBookings(): Promise<GetRecentBookingsResult> {
       id: booking.id,
       bookingReference: booking.bookingReference,
       submittedByName: booking.submittedBy.name,
-      submittedByCompany: booking.submittedBy.companyName,
+      submittedByCompany: booking.submittedBy.company?.name || null,
       roomName: booking.room.roomName,
       date: booking.startDate.toISOString(),
       approvalStatus: booking.approvalStatus,
