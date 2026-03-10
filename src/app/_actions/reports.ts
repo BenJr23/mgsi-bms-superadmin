@@ -200,7 +200,7 @@ export async function getReportsData(input?: GetReportsDataInput): Promise<GetRe
 			prisma.booking.count({ where: { ...bookingWhereBase, approvalStatus: 'REJECTED' } }),
 			prisma.booking.count({ where: { ...bookingWhereBase, approvalStatus: 'PENDING' } }),
 			prisma.booking.count({ where: { ...bookingWhereBase, clientStatus: 'CANCELLED' } }),
-			prisma.booking.count({ where: { ...bookingWhereBase, submittedBy: { emailVerified: true } } }),
+			prisma.booking.count({ where: { ...bookingWhereBase, walkInCustomerId: { not: null } } }),
 			prisma.booking.findMany({
 				where: bookingWhereBase,
 				select: { startDate: true },

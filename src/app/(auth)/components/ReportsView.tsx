@@ -110,7 +110,7 @@ export function ReportsView() {
 
     const summaryData = [
       ['Total Bookings', reportsData.summary.totalBookings.toLocaleString()],
-      ['Walk-in Count (email verified)', reportsData.summary.walkInBookings.toLocaleString()],
+      ['Walk-in Bookings', reportsData.summary.walkInBookings.toLocaleString()],
       ['Approval Rate', `${reportsData.summary.approvalRate}%`],
     ]
 
@@ -288,7 +288,7 @@ export function ReportsView() {
               <Users className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <p className="text-xs sm:text-sm text-slate-500">Walk-in (email verified)</p>
+              <p className="text-xs sm:text-sm text-slate-500">Walk-in Bookings</p>
               <h3 className="text-xl sm:text-2xl font-bold text-slate-900">
                 {loading ? '—' : (summary?.walkInBookings ?? 0).toLocaleString()}
               </h3>
