@@ -15,6 +15,7 @@ export type BookingListItem = {
     dailyTimeStart?: string | null
     dailyTimeEnd?: string | null
     bookingType: string
+    isWalkIn: boolean
     clientStatus: string
     approvalStatus: ApprovalStatus
     submittedAt: string
@@ -654,6 +655,7 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
                 dailyTimeStart: booking.dailyTimeStart ? booking.dailyTimeStart.toISOString() : null,
                 dailyTimeEnd: booking.dailyTimeEnd ? booking.dailyTimeEnd.toISOString() : null,
                 bookingType: booking.bookingType,
+                isWalkIn: Boolean(booking.walkInCustomer),
                 clientStatus: booking.clientStatus,
                 approvalStatus: booking.approvalStatus,
                 submittedAt: booking.submittedAt.toISOString(),

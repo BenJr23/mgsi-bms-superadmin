@@ -6,6 +6,7 @@ interface ViewBookingModalProps {
 	onClose: () => void;
 	details: {
 		bookingReference: string;
+		isWalkIn?: boolean;
 		submittedByName: string;
 		submittedByEmail: string;
 		clientCompany?: string | null;
@@ -44,6 +45,10 @@ export function ViewBookingModal({ isOpen, onClose, details }: ViewBookingModalP
 		details.bookingType === 'DAILY'
 			? 'bg-cyan-50 text-cyan-700 border-cyan-200'
 			: 'bg-violet-50 text-violet-700 border-violet-200';
+
+	const sourceTone = details.isWalkIn
+		? 'bg-sky-50 text-sky-700 border-sky-200'
+		: 'bg-slate-100 text-slate-700 border-slate-200';
 
 	const Field = ({ label, value, icon }: { label: string; value: string | number; icon?: React.ReactNode }) => (
 		<div className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5">
@@ -88,13 +93,16 @@ export function ViewBookingModal({ isOpen, onClose, details }: ViewBookingModalP
 						<span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-semibold ${bookingTypeTone}`}>
 							Type: {details.bookingType}
 						</span>
+						<span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-semibold ${sourceTone}`}>
+							Source: {details.isWalkIn ? 'Walk-in' : 'Online'}
+						</span>
 					</div>
 				</div>
 
 				<div className="p-4 sm:p-6 space-y-4 text-sm overflow-y-auto">
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-						<Field label="Client" value={details.submittedByName} icon={<UserRound className="w-3.5 h-3.5" />} />
-						<Field label="Email" value={details.submittedByEmail} icon={<Mail className="w-3.5 h-3.5" />} />
+						<Field label={details.isWalkIn ? 'Walk-in Client' : 'Client'} value={details.submittedByName} icon={<UserRound className="w-3.5 h-3.5" />} />
+						<Field label={details.isWalkIn ? 'Walk-in Email' : 'Email'} value={details.submittedByEmail} icon={<Mail className="w-3.5 h-3.5" />} />
 						<Field label="Company" value={details.clientCompany || 'None'} icon={<Building2 className="w-3.5 h-3.5" />} />
 						<Field label="Building" value={details.buildingName} icon={<Building2 className="w-3.5 h-3.5" />} />
 						<Field label="Room" value={details.roomName} icon={<Building2 className="w-3.5 h-3.5" />} />

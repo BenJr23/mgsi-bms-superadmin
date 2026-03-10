@@ -596,6 +596,7 @@ export function BookingsView() {
             onClose={closeModal}
             details={{
               bookingReference: activeBooking.bookingReference,
+              isWalkIn: activeBooking.isWalkIn,
               submittedByName: activeBooking.submittedBy.name || activeBooking.submittedBy.email,
               submittedByEmail: activeBooking.submittedBy.email,
               clientCompany: activeBooking.submittedBy.companyName || null,
