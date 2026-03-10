@@ -4,7 +4,7 @@ import { getServerSession } from '@/lib/get-server'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redist'
 
-const CALENDAR_CACHE_VERSION = 'v2'
+const CALENDAR_CACHE_VERSION = 'v3'
 const CALENDAR_CACHE_TTL_SECONDS = 300 // 5 minutes for better performance
 const BUILDINGS_CACHE_TTL_SECONDS = 3600 // 1 hour for buildings (rarely changes)
 
@@ -55,6 +55,8 @@ async function warmAdjacentCache(currentYear: number, currentMonth: number, buil
                     bookingReference: true,
                     startDate: true,
                     endDate: true,
+                    dailyTimeStart: true,
+                    dailyTimeEnd: true,
                     approvalStatus: true,
                     room: { select: { roomName: true } },
                     building: { select: { id: true, buildingName: true } },
@@ -85,6 +87,8 @@ async function warmAdjacentCache(currentYear: number, currentMonth: number, buil
                 bookingReference: booking.bookingReference,
                 startDate: booking.startDate.toISOString(),
                 endDate: booking.endDate.toISOString(),
+                dailyTimeStart: booking.dailyTimeStart ? booking.dailyTimeStart.toISOString() : null,
+                dailyTimeEnd: booking.dailyTimeEnd ? booking.dailyTimeEnd.toISOString() : null,
                 roomName: booking.room.roomName,
                 buildingName: booking.building.buildingName,
                 buildingId: booking.building.id,
@@ -112,6 +116,8 @@ export type CalendarBooking = {
     bookingReference: string
     startDate: string
     endDate: string
+    dailyTimeStart: string | null
+    dailyTimeEnd: string | null
     roomName: string
     buildingName: string
     buildingId: string // Added to ensure unique identification
@@ -209,6 +215,8 @@ export async function getCalendarBookings(
                     bookingReference: true,
                     startDate: true,
                     endDate: true,
+                    dailyTimeStart: true,
+                    dailyTimeEnd: true,
                     approvalStatus: true,
                     room: { select: { roomName: true } },
                     building: { select: { id: true, buildingName: true } },
@@ -258,6 +266,8 @@ export async function getCalendarBookings(
             bookingReference: booking.bookingReference,
             startDate: booking.startDate.toISOString(),
             endDate: booking.endDate.toISOString(),
+            dailyTimeStart: booking.dailyTimeStart ? booking.dailyTimeStart.toISOString() : null,
+            dailyTimeEnd: booking.dailyTimeEnd ? booking.dailyTimeEnd.toISOString() : null,
 
             roomName: booking.room.roomName,
             buildingName: booking.building.buildingName,

@@ -8,6 +8,17 @@ export type CalendarDay = {
 	dateString: string // YYYY-MM-DD format
 }
 
+const MANILA_DATE_FORMATTER = new Intl.DateTimeFormat('en-CA', {
+	timeZone: 'Asia/Manila',
+	year: 'numeric',
+	month: '2-digit',
+	day: '2-digit',
+})
+
+function toManilaDateKey(date: Date): string {
+	return MANILA_DATE_FORMATTER.format(date)
+}
+
 export function generateCalendarGrid(year: number, month: number): CalendarDay[] {
 	const firstDayOfMonth = new Date(year, month, 1)
 	const lastDayOfMonth = new Date(year, month + 1, 0)
@@ -89,14 +100,14 @@ export function formatMonthYear(year: number, month: number): string {
 }
 
 export function isBookingOnDate(bookingStart: string, bookingEnd: string, dateString: string): boolean {
-	const targetDate = new Date(dateString + 'T00:00:00')
 	const startDate = new Date(bookingStart)
 	const endDate = new Date(bookingEnd)
 
-	// Reset time parts for date-only comparison
-	targetDate.setHours(0, 0, 0, 0)
-	const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
-	const endDay = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+	if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+		return false
+	}
 
-	return targetDate >= startDay && targetDate <= endDay
+	const startKey = toManilaDateKey(startDate)
+	const endKey = toManilaDateKey(endDate)
+	return dateString >= startKey && dateString <= endKey
 }

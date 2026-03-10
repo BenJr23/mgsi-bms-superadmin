@@ -14,6 +14,7 @@ interface ViewCalendarModalProps {
 
 export function ViewCalendarModal({ isOpen, onClose, date, bookings }: ViewCalendarModalProps) {
 	if (!isOpen) return null;
+	const DISPLAY_TIMEZONE = 'Asia/Manila';
 
 	const formatDate = (dateString: string) => {
 		const d = new Date(dateString + 'T00:00:00');
@@ -22,16 +23,27 @@ export function ViewCalendarModal({ isOpen, onClose, date, bookings }: ViewCalen
 			year: 'numeric',
 			month: 'long',
 			day: 'numeric',
+			timeZone: DISPLAY_TIMEZONE,
 		});
 	};
 
-	const formatTime = (isoString: string) => {
+	const formatTime = (isoString: string, timeZone: string) => {
 		const d = new Date(isoString);
+		if (Number.isNaN(d.getTime())) return '--:--';
 		return d.toLocaleTimeString('en-US', {
 			hour: '2-digit',
 			minute: '2-digit',
 			hour12: true,
+			timeZone,
 		});
+	};
+
+	const getTimeRange = (booking: CalendarBooking) => {
+		const startValue = booking.dailyTimeStart || booking.startDate;
+		const endValue = booking.dailyTimeEnd || booking.endDate;
+		const startTz = booking.dailyTimeStart ? 'UTC' : DISPLAY_TIMEZONE;
+		const endTz = booking.dailyTimeEnd ? 'UTC' : DISPLAY_TIMEZONE;
+		return `${formatTime(startValue, startTz)} - ${formatTime(endValue, endTz)}`;
 	};
 
 	const getStatusVariant = (status: string) => {
@@ -124,7 +136,7 @@ export function ViewCalendarModal({ isOpen, onClose, date, bookings }: ViewCalen
 										<div className="flex items-center gap-2 text-slate-600">
 											<Clock className="w-4 h-4 text-slate-400 flex-shrink-0" />
 											<span>
-												{formatTime(booking.startDate)} - {formatTime(booking.endDate)}
+												{getTimeRange(booking)}
 											</span>
 										</div>
 
