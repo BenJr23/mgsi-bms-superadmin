@@ -159,6 +159,12 @@ type ConflictCheckBooking = {
     dailyTimeEnd: Date | null
 }
 
+type WalkInCustomerProjection = {
+    name: string
+    email: string
+    companyName: string | null
+}
+
 const MANILA_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Manila',
     year: 'numeric',
@@ -566,6 +572,9 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
                         { bookingReference: { contains: query, mode: 'insensitive' } },
                         { submittedBy: { name: { contains: query, mode: 'insensitive' } } },
                         { submittedBy: { email: { contains: query, mode: 'insensitive' } } },
+                        { walkInCustomer: { name: { contains: query, mode: 'insensitive' } } },
+                        { walkInCustomer: { email: { contains: query, mode: 'insensitive' } } },
+                        { walkInCustomer: { companyName: { contains: query, mode: 'insensitive' } } },
                         { room: { roomName: { contains: query, mode: 'insensitive' } } },
                         { building: { buildingName: { contains: query, mode: 'insensitive' } } },
                     ],
@@ -591,11 +600,17 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
                     approvalDate: true,
                     cancellationDeadline: true,
                     message: true,
-                    walkInCompanyName: true,
                     attendeeCount: true,
                     building: { select: { buildingName: true } },
                     room: { select: { roomName: true } },
                     submittedBy: { select: { name: true, email: true, company: { select: { name: true } } } },
+                    walkInCustomer: {
+                        select: {
+                            name: true,
+                            email: true,
+                            companyName: true,
+                        },
+                    },
                     updatedBy: { select: { id: true, name: true } },
                 },
                 orderBy: { createdAt: 'desc' },
@@ -605,6 +620,18 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
         ])
 
         const formatted: BookingRow[] = bookings.map((booking) => {
+            const displayClient: WalkInCustomerProjection = booking.walkInCustomer
+                ? {
+                    name: booking.walkInCustomer.name,
+                    email: booking.walkInCustomer.email,
+                    companyName: booking.walkInCustomer.companyName,
+                }
+                : {
+                    name: booking.submittedBy.name || booking.submittedBy.email,
+                    email: booking.submittedBy.email,
+                    companyName: booking.submittedBy.company?.name || null,
+                }
+
             const startYear = booking.startDate ? booking.startDate.getFullYear() : null
             const startMonth = booking.startDate ? booking.startDate.getMonth() + 1 : null
 
@@ -637,9 +664,9 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
                 building: { name: booking.building.buildingName },
                 room: { name: booking.room.roomName },
                 submittedBy: {
-                    name: booking.submittedBy.name,
-                    email: booking.submittedBy.email,
-                    companyName: booking.submittedBy.company?.name || booking.walkInCompanyName || null,
+                    name: displayClient.name,
+                    email: displayClient.email,
+                    companyName: displayClient.companyName,
                 },
                 updatedBy: booking.updatedBy ? { id: booking.updatedBy.id, name: booking.updatedBy.name } : null,
                 _display: {
@@ -937,45 +964,30 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
         // Generate booking reference
         const bookingRef = `WALK-${Date.now()}`
 
-        // Create or find user
-        let user = await prisma.user.findFirst({
-            where: { email: email.toLowerCase().trim() },
-            select: { id: true, name: true, email: true, emailVerified: true }
-        })
-
-        if (!user) {
-            user = await prisma.user.create({
-                data: {
-                    email: email.toLowerCase().trim(),
-                    name: name.trim(),
-                    phoneNumber: phoneNumber?.trim() || null,
-                    emailVerified: false, // Walk-in clients have unverified emails by default
-                },
-                select: { id: true, name: true, email: true, emailVerified: true }
-            })
-        } else {
-            const userUpdateData: {
-                name: string
-                phoneNumber?: string | null
-            } = {
+        const normalizedEmail = email.toLowerCase().trim()
+        const walkInCustomer = await prisma.walkInCustomer.upsert({
+            where: { email: normalizedEmail },
+            update: {
                 name: name.trim(),
-            }
-
-            if (typeof phoneNumber === 'string') {
-                userUpdateData.phoneNumber = phoneNumber.trim() || null
-            }
-
-            await prisma.user.update({
-                where: { id: user.id },
-                data: userUpdateData,
-            })
-        }
+                companyName: companyName?.trim() || null,
+                phoneNumber: phoneNumber?.trim() || null,
+                deletedAt: null,
+            },
+            create: {
+                email: normalizedEmail,
+                name: name.trim(),
+                companyName: companyName?.trim() || null,
+                phoneNumber: phoneNumber?.trim() || null,
+            },
+            select: { id: true },
+        })
 
         // Create booking with PENDING status
         const newBooking = await prisma.booking.create({
             data: {
                 bookingReference: bookingRef,
-                submittedById: user.id,
+                submittedById: session.user.id,
+                walkInCustomerId: walkInCustomer.id,
                 buildingId,
                 roomId,
                 startDate,
@@ -989,7 +1001,6 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
                 updatedById: session.user.id,
                 attendeeCount: attendeeCount ?? null,
                 message: message?.trim() || null,
-                walkInCompanyName: companyName?.trim() || null,
                 isActive: true
             },
             include: {

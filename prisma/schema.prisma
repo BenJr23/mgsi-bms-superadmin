@@ -53,6 +53,20 @@ model Company {
   @@map("companies")
 }
 
+model WalkInCustomer {
+  id          String    @id @default(uuid())
+  name        String
+  companyName String?
+  email       String    @unique
+  phoneNumber String?
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  bookings    Booking[]
+
+  @@map("walk_in_customers")
+}
+
 model Session {
   id        String   @id @default(uuid())
   expiresAt DateTime
@@ -155,12 +169,12 @@ model Booking {
   approvalDate         DateTime?
   cancellationDeadline DateTime?
   message              String?
-  walkInCompanyName    String?
   attendeeCount        Int?
   creditHoursUsed      Float          @default(0)
   buildingId           String
   roomId               String
   companyId            String?
+  walkInCustomerId     String?
   submittedById        String
   updatedById          String?
   isActive             Boolean        @default(true)
@@ -170,6 +184,7 @@ model Booking {
   building             Building       @relation(fields: [buildingId], references: [id])
   room                 Room           @relation(fields: [roomId], references: [id])
   company              Company?       @relation(fields: [companyId], references: [id])
+  walkInCustomer       WalkInCustomer? @relation(fields: [walkInCustomerId], references: [id])
   submittedBy          User           @relation("SubmittedBookings", fields: [submittedById], references: [id])
   updatedBy            User?          @relation("UpdatedBookings", fields: [updatedById], references: [id])
   rejections           Rejection[]
@@ -177,6 +192,7 @@ model Booking {
   @@index([roomId, startDate, endDate])
   @@index([buildingId])
   @@index([companyId])
+  @@index([walkInCustomerId])
   @@index([approvalStatus])
   @@map("bookings")
 }
