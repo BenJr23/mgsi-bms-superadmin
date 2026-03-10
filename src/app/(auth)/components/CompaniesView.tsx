@@ -192,7 +192,7 @@ export function CompaniesView() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-slate-900 truncate">{company.name}</h3>
-                        {isOverLimit && <Badge variant="error" className="text-xs flex-shrink-0">Over</Badge>}
+                        {isOverLimit && <Badge variant="danger" className="text-xs flex-shrink-0">Over</Badge>}
                         {isNearLimit && <Badge variant="warning" className="text-xs flex-shrink-0">Near</Badge>}
                       </div>
                     </div>
