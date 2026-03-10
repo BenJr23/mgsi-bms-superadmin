@@ -58,6 +58,12 @@ async function warmAdjacentCache(currentYear: number, currentMonth: number, buil
                     approvalStatus: true,
                     room: { select: { roomName: true } },
                     building: { select: { id: true, buildingName: true } },
+                    walkInCustomer: {
+                        select: {
+                            name: true,
+                            companyName: true,
+                        },
+                    },
                     submittedBy: { 
                         select: { 
                             name: true, 
@@ -70,7 +76,11 @@ async function warmAdjacentCache(currentYear: number, currentMonth: number, buil
                 orderBy: { startDate: 'asc' },
             })
 
-            const formatted = bookings.map((booking) => ({
+            const formatted = bookings.map((booking) => {
+                const submittedByName = booking.walkInCustomer?.name || booking.submittedBy.name || null
+                const companyName = booking.walkInCustomer?.companyName || booking.submittedBy.company?.name || null
+
+                return {
                 id: booking.id,
                 bookingReference: booking.bookingReference,
                 startDate: booking.startDate.toISOString(),
@@ -79,9 +89,10 @@ async function warmAdjacentCache(currentYear: number, currentMonth: number, buil
                 buildingName: booking.building.buildingName,
                 buildingId: booking.building.id,
                 approvalStatus: booking.approvalStatus,
-                submittedByName: booking.submittedBy.name,
-                companyName: booking.submittedBy.company?.name || null,
-            }))
+                submittedByName,
+                companyName,
+            }
+            })
 
             const result = { success: true, data: formatted }
             if (redis) {
@@ -201,6 +212,12 @@ export async function getCalendarBookings(
                     approvalStatus: true,
                     room: { select: { roomName: true } },
                     building: { select: { id: true, buildingName: true } },
+                    walkInCustomer: {
+                        select: {
+                            name: true,
+                            companyName: true,
+                        },
+                    },
                     submittedBy: { 
                         select: { 
                             name: true, 
@@ -232,7 +249,11 @@ export async function getCalendarBookings(
 
         const filterBuildings = await buildingsQuery
 
-        const formatted: CalendarBooking[] = bookings.map((booking) => ({
+        const formatted: CalendarBooking[] = bookings.map((booking) => {
+            const submittedByName = booking.walkInCustomer?.name || booking.submittedBy.name || null
+            const companyName = booking.walkInCustomer?.companyName || booking.submittedBy.company?.name || null
+
+            return {
             id: booking.id,
             bookingReference: booking.bookingReference,
             startDate: booking.startDate.toISOString(),
@@ -242,9 +263,10 @@ export async function getCalendarBookings(
             buildingName: booking.building.buildingName,
             buildingId: booking.building.id,
             approvalStatus: booking.approvalStatus,
-            submittedByName: booking.submittedBy.name,
-            companyName: booking.submittedBy.company?.name || null,
-        }))
+            submittedByName,
+            companyName,
+        }
+        })
 
         const buildingsForUi: BuildingFilterOption[] =
             (cachedBuildings as BuildingFilterOption[] | null) ?? (filterBuildings?.map((b) => ({ id: b.id, name: b.buildingName })) ?? [])
