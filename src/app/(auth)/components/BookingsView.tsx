@@ -242,13 +242,14 @@ export function BookingsView() {
           setAvailableBuildings(buildingsResult.data?.map(b => ({ id: b.id, name: b.buildingName })) || []);
         }
 
-        // Fetch companies from all bookings (without pagination to get unique values)
+        // Fetch companies from all bookings (without pagination to get unique values) - exclude walk-in clients
         const allBookingsResult = await getBookingsCached({ pageSize: 1000 }); // Get a large batch to get unique companies
         if (allBookingsResult.success && allBookingsResult.data) {
           const uniqueCompanies = Array.from(new Set(
             allBookingsResult.data
+              .filter(b => !b.isWalkIn) // Exclude walk-in bookings
               .map(b => b.submittedBy.companyName)
-              .filter((company): company is string => company != null)
+              .filter((company): company is string => company != null && company.trim() !== '')
           )).sort();
           setAvailableCompanies(uniqueCompanies);
         }
@@ -286,7 +287,9 @@ export function BookingsView() {
     setCurrentPage(1);
   }, [companyFilter, buildingFilter, roomFilter, statusFilter, debouncedQuery]);
 
-  const filteredBookings = useMemo(() => bookingRows, [bookingRows]);
+  const filteredBookings = useMemo(() => {
+    return bookingRows;
+  }, [bookingRows]);
 
   const handleAction = async (status: 'APPROVED' | 'REJECTED', message?: string) => {
     if (!activeBooking) {

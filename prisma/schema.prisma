@@ -1,7 +1,7 @@
 generator client {
-  provider      = "prisma-client"
-  output        = "../src/generated/prisma"
-  engineType    = "client"
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma"
+  engineType = "client"
 }
 
 datasource db {
@@ -15,15 +15,15 @@ model User {
   email             String      @unique
   emailVerified     Boolean     @default(false)
   image             String?
-  deletedAt         DateTime?
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
   role              UserRole    @default(CLIENT)
-  companyId         String?
   phoneNumber       String?
   contractEndDate   DateTime?
   createdById       String?
   passwordVerified  Boolean     @default(false)
+  deletedAt         DateTime?
+  companyId         String?
   accounts          Account[]
   submittedBookings Booking[]   @relation("SubmittedBookings")
   updatedBookings   Booking[]   @relation("UpdatedBookings")
@@ -40,15 +40,15 @@ model User {
 }
 
 model Company {
-  id                 String    @id @default(uuid())
-  name               String    @unique
-  allottedCreditHours Float    @default(0)
-  usedCreditHours    Float     @default(0)
-  deletedAt          DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  users              User[]
-  bookings           Booking[]
+  id                  String    @id @default(uuid())
+  name                String    @unique
+  allottedCreditHours Float     @default(0)
+  usedCreditHours     Float     @default(0)
+  deletedAt           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  bookings            Booking[]
+  users               User[]
 
   @@map("companies")
 }
@@ -68,16 +68,16 @@ model WalkInCustomer {
 }
 
 model Session {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   expiresAt DateTime
-  token     String   @unique
-  deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  token     String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   ipAddress String?
   userAgent String?
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deletedAt DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
 }
@@ -94,9 +94,9 @@ model Account {
   refreshTokenExpiresAt DateTime?
   scope                 String?
   password              String?
-  deletedAt             DateTime?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
+  deletedAt             DateTime?
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("accounts")
@@ -107,9 +107,9 @@ model Verification {
   identifier String
   value      String
   expiresAt  DateTime
-  deletedAt  DateTime?
   createdAt  DateTime? @default(now())
   updatedAt  DateTime? @updatedAt
+  deletedAt  DateTime?
 
   @@map("verifications")
 }
@@ -118,14 +118,14 @@ model Building {
   id           String         @id @default(uuid())
   buildingName String
   buildingCode String         @unique
-  address      String?
   description  String?
   imageUrl     String?
   status       BuildingStatus
   createdById  String
-  deletedAt    DateTime?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
+  address      String?
+  deletedAt    DateTime?
   bookings     Booking[]
   createdBy    User           @relation(fields: [createdById], references: [id])
   rooms        Room[]
@@ -144,9 +144,9 @@ model Room {
   status      RoomStatus
   buildingId  String
   createdById String
-  deletedAt   DateTime?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
   bookings    Booking[]
   building    Building   @relation(fields: [buildingId], references: [id])
   createdBy   User       @relation(fields: [createdById], references: [id])
@@ -156,8 +156,8 @@ model Room {
 }
 
 model Booking {
-  id                   String         @id @default(uuid())
-  bookingReference     String         @unique
+  id                   String          @id @default(uuid())
+  bookingReference     String          @unique
   startDate            DateTime
   endDate              DateTime
   dailyTimeStart       DateTime?
@@ -165,28 +165,28 @@ model Booking {
   bookingType          BookingType
   clientStatus         ClientStatus
   approvalStatus       ApprovalStatus
-  submittedAt          DateTime       @default(now())
+  submittedAt          DateTime        @default(now())
   approvalDate         DateTime?
   cancellationDeadline DateTime?
   message              String?
   attendeeCount        Int?
-  creditHoursUsed      Float          @default(0)
   buildingId           String
   roomId               String
-  companyId            String?
-  walkInCustomerId     String?
   submittedById        String
   updatedById          String?
-  isActive             Boolean        @default(true)
+  isActive             Boolean         @default(true)
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
   deletedAt            DateTime?
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
-  building             Building       @relation(fields: [buildingId], references: [id])
-  room                 Room           @relation(fields: [roomId], references: [id])
-  company              Company?       @relation(fields: [companyId], references: [id])
+  companyId            String?
+  creditHoursUsed      Float           @default(0)
+  walkInCustomerId     String?
+  building             Building        @relation(fields: [buildingId], references: [id])
+  company              Company?        @relation(fields: [companyId], references: [id])
+  room                 Room            @relation(fields: [roomId], references: [id])
+  submittedBy          User            @relation("SubmittedBookings", fields: [submittedById], references: [id])
+  updatedBy            User?           @relation("UpdatedBookings", fields: [updatedById], references: [id])
   walkInCustomer       WalkInCustomer? @relation(fields: [walkInCustomerId], references: [id])
-  submittedBy          User           @relation("SubmittedBookings", fields: [submittedById], references: [id])
-  updatedBy            User?          @relation("UpdatedBookings", fields: [updatedById], references: [id])
   rejections           Rejection[]
 
   @@index([roomId, startDate, endDate])

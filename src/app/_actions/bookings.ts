@@ -564,7 +564,7 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
             isActive: true,
             deletedAt: null,
             ...(status && status !== 'ALL' ? { approvalStatus: status } : {}),
-            ...(companyId && { submittedBy: { companyId: { equals: companyId } } }),
+            ...(companyId && { submittedBy: { company: { name: { equals: companyId, mode: 'insensitive' } } } }),
             ...(buildingId && { buildingId: { equals: buildingId } }),
             ...(roomId && { roomId: { equals: roomId } }),
             ...(query
