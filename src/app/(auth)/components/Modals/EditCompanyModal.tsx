@@ -3,11 +3,18 @@
 import React, { useEffect, useState } from 'react'
 import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
-import { updateCompany } from '@/app/_actions/companies'
+import { getCompanyRepresentativeCandidates, updateCompany } from '@/app/_actions/companies'
+
+type RepresentativeCandidate = {
+  id: string
+  name: string
+  email: string
+}
 
 interface EditCompanyForm {
   name: string
   allottedCreditHours: number | ''
+  representativeUserId: string
 }
 
 interface EditCompanyFormErrors {
@@ -23,15 +30,17 @@ interface EditCompanyModalProps {
     id: string
     name: string
     allottedCreditHours: number
+    representativeUserId?: string | null
   } | null
 }
 
 export function EditCompanyModal({ isOpen, onClose, onSuccess, company }: EditCompanyModalProps) {
-  const [formData, setFormData] = useState<EditCompanyForm>({ name: '', allottedCreditHours: '' })
+  const [formData, setFormData] = useState<EditCompanyForm>({ name: '', allottedCreditHours: '', representativeUserId: '' })
   const [formErrors, setFormErrors] = useState<EditCompanyFormErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [submitSuccess, setSubmitSuccess] = useState('')
+  const [representatives, setRepresentatives] = useState<RepresentativeCandidate[]>([])
 
   useEffect(() => {
     if (!isOpen || !company) return
@@ -39,11 +48,30 @@ export function EditCompanyModal({ isOpen, onClose, onSuccess, company }: EditCo
     setFormData({
       name: company.name,
       allottedCreditHours: company.allottedCreditHours,
+      representativeUserId: company.representativeUserId || '',
     })
     setFormErrors({})
     setSubmitError('')
     setSubmitSuccess('')
   }, [isOpen, company])
+
+  useEffect(() => {
+    const fetchRepresentatives = async () => {
+      if (!isOpen || !company?.id) {
+        setRepresentatives([])
+        return
+      }
+
+      const result = await getCompanyRepresentativeCandidates(company.id)
+      if (result.success && result.data) {
+        setRepresentatives(result.data)
+      } else {
+        setRepresentatives([])
+      }
+    }
+
+    fetchRepresentatives()
+  }, [isOpen, company?.id])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -74,6 +102,7 @@ export function EditCompanyModal({ isOpen, onClose, onSuccess, company }: EditCo
         id: company.id,
         name: formData.name.trim(),
         allottedCreditHours: Number(formData.allottedCreditHours),
+        representativeUserId: formData.representativeUserId || undefined,
       })
 
       if (result.success) {
@@ -146,6 +175,29 @@ export function EditCompanyModal({ isOpen, onClose, onSuccess, company }: EditCo
                 }`}
               />
               {formErrors.name && <p className="text-xs text-rose-600 mt-1">{formErrors.name}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Representative
+              </label>
+              <select
+                value={formData.representativeUserId}
+                onChange={(e) => {
+                  setFormData({ ...formData, representativeUserId: e.target.value })
+                }}
+                className="w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent border-slate-300"
+              >
+                <option value="">No representative</option>
+                {representatives.map((rep) => (
+                  <option key={rep.id} value={rep.id}>
+                    {rep.name} ({rep.email})
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-500 mt-1">
+                Admin can assign one representative for credit alert emails.
+              </p>
             </div>
 
             <div>

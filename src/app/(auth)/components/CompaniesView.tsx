@@ -195,16 +195,21 @@ export function CompaniesView() {
                         {isOverLimit && <Badge variant="danger" className="text-xs flex-shrink-0">Over</Badge>}
                         {isNearLimit && <Badge variant="warning" className="text-xs flex-shrink-0">Near</Badge>}
                       </div>
+                      <p className="text-xs text-slate-500 mt-1 truncate">
+                        Representative: {company.representative ? `${company.representative.name} (${company.representative.email})` : 'Not assigned'}
+                      </p>
                     </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openEditModal(company)}
-                      className="text-xs"
-                    >
-                      Edit
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openEditModal(company)}
+                        className="text-xs"
+                      >
+                        Edit
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Progress Bar */}
@@ -253,6 +258,7 @@ export function CompaniesView() {
           id: selectedCompany.id,
           name: selectedCompany.name,
           allottedCreditHours: selectedCompany.allottedCreditHours,
+          representativeUserId: selectedCompany.representative?.id ?? null,
         } : null}
       />
     </div>

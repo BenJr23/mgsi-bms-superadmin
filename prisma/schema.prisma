@@ -32,6 +32,7 @@ model User {
   createdRooms      Room[]
   sessions          Session[]
   company           Company?    @relation(fields: [companyId], references: [id])
+  representedCompanies Company[] @relation("CompanyRepresentative")
   createdBy         User?       @relation("UserCreator", fields: [createdById], references: [id])
   createdUsers      User[]      @relation("UserCreator")
 
@@ -44,12 +45,15 @@ model Company {
   name                String    @unique
   allottedCreditHours Float     @default(0)
   usedCreditHours     Float     @default(0)
+  representativeId    String?
   deletedAt           DateTime?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   bookings            Booking[]
   users               User[]
+  representative      User?     @relation("CompanyRepresentative", fields: [representativeId], references: [id])
 
+  @@index([representativeId])
   @@map("companies")
 }
 

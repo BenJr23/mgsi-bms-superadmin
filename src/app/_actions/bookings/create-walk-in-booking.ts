@@ -1,4 +1,5 @@
 import { revalidateTag } from 'next/cache'
+import { invalidateCompaniesStatsCache } from '../companies'
 import { getServerSession } from '@/lib/get-server'
 import { prisma } from '@/lib/prisma'
 import { invalidateBookingsCache } from './cache'
@@ -174,6 +175,7 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
             },
         })
 
+        await invalidateCompaniesStatsCache()
         await invalidateBookingsCache()
         revalidateTag('bookings', 'max')
 
