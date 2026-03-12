@@ -1,5 +1,6 @@
 import { revalidateTag } from 'next/cache'
 import { invalidateCompaniesStatsCache } from '../companies'
+import { sendBookingStatusEmail } from '../email/email-bookings'
 import { getServerSession } from '@/lib/get-server'
 import { prisma } from '@/lib/prisma'
 import { invalidateBookingsCache } from './cache'
@@ -178,6 +179,26 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
         await invalidateCompaniesStatsCache()
         await invalidateBookingsCache()
         revalidateTag('bookings', 'max')
+
+        // Send booking confirmation email to the customer (non-blocking)
+        void sendBookingStatusEmail({
+            to: normalizedEmail,
+            name: name.trim(),
+            bookingReference: newBooking.bookingReference,
+            approved: true,
+            startDate: newBooking.startDate.toLocaleDateString(),
+            endDate: newBooking.endDate.toLocaleDateString(),
+            dailyTimeStart: newBooking.dailyTimeStart
+                ? newBooking.dailyTimeStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : newBooking.startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            dailyTimeEnd: newBooking.dailyTimeEnd
+                ? newBooking.dailyTimeEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : newBooking.endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            buildingName: newBooking.building.buildingName,
+            roomName: newBooking.room.roomName,
+        }).catch((err) => {
+            console.error('Walk-in booking confirmation email failed:', err)
+        })
 
         return {
             success: true,
