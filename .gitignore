@@ -51,3 +51,5 @@ today_commits.py
 venv
 requirements.txt
 .venv
+
+/docs

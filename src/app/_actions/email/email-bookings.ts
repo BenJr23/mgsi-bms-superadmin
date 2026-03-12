@@ -61,42 +61,149 @@ export async function sendBookingStatusEmail(args: SendBookingEmailArgs): Promis
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')
     const logoUrl = 'https://static.wixstatic.com/media/0f0d2b_a16c66e8204b4a4a9aa7d1c5eb937db7~mv2.png'
     const subject = `Booking ${bookingReference} ${statusText}`
+    const statusHeading = approved ? 'Approved' : 'Rejected'
+    const statusColor = approved ? '#059669' : '#dc2626'
     
     const dateRange = startDate === endDate ? startDate : `${startDate} to ${endDate}`
     const timeRange = dailyTimeStart && dailyTimeEnd ? `${dailyTimeStart} - ${dailyTimeEnd}` : '12:00 AM - 12:00 AM'
     const messagePrefix = approved ? '' : "We're sorry to inform you that "
 
-    const html = `
-        <div style="font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:680px;margin:0 auto;color:#374151">
-          <div style="text-align:center;padding:20px 24px;background:#f3f4f6;border-radius:8px 8px 0 0;color:#1e3a8a">
-            <img src="${logoUrl}" alt="GreatWork" style="height:40px;display:block;margin:0 auto 8px" />
-            <h3 style="margin:0;font-size:18px">Booking ${approved ? 'Approved' : 'Rejected'}</h3>
-          </div>
-          <div style="background:white;padding:24px;border:1px solid #e6edf3;border-top:none">
-            <p style="margin:0 0 12px">Hi ${name || 'there'},</p>
-            <p style="margin:0 0 12px">${messagePrefix}Your booking <strong>${bookingReference}</strong> has been <strong style="color:${approved ? '#059669' : '#dc2626'}">${statusText}</strong>.</p>
-            
-            <div style="background-color: #f8fafc; padding: 16px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
-                <h4 style="margin-top: 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; color: #1e3a8a;">Booking Details</h4>
-                <p style="margin: 8px 0; font-size: 14px;"><strong>Location:</strong> ${buildingName} - ${roomName}</p>
-                <p style="margin: 8px 0; font-size: 14px;"><strong>Date:</strong> ${dateRange}</p>
-                <p style="margin: 8px 0; font-size: 14px;"><strong>Time:</strong> ${timeRange}</p>
-            </div>
+        const html = `
+            <!DOCTYPE html>
+            <html>
+                <head>
+                    <style>
+                        body {
+                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+                            line-height: 1.6;
+                            color: #333;
+                        }
+                        .container {
+                            max-width: 600px;
+                            margin: 0 auto;
+                            padding: 20px;
+                            background-color: #f9fafb;
+                        }
+                        .header {
+                            background: linear-gradient(135deg, #7c2d12 0%, #b91c1c 100%);
+                            color: white;
+                            padding: 30px;
+                            text-align: center;
+                            border-radius: 8px 8px 0 0;
+                        }
+                        .header h1 {
+                            margin: 0;
+                            font-size: 24px;
+                        }
+                        .header img {
+                            height: 40px;
+                            display: block;
+                            margin: 0 auto 10px;
+                        }
+                        .content {
+                            background: white;
+                            padding: 30px;
+                            border-radius: 0 0 8px 8px;
+                        }
+                        .greeting {
+                            font-size: 16px;
+                            margin-bottom: 20px;
+                        }
+                        .status {
+                            font-weight: 700;
+                        }
+                        .details-box {
+                            background-color: #f3f4f6;
+                            border-left: 4px solid #b91c1c;
+                            padding: 20px;
+                            margin: 20px 0;
+                            border-radius: 4px;
+                        }
+                        .details-box p {
+                            margin: 8px 0;
+                            font-size: 14px;
+                            color: #1f2937;
+                        }
+                        .important {
+                            background-color: #fef2f2;
+                            border: 1px solid #fecaca;
+                            padding: 15px;
+                            border-radius: 4px;
+                            margin: 20px 0;
+                            font-size: 14px;
+                        }
+                        .important strong {
+                            color: #b91c1c;
+                        }
+                        .admin-note {
+                            margin: 20px 0;
+                            padding: 12px;
+                            background: #f0fdf4;
+                            border-left: 4px solid #4ade80;
+                            font-style: italic;
+                            border-radius: 4px;
+                            color: #14532d;
+                        }
+                        .button {
+                            display: inline-block;
+                            padding: 12px 30px;
+                            background-color: #b91c1c;
+                            color: white;
+                            text-decoration: none;
+                            border-radius: 4px;
+                            margin-top: 20px;
+                        }
+                        .footer {
+                            text-align: center;
+                            padding-top: 20px;
+                            border-top: 1px solid #e5e7eb;
+                            font-size: 12px;
+                            color: #666;
+                            margin-top: 24px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <img src="${logoUrl}" alt="GreatWork" />
+                            <h1>Booking ${statusHeading}</h1>
+                        </div>
+                        <div class="content">
+                            <div class="greeting">
+                                <p>Hi <strong>${name || 'there'}</strong>,</p>
+                                <p>
+                                    ${messagePrefix}Your booking <strong>${bookingReference}</strong> has been
+                                    <strong class="status" style="color: ${statusColor};">${statusText}</strong>.
+                                </p>
+                            </div>
 
-            ${adminMessage ? `<p style="margin:12px 0; padding:12px; background:#f0fdf4; border-left:4px solid #4ade80; font-style: italic;">${adminMessage}</p>` : ''}
-            
-            <div style="background-color: #fffbeb; border: 1px solid #fef3c7; padding: 12px; border-radius: 6px; margin: 20px 0;">
-                <p style="margin: 0; font-size: 13px; color: #92400e;">
-                    <strong>Notice:</strong> Rebooking is only possible up to 30 minutes before your scheduled booking time.
-                </p>
-            </div>
+                            <div class="details-box">
+                                <p><strong>Location:</strong> ${buildingName} - ${roomName}</p>
+                                <p><strong>Date:</strong> ${dateRange}</p>
+                                <p><strong>Time:</strong> ${timeRange}</p>
+                            </div>
 
-            <hr style="border:none;border-top:1px solid #eef2f7;margin:18px 0" />
-            <p style="margin:0;color:#6b7280;font-size:13px">If you didn't expect this email, please contact support.</p>
-          </div>
-          <div style="text-align:center;padding:12px 16px;color:#9ca3af;font-size:12px">GreatWork • <a href="${appUrl}" style="color:inherit;text-decoration:underline">${appUrl}</a></div>
-        </div>
-    `
+                            ${adminMessage ? `<div class="admin-note">${adminMessage}</div>` : ''}
+
+                            <div class="important">
+                                <strong>Notice:</strong>
+                                <p>Rebooking is only possible up to 30 minutes before your scheduled booking time.</p>
+                            </div>
+
+                            <div style="text-align: center;">
+                                <a href="${appUrl}/bookings" class="button">View Your Bookings</a>
+                            </div>
+
+                            <div class="footer">
+                                <p>© 2026 GreatWork Spaces. All rights reserved.</p>
+                                <p>If you didn't expect this email, please contact support.</p>
+                            </div>
+                        </div>
+                    </div>
+                </body>
+            </html>
+        `
 
     const text = `Hi ${name || 'there'},\n\nYour booking ${bookingReference} has been ${statusText}.\n\nDetails:\n- Location: ${buildingName}, ${roomName}\n- Date: ${dateRange}\n- Time: ${timeRange}\n\nNotice: Rebooking is only possible up to 30 minutes before your scheduled booking time.\n\nView details at: ${appUrl}`
 
