@@ -639,11 +639,12 @@ export function BookingsView() {
         onClose={() => setModalType('NONE')}
         onSuccess={() => {
           setModalType('NONE');
-          // Refresh bookings list
+          setCurrentPage(1);
+          // Refresh bookings list — always fetch page 1 so the new booking is visible at the top
           const fetchBookings = async () => {
             try {
               setLoading(true);
-              const result = await getBookingsCached({ page: currentPage, pageSize: PAGE_SIZE, status: statusFilter, query: debouncedQuery || undefined, companyId: companyFilter !== 'ALL' ? companyFilter : undefined, buildingId: buildingFilter !== 'ALL' ? buildingFilter : undefined, roomId: roomFilter !== 'ALL' ? roomFilter : undefined });
+              const result = await getBookingsCached({ page: 1, pageSize: PAGE_SIZE, status: statusFilter, query: debouncedQuery || undefined, companyId: companyFilter !== 'ALL' ? companyFilter : undefined, buildingId: buildingFilter !== 'ALL' ? buildingFilter : undefined, roomId: roomFilter !== 'ALL' ? roomFilter : undefined });
               if (result.success) {
                 setBookings(result.data || []);
                 setTotalPages(result.totalPages || 1);
