@@ -11,6 +11,34 @@ type WalkInCustomerProjection = {
     companyName: string | null
 }
 
+function getMonthRange(value?: string): { gte: Date; lt: Date } | null {
+    if (!value) return null
+    const v = value.trim()
+
+    if (/^\d{4}-\d{2}$/.test(v)) {
+        const [y, m] = v.split('-')
+        const year = Number(y)
+        const month = Number(m)
+        if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) return null
+        return {
+            gte: new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0)),
+            lt: new Date(Date.UTC(year, month, 1, 0, 0, 0, 0)),
+        }
+    }
+
+    if (/^\d{2}$/.test(v)) {
+        const month = Number(v)
+        if (!Number.isFinite(month) || month < 1 || month > 12) return null
+        const year = new Date().getUTCFullYear()
+        return {
+            gte: new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0)),
+            lt: new Date(Date.UTC(year, month, 1, 0, 0, 0, 0)),
+        }
+    }
+
+    return null
+}
+
 export async function getBookings(input: GetBookingsInput = {}): Promise<GetBookingsResult> {
     try {
         const session = await getServerSession()
@@ -25,8 +53,10 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
         const companyId = input.companyId?.trim()
         const buildingId = input.buildingId?.trim()
         const roomId = input.roomId?.trim()
+        const month = input.month?.trim()
         const status = input.status?.trim()
         const query = input.query?.trim()
+        const monthRange = getMonthRange(month)
 
         const cacheVersion = await getBookingsCacheVersion()
         const cacheKey = getBookingsCacheKey(
@@ -36,6 +66,7 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
             companyId,
             buildingId,
             roomId,
+            month,
             status,
             query
         )
@@ -58,6 +89,7 @@ export async function getBookings(input: GetBookingsInput = {}): Promise<GetBook
             ...(companyId && { submittedBy: { company: { name: { equals: companyId, mode: 'insensitive' } } } }),
             ...(buildingId && { buildingId: { equals: buildingId } }),
             ...(roomId && { roomId: { equals: roomId } }),
+            ...(monthRange && { startDate: { gte: monthRange.gte, lt: monthRange.lt } }),
             ...(query
                 ? {
                     OR: [

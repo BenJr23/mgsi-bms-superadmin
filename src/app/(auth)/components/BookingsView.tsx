@@ -192,6 +192,7 @@ export function BookingsView() {
         const result = await getBookingsCached({ 
           page: currentPage, 
           pageSize: PAGE_SIZE,
+          month: monthFilter !== 'ALL' ? monthFilter : undefined,
           status: statusFilter,
           query: debouncedQuery || undefined,
           companyId: companyFilter !== 'ALL' ? companyFilter : undefined,
@@ -211,7 +212,7 @@ export function BookingsView() {
       }
     };
     fetchBookings();
-  }, [currentPage, companyFilter, buildingFilter, roomFilter, statusFilter, debouncedQuery]);
+  }, [currentPage, monthFilter, companyFilter, buildingFilter, roomFilter, statusFilter, debouncedQuery]);
 
   useEffect(() => {
     const fetchExportUser = async () => {
@@ -285,7 +286,7 @@ export function BookingsView() {
   useEffect(() => {
     // Reset to page 1 when filters change to avoid showing empty results
     setCurrentPage(1);
-  }, [companyFilter, buildingFilter, roomFilter, statusFilter, debouncedQuery]);
+  }, [monthFilter, companyFilter, buildingFilter, roomFilter, statusFilter, debouncedQuery]);
 
   const filteredBookings = useMemo(() => {
     return bookingRows;
@@ -644,7 +645,7 @@ export function BookingsView() {
           const fetchBookings = async () => {
             try {
               setLoading(true);
-              const result = await getBookingsCached({ page: 1, pageSize: PAGE_SIZE, status: statusFilter, query: debouncedQuery || undefined, companyId: companyFilter !== 'ALL' ? companyFilter : undefined, buildingId: buildingFilter !== 'ALL' ? buildingFilter : undefined, roomId: roomFilter !== 'ALL' ? roomFilter : undefined });
+              const result = await getBookingsCached({ page: 1, pageSize: PAGE_SIZE, month: monthFilter !== 'ALL' ? monthFilter : undefined, status: statusFilter, query: debouncedQuery || undefined, companyId: companyFilter !== 'ALL' ? companyFilter : undefined, buildingId: buildingFilter !== 'ALL' ? buildingFilter : undefined, roomId: roomFilter !== 'ALL' ? roomFilter : undefined });
               if (result.success) {
                 setBookings(result.data || []);
                 setTotalPages(result.totalPages || 1);

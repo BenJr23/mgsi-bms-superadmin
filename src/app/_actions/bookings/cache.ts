@@ -11,6 +11,7 @@ export function getBookingsCacheKey(
     companyId?: string,
     buildingId?: string,
     roomId?: string,
+    month?: string,
     status?: string,
     query?: string
 ): string {
@@ -18,6 +19,7 @@ export function getBookingsCacheKey(
     if (companyId) filters.push(`company:${companyId}`)
     if (buildingId) filters.push(`building:${buildingId}`)
     if (roomId) filters.push(`room:${roomId}`)
+    if (month) filters.push(`month:${month}`)
     if (status && status !== 'ALL') filters.push(`status:${status}`)
     if (query) filters.push(`query:${query.toLowerCase()}`)
     const filterPart = filters.length > 0 ? `:${filters.join(':')}` : ''

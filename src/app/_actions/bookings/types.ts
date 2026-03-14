@@ -54,6 +54,7 @@ export interface GetBookingsInput {
     companyId?: string
     buildingId?: string
     roomId?: string
+    month?: string
     status?: 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'
     query?: string
 }
