@@ -33,7 +33,7 @@ export function RejectBookingModal({
   const handleConfirm = async () => {
     const trimmedMessage = message.trim();
     if (!trimmedMessage) {
-      setError('Please enter a rejection message.');
+      setError('Please enter a reschedule message.');
       return;
     }
 
@@ -44,12 +44,12 @@ export function RejectBookingModal({
       const result = await onConfirm(trimmedMessage);
 
       if (result.success) {
-        setSuccess('Booking rejected successfully.');
+        setSuccess('Booking marked for reschedule successfully.');
         setTimeout(() => {
           onClose();
         }, 3000);
       } else {
-        setError(result.error || 'Failed to reject booking.');
+        setError(result.error || 'Failed to reschedule booking.');
         setIsSubmitting(false);
       }
     } catch (err: unknown) {
@@ -70,8 +70,8 @@ export function RejectBookingModal({
               <X className="w-6 h-6 text-rose-500" />
             </div>
             <div>
-              <h3 className="text-xl font-semibold text-slate-900 leading-none">Reject Booking</h3>
-              <p className="text-slate-500 text-sm mt-1">Decline this booking request</p>
+              <h3 className="text-xl font-semibold text-slate-900 leading-none">Reschedule Booking</h3>
+              <p className="text-slate-500 text-sm mt-1">Mark this booking for reschedule</p>
             </div>
           </div>
 
@@ -80,9 +80,9 @@ export function RejectBookingModal({
               <span className="text-rose-600 font-bold text-xs">!</span>
             </div>
             <div className="space-y-1">
-              <p className="font-semibold text-rose-700 text-sm">Confirm Rejection</p>
+              <p className="font-semibold text-rose-700 text-sm">Confirm Reschedule</p>
               <p className="text-rose-600/80 text-[13px] leading-relaxed">
-                Are you sure you want to reject booking <span className="font-bold text-rose-700">{bookingRef}</span>?
+                Are you sure you want to mark booking <span className="font-bold text-rose-700">{bookingRef}</span> for reschedule?
               </p>
             </div>
           </div>
@@ -95,7 +95,7 @@ export function RejectBookingModal({
               id="reject-message"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Type the reason for rejecting this booking"
+              placeholder="Type the reason for rescheduling this booking"
               rows={4}
               disabled={isSubmitting}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:bg-slate-50"
@@ -132,7 +132,7 @@ export function RejectBookingModal({
             disabled={isSubmitting}
             className="px-4 py-2 text-sm font-medium bg-[#101828] text-white hover:bg-slate-800 rounded-lg transition-colors"
           >
-            {isSubmitting ? 'Rejecting...' : 'Reject Booking'}
+            {isSubmitting ? 'Saving...' : 'Mark as Rescheduled'}
           </button>
         </div>
       </div>

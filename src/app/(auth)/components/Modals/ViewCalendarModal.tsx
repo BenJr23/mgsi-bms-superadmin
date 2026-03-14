@@ -48,12 +48,10 @@ export function ViewCalendarModal({ isOpen, onClose, date, bookings }: ViewCalen
 
 	const getStatusVariant = (status: string) => {
 		switch (status) {
-			case 'APPROVED':
+			case 'CONFIRMED':
 				return 'success';
-			case 'PENDING':
+			case 'RESCHEDULED':
 				return 'warning';
-			case 'REJECTED':
-				return 'danger';
 			default:
 				return 'default';
 		}

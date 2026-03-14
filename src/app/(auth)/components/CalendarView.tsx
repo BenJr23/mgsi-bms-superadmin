@@ -99,12 +99,10 @@ export function CalendarView() {
 
     const getStatusColor = useCallback((status: string) => {
         switch (status) {
-            case 'APPROVED':
+            case 'CONFIRMED':
                 return 'bg-emerald-100 text-emerald-700 border-emerald-500';
-            case 'PENDING':
+            case 'RESCHEDULED':
                 return 'bg-amber-100 text-amber-700 border-amber-500';
-            case 'REJECTED':
-                return 'bg-rose-100 text-rose-700 border-rose-500';
             default:
                 return 'bg-slate-100 text-slate-700 border-slate-500';
         }

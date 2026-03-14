@@ -7,8 +7,8 @@ export function BookingsViewFiltersBar(props: {
   onQueryChange: (value: string) => void
   showFilters: boolean
   onToggleFilters: () => void
-  statusFilter: 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'
-  onStatusFilterChange: (value: 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED') => void
+  statusFilter: 'ALL' | 'RESCHEDULED' | 'CONFIRMED'
+  onStatusFilterChange: (value: 'ALL' | 'RESCHEDULED' | 'CONFIRMED') => void
   onCloseFilters: () => void
   companyFilter: string
   buildingFilter: string
@@ -48,7 +48,7 @@ export function BookingsViewFiltersBar(props: {
           <div className="fixed right-4 top-20 w-56 bg-white border border-slate-200 rounded-md shadow-md z-50 p-3">
             <div className="text-sm text-slate-600 mb-2">Status</div>
             <ul className="space-y-1">
-              {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const).map((s) => (
+              {(['ALL', 'RESCHEDULED', 'CONFIRMED'] as const).map((s) => (
                 <li key={s}>
                   <button
                     onClick={() => {

@@ -6,7 +6,6 @@ import { prisma } from '@/lib/prisma'
 export type ReportSummary = {
 	totalBookings: number
 	approvedBookings: number
-	rejectedBookings: number
 	pendingBookings: number
 	cancelledBookings: number
 	walkInBookings: number
@@ -14,7 +13,7 @@ export type ReportSummary = {
 }
 
 export type StatusDistributionItem = {
-	status: 'APPROVED' | 'REJECTED' | 'PENDING' | 'CANCELLED'
+	status: 'CONFIRMED' | 'RESCHEDULED' | 'CANCELLED'
 	count: number
 }
 
@@ -187,7 +186,6 @@ export async function getReportsData(input?: GetReportsDataInput): Promise<GetRe
 		const [
 			totalBookings,
 			approvedBookings,
-			rejectedBookings,
 			pendingBookings,
 			cancelledBookings,
 			walkInBookings,
@@ -196,9 +194,8 @@ export async function getReportsData(input?: GetReportsDataInput): Promise<GetRe
 			topBuildingsRaw,
 		] = await Promise.all([
 			prisma.booking.count({ where: bookingWhereBase }),
-			prisma.booking.count({ where: { ...bookingWhereBase, approvalStatus: 'APPROVED' } }),
-			prisma.booking.count({ where: { ...bookingWhereBase, approvalStatus: 'REJECTED' } }),
-			prisma.booking.count({ where: { ...bookingWhereBase, approvalStatus: 'PENDING' } }),
+			prisma.booking.count({ where: { ...bookingWhereBase, approvalStatus: 'CONFIRMED' } }),
+			prisma.booking.count({ where: { ...bookingWhereBase, approvalStatus: 'RESCHEDULED' } }),
 			prisma.booking.count({ where: { ...bookingWhereBase, clientStatus: 'CANCELLED' } }),
 			prisma.booking.count({ where: { ...bookingWhereBase, walkInCustomerId: { not: null } } }),
 			prisma.booking.findMany({
@@ -226,7 +223,6 @@ export async function getReportsData(input?: GetReportsDataInput): Promise<GetRe
 		const summary: ReportSummary = {
 			totalBookings,
 			approvedBookings,
-			rejectedBookings,
 			pendingBookings,
 			cancelledBookings,
 			walkInBookings,
@@ -234,9 +230,8 @@ export async function getReportsData(input?: GetReportsDataInput): Promise<GetRe
 		}
 
 		const statusDistribution: StatusDistributionItem[] = [
-			{ status: 'APPROVED', count: approvedBookings },
-			{ status: 'REJECTED', count: rejectedBookings },
-			{ status: 'PENDING', count: pendingBookings },
+			{ status: 'CONFIRMED', count: approvedBookings },
+			{ status: 'RESCHEDULED', count: pendingBookings },
 			{ status: 'CANCELLED', count: cancelledBookings },
 		]
 

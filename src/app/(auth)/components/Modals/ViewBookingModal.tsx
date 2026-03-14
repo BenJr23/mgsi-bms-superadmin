@@ -30,11 +30,9 @@ export function ViewBookingModal({ isOpen, onClose, details }: ViewBookingModalP
 	if (!isOpen) return null;
 
 	const approvalTone =
-		details.approvalStatus === 'APPROVED'
+		details.approvalStatus === 'CONFIRMED'
 			? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-			: details.approvalStatus === 'REJECTED'
-				? 'bg-rose-50 text-rose-700 border-rose-200'
-				: 'bg-amber-50 text-amber-700 border-amber-200';
+			: 'bg-amber-50 text-amber-700 border-amber-200';
 
 	const clientTone =
 		details.clientStatus === 'SUBMITTED'
@@ -110,7 +108,7 @@ export function ViewBookingModal({ isOpen, onClose, details }: ViewBookingModalP
 						<Field label="Date" value={details.dateRange} icon={<CalendarCheck2 className="w-3.5 h-3.5" />} />
 						<Field label="Time" value={details.timeRange} icon={<Clock3 className="w-3.5 h-3.5" />} />
 						<Field label="Submitted At" value={details.submittedAt} />
-						<Field label="Approved At" value={details.approvalDate || '-'} />
+						<Field label="Confirmed At" value={details.approvalDate || '-'} />
 						<Field label="Cancellation Deadline" value={details.cancellationDeadline || '-'} />
 						<Field label="Updated By" value={details.updatedByName || '-'} />
 					</div>

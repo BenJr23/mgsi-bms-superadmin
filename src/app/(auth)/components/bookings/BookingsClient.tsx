@@ -27,7 +27,7 @@ export function BookingsClient() {
   const [modalType, setModalType] = useState<'NONE' | 'VIEW' | 'APPROVE' | 'REJECT' | 'WALK_IN'>('NONE')
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'RESCHEDULED' | 'CONFIRMED'>('ALL')
   const [companyFilter, setCompanyFilter] = useState('ALL')
   const [buildingFilter, setBuildingFilter] = useState('ALL')
   const [roomFilter, setRoomFilter] = useState('ALL')
@@ -140,7 +140,7 @@ export function BookingsClient() {
   }, [bookings, debouncedQuery, deferredStatusFilter, deferredCompanyFilter, deferredBuildingFilter, deferredRoomFilter])
 
   const handleAction = useCallback(
-    async (status: 'APPROVED' | 'REJECTED', message?: string) => {
+    async (status: 'CONFIRMED' | 'RESCHEDULED', message?: string) => {
       if (!activeBooking) {
         return { success: false, error: 'No active booking selected.' }
       }
@@ -155,7 +155,7 @@ export function BookingsClient() {
                 ? {
                     ...b,
                     approvalStatus: status,
-                    message: status === 'REJECTED' ? (message?.trim() || null) : b.message,
+                    message: status === 'RESCHEDULED' ? (message?.trim() || null) : b.message,
                   }
                 : b
             )
@@ -496,14 +496,14 @@ export function BookingsClient() {
             onClose={closeModal}
             bookingRef={activeBooking.bookingReference}
             clientName={activeBooking.submittedBy.name || activeBooking.submittedBy.email}
-            onConfirm={() => handleAction('APPROVED')}
+            onConfirm={() => handleAction('CONFIRMED')}
           />
           <RejectBookingModal
             isOpen={modalType === 'REJECT'}
             onClose={closeModal}
             bookingRef={activeBooking.bookingReference}
             clientName={activeBooking.submittedBy.name || activeBooking.submittedBy.email}
-            onConfirm={(message) => handleAction('REJECTED', message)}
+            onConfirm={(message) => handleAction('RESCHEDULED', message)}
           />
         </>
       )}

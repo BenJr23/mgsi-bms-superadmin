@@ -48,7 +48,7 @@ export async function updateBookingApprovalStatus(
             return { success: false, error: 'Booking ID is required.' }
         }
 
-        if (approvalStatus !== 'APPROVED' && approvalStatus !== 'REJECTED' && approvalStatus !== 'PENDING') {
+        if (approvalStatus !== 'CONFIRMED' && approvalStatus !== 'RESCHEDULED') {
             return { success: false, error: 'Invalid approval status.' }
         }
 
@@ -90,8 +90,8 @@ export async function updateBookingApprovalStatus(
         }
 
         const computedHours = getBookingHours(existingBooking)
-        const oldHours = existingBooking.approvalStatus === 'APPROVED' ? existingBooking.creditHoursUsed : 0
-        const newHours = approvalStatus === 'APPROVED' ? computedHours : 0
+        const oldHours = existingBooking.approvalStatus === 'CONFIRMED' ? existingBooking.creditHoursUsed : 0
+        const newHours = approvalStatus === 'CONFIRMED' ? computedHours : 0
         const companyUsageDelta = newHours - oldHours
 
         const updatedBooking = await prisma.$transaction(async (tx) => {
@@ -132,7 +132,7 @@ export async function updateBookingApprovalStatus(
                 to: updatedBooking.submittedBy.email,
                 name: updatedBooking.submittedBy.name,
                 bookingReference: updatedBooking.bookingReference,
-                approved: approvalStatus === 'APPROVED',
+                status: approvalStatus,
                 adminMessage: message,
                 startDate: updatedBooking.startDate.toLocaleDateString(),
                 endDate: updatedBooking.endDate.toLocaleDateString(),

@@ -235,7 +235,6 @@ export function CompaniesView() {
                     <span>{company.totalBookingsCount} bookings</span>
                     <span className="text-green-700">✓ {company.approvedBookingsCount}</span>
                     <span className="text-yellow-700">◐ {company.pendingBookingsCount}</span>
-                    <span className="text-red-700">✕ {company.rejectedBookingsCount}</span>
                   </div>
                 </div>
               </Card>

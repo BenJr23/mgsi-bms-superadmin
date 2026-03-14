@@ -8,7 +8,7 @@ export function BookingsTable<T extends {
   room: { name: string }
   building: { name: string }
   submittedBy: { name: string | null; email: string; companyName?: string | null }
-  approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED'
+  approvalStatus: 'RESCHEDULED' | 'CONFIRMED'
   _display: { dateRange: string; timeRange: string }
 }>(props: {
   bookings: T[]
@@ -55,13 +55,7 @@ export function BookingsTable<T extends {
               </td>
               <td className="px-6 py-4">
                 <Badge
-                  variant={
-                    booking.approvalStatus === 'APPROVED'
-                      ? 'success'
-                      : booking.approvalStatus === 'PENDING'
-                        ? 'warning'
-                        : 'danger'
-                  }
+                  variant={booking.approvalStatus === 'CONFIRMED' ? 'success' : 'warning'}
                 >
                   {booking.approvalStatus}
                 </Badge>
@@ -77,24 +71,24 @@ export function BookingsTable<T extends {
                   >
                     <Eye className="w-4 h-4" />
                   </button>
-                  {booking.approvalStatus !== 'APPROVED' && (
+                  {booking.approvalStatus !== 'CONFIRMED' && (
                     <button
                       onClick={() => {
                         props.onApprove(booking)
                       }}
                       className="p-1 hover:bg-emerald-100 text-emerald-600 rounded-full"
-                      title="Approve booking"
+                      title="Confirm booking"
                     >
                       <Check className="w-4 h-4" />
                     </button>
                   )}
-                  {booking.approvalStatus !== 'REJECTED' && (
+                  {booking.approvalStatus !== 'RESCHEDULED' && (
                     <button
                       onClick={() => {
                         props.onReject(booking)
                       }}
-                      className="p-1 hover:bg-rose-100 text-rose-600 rounded-full"
-                      title="Reject booking"
+                      className="p-1 hover:bg-amber-100 text-amber-600 rounded-full"
+                      title="Reschedule booking"
                     >
                       <X className="w-4 h-4" />
                     </button>

@@ -653,7 +653,7 @@ export function WalkInBookingModal({
               Instant Booking
             </p>
             <p className="text-xs text-amber-600">
-              This booking will be auto-approved and marked as active
+              This booking will be auto-confirmed and marked as active
               immediately.
             </p>
           </div>

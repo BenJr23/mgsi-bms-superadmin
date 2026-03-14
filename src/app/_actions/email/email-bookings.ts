@@ -7,7 +7,7 @@ type SendBookingEmailArgs = {
     to: string
     name?: string | null
     bookingReference: string
-    approved: boolean
+    status: 'CONFIRMED' | 'RESCHEDULED'
     adminMessage?: string | null
     startDate: string
     endDate: string
@@ -50,23 +50,33 @@ async function createTransporter() {
 
 export async function sendBookingStatusEmail(args: SendBookingEmailArgs): Promise<void> {
     const { 
-        to, name, bookingReference, approved, adminMessage, 
+        to, name, bookingReference, status, adminMessage, 
         startDate, endDate, dailyTimeStart, dailyTimeEnd, 
         buildingName, roomName 
     } = args
 
     if (!to) return
 
-    const statusText = approved ? 'approved' : 'rejected'
+    const statusText =
+        status === 'CONFIRMED'
+            ? 'confirmed'
+            : 'rescheduled'
+    const statusHeading =
+        status === 'CONFIRMED'
+            ? 'Confirmed'
+            : 'Rescheduled'
+    const statusColor =
+        status === 'CONFIRMED'
+            ? '#059669'
+            : '#d97706'
+
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')
     const logoUrl = 'https://static.wixstatic.com/media/0f0d2b_a16c66e8204b4a4a9aa7d1c5eb937db7~mv2.png'
-    const subject = `Booking ${bookingReference} ${statusText}`
-    const statusHeading = approved ? 'Approved' : 'Rejected'
-    const statusColor = approved ? '#059669' : '#dc2626'
+    const subject = `Booking ${bookingReference} ${statusHeading}`
     
     const dateRange = startDate === endDate ? startDate : `${startDate} to ${endDate}`
     const timeRange = dailyTimeStart && dailyTimeEnd ? `${dailyTimeStart} - ${dailyTimeEnd}` : '12:00 AM - 12:00 AM'
-    const messagePrefix = approved ? '' : "We're sorry to inform you that "
+    const messagePrefix = ''
 
         const html = `
             <!DOCTYPE html>

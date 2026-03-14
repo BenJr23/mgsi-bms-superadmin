@@ -247,9 +247,8 @@ enum ClientStatus {
 }
 
 enum ApprovalStatus {
-  PENDING
-  APPROVED
-  REJECTED
+  RESCHEDULED
+  CONFIRMED
 }
 
 enum RejectionType {

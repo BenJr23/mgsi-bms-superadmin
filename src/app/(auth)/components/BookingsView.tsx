@@ -36,7 +36,7 @@ export function BookingsView() {
   const [modalType, setModalType] = useState<'NONE' | 'VIEW' | 'APPROVE' | 'REJECT' | 'WALK_IN'>('NONE');
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'RESCHEDULED' | 'CONFIRMED'>('ALL');
   const [showFilters, setShowFilters] = useState(false);
   const [monthFilter, setMonthFilter] = useState<'ALL' | string>('ALL');
   const [exportUser, setExportUser] = useState<{ name: string | null; email: string } | null>(null);
@@ -292,7 +292,7 @@ export function BookingsView() {
     return bookingRows;
   }, [bookingRows]);
 
-  const handleAction = async (status: 'APPROVED' | 'REJECTED', message?: string) => {
+  const handleAction = async (status: 'CONFIRMED' | 'RESCHEDULED', message?: string) => {
     if (!activeBooking) {
       return { success: false, error: 'No active booking selected.' };
     }
@@ -306,7 +306,7 @@ export function BookingsView() {
             ? {
                 ...b,
                 approvalStatus: status,
-                message: status === 'REJECTED' ? (message?.trim() || null) : b.message,
+                message: status === 'RESCHEDULED' ? (message?.trim() || null) : b.message,
               }
             : b
         ));
@@ -624,14 +624,14 @@ export function BookingsView() {
             onClose={closeModal}
             bookingRef={activeBooking.bookingReference}
             clientName={activeBooking.submittedBy.name || activeBooking.submittedBy.email}
-            onConfirm={() => handleAction('APPROVED')}
+            onConfirm={() => handleAction('CONFIRMED')}
           />
           <RejectBookingModal
             isOpen={modalType === 'REJECT'}
             onClose={closeModal}
             bookingRef={activeBooking.bookingReference}
             clientName={activeBooking.submittedBy.name || activeBooking.submittedBy.email}
-            onConfirm={(message) => handleAction('REJECTED', message)}
+            onConfirm={(message) => handleAction('RESCHEDULED', message)}
           />
         </>
       )}

@@ -45,7 +45,7 @@ export async function getRoomUnavailableSlots(
                 roomId,
                 isActive: true,
                 deletedAt: null,
-                approvalStatus: { in: ['PENDING', 'APPROVED'] },
+                approvalStatus: { in: ['RESCHEDULED', 'CONFIRMED'] },
                 startDate: { lte: queryEnd },
                 endDate: { gte: queryStart },
             },

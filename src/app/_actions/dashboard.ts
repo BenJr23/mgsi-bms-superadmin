@@ -176,7 +176,7 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
     }
 
     const pendingCount = await prisma.booking.count({
-      where: { approvalStatus: 'PENDING', isActive: true, deletedAt: null },
+      where: { approvalStatus: 'RESCHEDULED', isActive: true, deletedAt: null },
     })
 
     const buildingsCount = await prisma.building.count({
@@ -205,7 +205,7 @@ export async function getDashboardStats(): Promise<GetDashboardStatsResult> {
         where: {
           isActive: true,
           deletedAt: null,
-          approvalStatus: 'APPROVED',
+          approvalStatus: 'CONFIRMED',
           startDate: { lte: endDate },
           endDate: { gte: startDate },
           room: { deletedAt: null, building: { status: 'ACTIVE', deletedAt: null } },

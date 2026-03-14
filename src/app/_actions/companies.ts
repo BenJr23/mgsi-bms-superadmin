@@ -20,7 +20,6 @@ export type CompanyStats = {
     utilizationPercentage: number
     approvedBookingsCount: number
     pendingBookingsCount: number
-    rejectedBookingsCount: number
     totalBookingsCount: number
     createdAt: string
     updatedAt: string
@@ -264,9 +263,8 @@ export async function getCompanies(): Promise<GetCompaniesResult> {
         })
 
         const companiesStats: CompanyStats[] = companies.map((company) => {
-            const approvedBookings = company.bookings.filter((b) => b.approvalStatus === 'APPROVED')
-            const pendingBookings = company.bookings.filter((b) => b.approvalStatus === 'PENDING')
-            const rejectedBookings = company.bookings.filter((b) => b.approvalStatus === 'REJECTED')
+            const approvedBookings = company.bookings.filter((b) => b.approvalStatus === 'CONFIRMED')
+            const pendingBookings = company.bookings.filter((b) => b.approvalStatus === 'RESCHEDULED')
 
             const totalCreditHoursUsed = company.usedCreditHours
             const remainingCreditHours = company.allottedCreditHours - totalCreditHoursUsed
@@ -283,7 +281,6 @@ export async function getCompanies(): Promise<GetCompaniesResult> {
                 utilizationPercentage,
                 approvedBookingsCount: approvedBookings.length,
                 pendingBookingsCount: pendingBookings.length,
-                rejectedBookingsCount: rejectedBookings.length,
                 totalBookingsCount: company.bookings.length,
                 createdAt: company.createdAt.toISOString(),
                 updatedAt: company.updatedAt.toISOString(),
@@ -367,9 +364,8 @@ export async function getCompanyDetails(companyId: string): Promise<GetCompanyDe
             return { success: false, error: 'Company not found' }
         }
 
-        const approvedBookings = company.bookings.filter((b) => b.approvalStatus === 'APPROVED')
-        const pendingBookings = company.bookings.filter((b) => b.approvalStatus === 'PENDING')
-        const rejectedBookings = company.bookings.filter((b) => b.approvalStatus === 'REJECTED')
+        const approvedBookings = company.bookings.filter((b) => b.approvalStatus === 'CONFIRMED')
+        const pendingBookings = company.bookings.filter((b) => b.approvalStatus === 'RESCHEDULED')
 
         const totalCreditHoursUsed = company.usedCreditHours
         const remainingCreditHours = company.allottedCreditHours - totalCreditHoursUsed
@@ -386,7 +382,6 @@ export async function getCompanyDetails(companyId: string): Promise<GetCompanyDe
             utilizationPercentage,
             approvedBookingsCount: approvedBookings.length,
             pendingBookingsCount: pendingBookings.length,
-            rejectedBookingsCount: rejectedBookings.length,
             totalBookingsCount: company.bookings.length,
             createdAt: company.createdAt.toISOString(),
             updatedAt: company.updatedAt.toISOString(),
@@ -630,7 +625,6 @@ export async function createCompany(input: CreateCompanyInput): Promise<CreateCo
                 utilizationPercentage: 0,
                 approvedBookingsCount: 0,
                 pendingBookingsCount: 0,
-                rejectedBookingsCount: 0,
                 totalBookingsCount: 0,
                 createdAt: newCompany.createdAt.toISOString(),
                 updatedAt: newCompany.updatedAt.toISOString(),
@@ -725,9 +719,8 @@ export async function updateCompany(input: UpdateCompanyInput): Promise<UpdateCo
             },
         })
 
-        const approvedBookings = updatedCompany.bookings.filter((b) => b.approvalStatus === 'APPROVED')
-        const pendingBookings = updatedCompany.bookings.filter((b) => b.approvalStatus === 'PENDING')
-        const rejectedBookings = updatedCompany.bookings.filter((b) => b.approvalStatus === 'REJECTED')
+        const approvedBookings = updatedCompany.bookings.filter((b) => b.approvalStatus === 'CONFIRMED')
+        const pendingBookings = updatedCompany.bookings.filter((b) => b.approvalStatus === 'RESCHEDULED')
 
         const totalCreditHoursUsed = updatedCompany.usedCreditHours
         const remainingCreditHours = updatedCompany.allottedCreditHours - totalCreditHoursUsed
@@ -750,7 +743,6 @@ export async function updateCompany(input: UpdateCompanyInput): Promise<UpdateCo
                 utilizationPercentage,
                 approvedBookingsCount: approvedBookings.length,
                 pendingBookingsCount: pendingBookings.length,
-                rejectedBookingsCount: rejectedBookings.length,
                 totalBookingsCount: updatedCompany.bookings.length,
                 createdAt: updatedCompany.createdAt.toISOString(),
                 updatedAt: updatedCompany.updatedAt.toISOString(),

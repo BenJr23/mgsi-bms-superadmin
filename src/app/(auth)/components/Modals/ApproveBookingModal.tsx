@@ -36,7 +36,7 @@ export function ApproveBookingModal({
       const result = await onConfirm();
 
       if (result.success) {
-        setSuccess('Booking approved successfully.');
+        setSuccess('Booking confirmed successfully.');
         setTimeout(() => {
           onClose();
         }, 3000);
