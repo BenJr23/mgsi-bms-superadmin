@@ -191,10 +191,6 @@ export async function sendCompanyCreditAlertEmail(args: CompanyCreditAlertArgs):
               </p>
             </div>
 
-            <div style="text-align: center;">
-              <a href="${appUrl}/companies" class="button">View Company Dashboard</a>
-            </div>
-
             <div class="footer">
               <p>© 2026 GreatWork Spaces. All rights reserved.</p>
             </div>
