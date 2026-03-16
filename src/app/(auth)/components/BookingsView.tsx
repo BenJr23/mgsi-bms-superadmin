@@ -572,14 +572,6 @@ export function BookingsView() {
               setActiveBooking(booking)
               setModalType('VIEW')
             }}
-            onApprove={(booking) => {
-              setActiveBooking(booking)
-              setModalType('APPROVE')
-            }}
-            onReject={(booking) => {
-              setActiveBooking(booking)
-              setModalType('REJECT')
-            }}
           />
         )}
 
