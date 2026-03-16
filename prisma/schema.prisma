@@ -10,31 +10,31 @@ datasource db {
 }
 
 model User {
-  id                String      @id @default(uuid())
-  name              String
-  email             String      @unique
-  emailVerified     Boolean     @default(false)
-  image             String?
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-  role              UserRole    @default(CLIENT)
-  phoneNumber       String?
-  contractEndDate   DateTime?
-  createdById       String?
-  passwordVerified  Boolean     @default(false)
-  deletedAt         DateTime?
-  companyId         String?
-  accounts          Account[]
-  submittedBookings Booking[]   @relation("SubmittedBookings")
-  updatedBookings   Booking[]   @relation("UpdatedBookings")
-  createdBuildings  Building[]
-  rejectedBookings  Rejection[]
-  createdRooms      Room[]
-  sessions          Session[]
-  company           Company?    @relation(fields: [companyId], references: [id])
-  representedCompanies Company[] @relation("CompanyRepresentative")
-  createdBy         User?       @relation("UserCreator", fields: [createdById], references: [id])
-  createdUsers      User[]      @relation("UserCreator")
+  id                   String      @id @default(uuid())
+  name                 String
+  email                String      @unique
+  emailVerified        Boolean     @default(false)
+  image                String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  role                 UserRole    @default(CLIENT)
+  phoneNumber          String?
+  contractEndDate      DateTime?
+  createdById          String?
+  passwordVerified     Boolean     @default(false)
+  deletedAt            DateTime?
+  companyId            String?
+  accounts             Account[]
+  submittedBookings    Booking[]   @relation("SubmittedBookings")
+  updatedBookings      Booking[]   @relation("UpdatedBookings")
+  createdBuildings     Building[]
+  representedCompanies Company[]   @relation("CompanyRepresentative")
+  rejectedBookings     Rejection[]
+  createdRooms         Room[]
+  sessions             Session[]
+  company              Company?    @relation(fields: [companyId], references: [id])
+  createdBy            User?       @relation("UserCreator", fields: [createdById], references: [id])
+  createdUsers         User[]      @relation("UserCreator")
 
   @@index([companyId])
   @@map("users")
@@ -45,13 +45,13 @@ model Company {
   name                String    @unique
   allottedCreditHours Float     @default(0)
   usedCreditHours     Float     @default(0)
-  representativeId    String?
   deletedAt           DateTime?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
+  representativeId    String?
   bookings            Booking[]
-  users               User[]
   representative      User?     @relation("CompanyRepresentative", fields: [representativeId], references: [id])
+  users               User[]
 
   @@index([representativeId])
   @@map("companies")
@@ -220,6 +220,7 @@ enum UserRole {
   CLIENT
   ADMIN
   SUPERADMIN
+  STAFF
 }
 
 enum BuildingStatus {
