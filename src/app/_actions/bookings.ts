@@ -8,6 +8,7 @@ import { getBookings as getBookingsImpl } from './bookings/get-bookings'
 import { getBuildings as getBuildingsImpl } from './bookings/get-buildings'
 import { getRoomUnavailableSlots as getRoomUnavailableSlotsImpl } from './bookings/get-room-unavailable-slots'
 import { getRoomsByBuilding as getRoomsByBuildingImpl } from './bookings/getRoomsByBuilding'
+import { getWalkInCustomers as getWalkInCustomersImpl } from './bookings/get-walk-in-customers'
 import {
     updateBookingApprovalStatus as updateBookingApprovalStatusImpl,
 } from './bookings/update-booking-approval-status'
@@ -21,6 +22,7 @@ import type {
     GetRoomsByBuildingInput,
     GetRoomsResult,
     GetBuildingsResult,
+    GetWalkInCustomersResult,
     UpdateBookingApprovalResult,
 } from './bookings/types'
 
@@ -30,6 +32,7 @@ export type {
     Building,
     Room,
     RoomUnavailableSlot,
+    WalkInCustomerOption,
 } from './bookings/types'
 
 export async function getBookingsCached(input: GetBookingsInput = {}): Promise<GetBookingsResult> {
@@ -64,4 +67,8 @@ export async function getRoomUnavailableSlots(
     input: GetRoomUnavailableSlotsInput
 ): Promise<GetRoomUnavailableSlotsResult> {
     return getRoomUnavailableSlotsImpl(input)
+}
+
+export async function getWalkInCustomers(query?: string): Promise<GetWalkInCustomersResult> {
+    return getWalkInCustomersImpl(query)
 }

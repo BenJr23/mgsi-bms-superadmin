@@ -158,3 +158,17 @@ export interface GetRoomUnavailableSlotsResult {
     data?: RoomUnavailableSlot[]
     error?: string
 }
+
+export type WalkInCustomerOption = {
+    id: string
+    name: string
+    email: string
+    phoneNumber: string | null
+    companyName: string | null
+}
+
+export interface GetWalkInCustomersResult {
+    success: boolean
+    data?: WalkInCustomerOption[]
+    error?: string
+}

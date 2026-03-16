@@ -8,10 +8,12 @@ import 'react-day-picker/dist/style.css'
 import {
   createWalkInBooking,
   getBuildings,
+  getWalkInCustomers,
   getRoomUnavailableSlots,
   getRoomsByBuilding,
   type Building,
   type RoomUnavailableSlot,
+  type WalkInCustomerOption,
   type Room,
 } from '@/app/_actions/bookings'
 import {
@@ -231,9 +233,14 @@ export function WalkInBookingModal({
   const [loadingBuildings, setLoadingBuildings] = useState(false)
   const [loadingRooms, setLoadingRooms] = useState(false)
   const [loadingUnavailableSlots, setLoadingUnavailableSlots] = useState(false)
+  const [loadingWalkInCustomers, setLoadingWalkInCustomers] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string>('')
   const [unavailableSlots, setUnavailableSlots] = useState<RoomUnavailableSlot[]>([])
+  const [walkInCustomers, setWalkInCustomers] = useState<WalkInCustomerOption[]>([])
+  const [customerSearch, setCustomerSearch] = useState('')
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('')
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false)
   const [openDatePickerPanel, setOpenDatePickerPanel] = useState<DatePickerPanel>('NONE')
 
   const selectedBuilding = useMemo(
@@ -292,6 +299,9 @@ export function WalkInBookingModal({
 
     setForm(getDefaultForm())
     setUnavailableSlots([])
+    setCustomerSearch('')
+    setSelectedCustomerId('')
+    setIsCustomerDropdownOpen(false)
     setOpenDatePickerPanel('NONE')
 
     const fetchBuildings = async () => {
@@ -308,6 +318,26 @@ export function WalkInBookingModal({
 
     fetchBuildings()
   }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    const timeout = setTimeout(async () => {
+      setLoadingWalkInCustomers(true)
+      try {
+        const result = await getWalkInCustomers(customerSearch)
+        if (result.success && result.data) {
+          setWalkInCustomers(result.data)
+        } else {
+          setWalkInCustomers([])
+        }
+      } finally {
+        setLoadingWalkInCustomers(false)
+      }
+    }, 250)
+
+    return () => clearTimeout(timeout)
+  }, [isOpen, customerSearch])
 
   useEffect(() => {
     if (!form.buildingId) {
@@ -371,6 +401,25 @@ export function WalkInBookingModal({
       ...prev,
       [key]: value,
     }))
+
+  const applyReturningCustomer = (customer: WalkInCustomerOption) => {
+    setSelectedCustomerId(customer.id)
+    setCustomerSearch(`${customer.name} (${customer.email})`)
+    setIsCustomerDropdownOpen(false)
+    setForm((prev) => ({
+      ...prev,
+      clientName: customer.name,
+      email: customer.email,
+      phoneNumber: customer.phoneNumber ? formatPhilippinePhone(customer.phoneNumber) : '',
+      companyName: customer.companyName || '',
+    }))
+  }
+
+  const clearReturningCustomer = () => {
+    setSelectedCustomerId('')
+    setCustomerSearch('')
+    setIsCustomerDropdownOpen(false)
+  }
 
   const handleDateFieldChange = (
     key: 'dateStart' | 'dateEnd',
@@ -663,6 +712,68 @@ export function WalkInBookingModal({
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2">
             Client Information
           </p>
+
+          <div>
+            <label className="text-sm font-medium text-slate-700 block mb-1.5">
+              Returning Customer{' '}
+              <span className="text-xs font-normal text-slate-400">(optional)</span>
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search by name, email, phone, or company"
+                value={customerSearch}
+                onChange={(e) => {
+                  setCustomerSearch(e.target.value)
+                  setSelectedCustomerId('')
+                  setIsCustomerDropdownOpen(true)
+                }}
+                onFocus={() => setIsCustomerDropdownOpen(true)}
+                className={inputClass()}
+              />
+
+              {isCustomerDropdownOpen && (
+                <div className="absolute z-30 mt-2 w-full rounded-md border border-slate-200 bg-white shadow-lg max-h-56 overflow-y-auto">
+                  <button
+                    type="button"
+                    className="w-full text-left px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 border-b border-slate-100"
+                    onClick={clearReturningCustomer}
+                  >
+                    Enter customer manually
+                  </button>
+
+                  {loadingWalkInCustomers ? (
+                    <div className="px-3 py-2 text-sm text-slate-500">Searching customers...</div>
+                  ) : walkInCustomers.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-slate-500">No matching walk-in customers.</div>
+                  ) : (
+                    walkInCustomers.map((customer) => (
+                      <button
+                        key={customer.id}
+                        type="button"
+                        onClick={() => applyReturningCustomer(customer)}
+                        className={`w-full text-left px-3 py-2 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 ${
+                          selectedCustomerId === customer.id ? 'bg-indigo-50' : ''
+                        }`}
+                      >
+                        <p className="text-sm font-medium text-slate-900">{customer.name}</p>
+                        <p className="text-xs text-slate-500">{customer.email}</p>
+                        {(customer.companyName || customer.phoneNumber) && (
+                          <p className="text-[11px] text-slate-400">
+                            {[customer.companyName, customer.phoneNumber].filter(Boolean).join(' • ')}
+                          </p>
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+            <p className="mt-1 text-[11px] text-slate-500">
+              Pick a previous walk-in customer to auto-fill the fields below.
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-slate-700 block mb-1.5">
