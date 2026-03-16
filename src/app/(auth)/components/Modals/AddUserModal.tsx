@@ -97,7 +97,7 @@ export function Modal({
     </div>
   )
 }
-type UserRole = 'CLIENT' | 'ADMIN' | 'SUPERADMIN'
+type UserRole = 'CLIENT' | 'ADMIN' | 'STAFF' | 'SUPERADMIN'
 interface UserFormData {
   name: string
   email: string
@@ -143,6 +143,14 @@ const ROLE_OPTIONS: {
     description: 'Manages buildings, rooms and approves bookings.',
     color: 'border-slate-200 text-slate-600',
     activeColor: 'border-blue-400 bg-blue-50 text-blue-700',
+    icon: <Shield className="w-4 h-4" />,
+  },
+  {
+    value: 'STAFF',
+    label: 'Staff',
+    description: 'Handles day-to-day booking operations.',
+    color: 'border-slate-200 text-slate-600',
+    activeColor: 'border-amber-400 bg-amber-50 text-amber-700',
     icon: <Shield className="w-4 h-4" />,
   },
   {

@@ -15,7 +15,7 @@ interface UserRow {
   id: string
   name: string
   email: string
-  role: 'CLIENT' | 'ADMIN' | 'SUPERADMIN'
+  role: 'CLIENT' | 'ADMIN' | 'STAFF' | 'SUPERADMIN'
   company: { id: string; name: string } | null
   phoneNumber: string | null
   contractEndDate: string | null
@@ -251,7 +251,7 @@ export function UsersView() {
                   </td>
                   <td className="px-6 py-4">
                     <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${user.role === 'SUPERADMIN' ? 'bg-purple-50 text-purple-700 border-purple-200' : user.role === 'ADMIN' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${user.role === 'SUPERADMIN' ? 'bg-purple-50 text-purple-700 border-purple-200' : user.role === 'ADMIN' ? 'bg-blue-50 text-blue-700 border-blue-200' : user.role === 'STAFF' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
 
                       {user.role === 'SUPERADMIN' &&
                     <Shield className="w-3 h-3" />
@@ -342,6 +342,8 @@ export function UsersView() {
                         ? 'bg-purple-50 text-purple-700 border-purple-200'
                         : user.role === 'ADMIN'
                           ? 'bg-blue-50 text-blue-700 border-blue-200'
+                          : user.role === 'STAFF'
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
                           : 'bg-slate-50 text-slate-600 border-slate-200'
                     }`}
                   >

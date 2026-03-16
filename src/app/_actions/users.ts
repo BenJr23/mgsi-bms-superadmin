@@ -10,7 +10,7 @@ import { redis } from '@/lib/redist'
 interface CreateUserInput {
   name: string
   email: string
-  role: 'CLIENT' | 'ADMIN' | 'SUPERADMIN'
+  role: 'CLIENT' | 'ADMIN' | 'STAFF' | 'SUPERADMIN'
   companyId?: string
   phoneNumber?: string
   contractEndDate?: string
@@ -39,7 +39,7 @@ interface ListUsersResult {
       id: string
       name: string
       email: string
-      role: 'CLIENT' | 'ADMIN' | 'SUPERADMIN'
+      role: 'CLIENT' | 'ADMIN' | 'STAFF' | 'SUPERADMIN'
       company: { id: string; name: string } | null
       phoneNumber: string | null
       contractEndDate: string | null
@@ -60,7 +60,7 @@ interface UpdateUserInput {
   id: string
   name: string
   email: string
-  role: 'CLIENT' | 'ADMIN' | 'SUPERADMIN'
+  role: 'CLIENT' | 'ADMIN' | 'STAFF' | 'SUPERADMIN'
   companyId?: string
   phoneNumber?: string
   contractEndDate?: string
