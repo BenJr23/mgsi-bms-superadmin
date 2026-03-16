@@ -6,6 +6,7 @@ import { headers } from 'next/headers'
 import { hashPassword } from 'better-auth/crypto'
 import { sendCredentialsEmail } from './email/email-user'
 import { redis } from '@/lib/redist'
+import { Prisma } from '@/generated/prisma/client'
 
 interface CreateUserInput {
   name: string
@@ -70,6 +71,15 @@ interface UpdateUserInput {
 interface UpdateUserResult {
   success: boolean
   error?: string
+}
+
+type AppUserRole = 'CLIENT' | 'ADMIN' | 'STAFF' | 'SUPERADMIN'
+
+function normalizeUserRole(role: string): AppUserRole {
+  if (role === 'ADMIN' || role === 'SUPERADMIN' || role === 'CLIENT' || role === 'STAFF') {
+    return role
+  }
+  return 'CLIENT'
 }
 
 // Generate a secure random password
@@ -250,28 +260,54 @@ export async function getUsers(input: GetUsersInput = {}): Promise<ListUsersResu
         : {}),
     }
 
+    const offset = (page - 1) * pageSize
+
+    type UserRowRaw = {
+      id: string
+      name: string
+      email: string
+      role: string
+      companyId: string | null
+      companyName: string | null
+      phoneNumber: string | null
+      contractEndDate: Date | null
+      image: string | null
+      createdAt: Date
+      deletedAt: Date | null
+    }
+
+    const searchTerm = searchQuery ? `%${searchQuery}%` : null
+    const searchFilter = searchTerm
+      ? Prisma.sql`AND (u."name" ILIKE ${searchTerm} OR u."email" ILIKE ${searchTerm})`
+      : Prisma.empty
+
     const [totalItems, users] = await Promise.all([
       prisma.user.count({
         where: whereClause,
       }),
-      prisma.user.findMany({
-        where: whereClause,
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          company: { select: { id: true, name: true } },
-          phoneNumber: true,
-          contractEndDate: true,
-          image: true,
-          createdAt: true,
-          deletedAt: true,
-        },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
+      prisma.$queryRaw<UserRowRaw[]>(Prisma.sql`
+        SELECT
+          u."id",
+          u."name",
+          u."email",
+          u."role"::text AS "role",
+          c."id" AS "companyId",
+          c."name" AS "companyName",
+          u."phoneNumber",
+          u."contractEndDate",
+          u."image",
+          u."createdAt",
+          u."deletedAt"
+        FROM "users" u
+        LEFT JOIN "companies" c ON c."id" = u."companyId"
+        WHERE
+          u."deletedAt" IS NULL
+          AND NOT (u."role" = 'CLIENT' AND u."contractEndDate" IS NULL)
+          ${searchFilter}
+        ORDER BY u."createdAt" DESC
+        LIMIT ${pageSize}
+        OFFSET ${offset}
+      `),
     ])
 
     const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
@@ -283,8 +319,8 @@ export async function getUsers(input: GetUsersInput = {}): Promise<ListUsersResu
           id: user.id,
           name: user.name,
           email: user.email,
-          role: user.role,
-          company: user.company,
+          role: normalizeUserRole(user.role),
+          company: user.companyId && user.companyName ? { id: user.companyId, name: user.companyName } : null,
           phoneNumber: user.phoneNumber,
           contractEndDate: user.contractEndDate ? user.contractEndDate.toISOString() : null,
           image: user.image,
