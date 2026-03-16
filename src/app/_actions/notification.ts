@@ -3,10 +3,24 @@
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from '@/lib/get-server'
 
+export type NotificationBookingItem = {
+    id: string
+    createdAt: string
+    submittedBy: {
+        name: string | null
+    } | null
+    room: {
+        roomName: string
+    } | null
+    building: {
+        buildingName: string
+    } | null
+}
+
 interface GetNotificationCountResult {
     success: boolean
     count?: number
-    latestBookings?: any[]
+    latestBookings?: NotificationBookingItem[]
     error?: string
 }
 
@@ -37,7 +51,10 @@ export async function getNotificationCount(): Promise<GetNotificationCountResult
                 orderBy: {
                     createdAt: 'desc',
                 },
-                include: {
+                // Select only fields used by the header dropdown to avoid enum decode mismatches.
+                select: {
+                    id: true,
+                    createdAt: true,
                     submittedBy: {
                         select: { name: true }
                     },
@@ -51,10 +68,18 @@ export async function getNotificationCount(): Promise<GetNotificationCountResult
             })
         ])
 
+        const latestBookingsForUi: NotificationBookingItem[] = latestBookings.map((booking) => ({
+            id: booking.id,
+            createdAt: booking.createdAt.toISOString(),
+            submittedBy: booking.submittedBy ? { name: booking.submittedBy.name } : null,
+            room: booking.room ? { roomName: booking.room.roomName } : null,
+            building: booking.building ? { buildingName: booking.building.buildingName } : null,
+        }))
+
         return {
             success: true,
             count,
-            latestBookings: JSON.parse(JSON.stringify(latestBookings)),
+            latestBookings: latestBookingsForUi,
         }
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Failed to fetch notifications.'

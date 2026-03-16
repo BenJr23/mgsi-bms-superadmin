@@ -1,5 +1,5 @@
 import React from 'react'
-import { Check, Eye, X } from 'lucide-react'
+import { Eye } from 'lucide-react'
 import { Badge } from '../ui/Badge'
 
 export function BookingsTable<T extends {
@@ -13,8 +13,6 @@ export function BookingsTable<T extends {
 }>(props: {
   bookings: T[]
   onView: (booking: T) => void
-  onApprove: (booking: T) => void
-  onReject: (booking: T) => void
 }) {
   return (
     <div className="overflow-x-auto">
@@ -71,28 +69,6 @@ export function BookingsTable<T extends {
                   >
                     <Eye className="w-4 h-4" />
                   </button>
-                  {booking.approvalStatus !== 'CONFIRMED' && (
-                    <button
-                      onClick={() => {
-                        props.onApprove(booking)
-                      }}
-                      className="p-1 hover:bg-emerald-100 text-emerald-600 rounded-full"
-                      title="Confirm booking"
-                    >
-                      <Check className="w-4 h-4" />
-                    </button>
-                  )}
-                  {booking.approvalStatus !== 'RESCHEDULED' && (
-                    <button
-                      onClick={() => {
-                        props.onReject(booking)
-                      }}
-                      className="p-1 hover:bg-amber-100 text-amber-600 rounded-full"
-                      title="Reschedule booking"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
                 </div>
               </td>
             </tr>

@@ -8,6 +8,17 @@ const CALENDAR_CACHE_VERSION = 'v3'
 const CALENDAR_CACHE_TTL_SECONDS = 300 // 5 minutes for better performance
 const BUILDINGS_CACHE_TTL_SECONDS = 3600 // 1 hour for buildings (rarely changes)
 
+function normalizeCalendarApprovalStatus(status: string): string {
+    switch (status) {
+        case 'APPROVED':
+            return 'CONFIRMED'
+        case 'REJECTED':
+            return 'RESCHEDULED'
+        default:
+            return status
+    }
+}
+
 function getCalendarCacheKey(params: { year: number; month: number; buildingId?: string }) {
     const buildingKey = params.buildingId && params.buildingId !== 'all' ? params.buildingId : 'all'
     return `calendar:${CALENDAR_CACHE_VERSION}:${params.year}:${params.month}:${buildingKey}`
@@ -92,7 +103,7 @@ async function warmAdjacentCache(currentYear: number, currentMonth: number, buil
                 roomName: booking.room.roomName,
                 buildingName: booking.building.buildingName,
                 buildingId: booking.building.id,
-                approvalStatus: booking.approvalStatus,
+                approvalStatus: normalizeCalendarApprovalStatus(booking.approvalStatus),
                 submittedByName,
                 companyName,
             }
@@ -272,7 +283,7 @@ export async function getCalendarBookings(
             roomName: booking.room.roomName,
             buildingName: booking.building.buildingName,
             buildingId: booking.building.id,
-            approvalStatus: booking.approvalStatus,
+            approvalStatus: normalizeCalendarApprovalStatus(booking.approvalStatus),
             submittedByName,
             companyName,
         }
