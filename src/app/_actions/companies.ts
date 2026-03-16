@@ -71,7 +71,7 @@ const COMPANY_DETAIL_CACHE_KEY_PREFIX = 'company:detail:'
 const COMPANY_CREDIT_ALERT_CACHE_KEY_PREFIX = 'company:credit-alert:'
 const CACHE_TTL_SECONDS = 60
 const COMPANY_CREDIT_ALERT_THRESHOLD = 8
-const COMPANY_CREDIT_ALERT_TTL_SECONDS = 3600
+const COMPANY_CREDIT_ALERT_TTL_SECONDS = 10 * 60 // 6 hours to prevent alert fatigue, can be adjusted as needed
 const EMAIL_DEBUG = process.env.EMAIL_DEBUG === 'true'
 
 function getCompanyCreditAlertCacheKey(companyId: string): string {

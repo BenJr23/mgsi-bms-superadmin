@@ -1,6 +1,6 @@
 import { redis } from '@/lib/redist'
 
-export const BOOKINGS_CACHE_TTL_SECONDS = 300
+export const BOOKINGS_CACHE_TTL_SECONDS = 180
 
 const BOOKINGS_CACHE_VERSION_KEY = 'bookings:list:version'
 

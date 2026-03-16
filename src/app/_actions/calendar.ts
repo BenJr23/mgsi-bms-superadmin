@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redist'
 
 const CALENDAR_CACHE_VERSION = 'v3'
-const CALENDAR_CACHE_TTL_SECONDS = 300 // 5 minutes for better performance
+const CALENDAR_CACHE_TTL_SECONDS = 180 // 5 minutes for better performance
 const BUILDINGS_CACHE_TTL_SECONDS = 3600 // 1 hour for buildings (rarely changes)
 
 function normalizeCalendarApprovalStatus(status: string): string {
