@@ -330,6 +330,9 @@ export function BookingsView() {
     return s
   }
 
+  const getBookingStatusLabel = (booking: BookingRow) =>
+    booking.clientStatus === 'CANCELLED' ? 'CANCELLED' : booking.approvalStatus
+
   const getMonthParts = (value: 'ALL' | string): { year: number; month: number } | null => {
     if (!value || value === 'ALL') return null
     const v = value.trim()
@@ -374,7 +377,7 @@ export function BookingsView() {
       escapeCSV(b._display.startTimeForExport),
       escapeCSV(b._display.endDateForExport),
       escapeCSV(b._display.endTimeForExport),
-      escapeCSV(b.approvalStatus),
+      escapeCSV(getBookingStatusLabel(b)),
     ])
 
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
@@ -502,7 +505,7 @@ export function BookingsView() {
               <td style="padding:8px;border:1px solid #e6edf3">${b.room.name}</td>
               <td style="padding:8px;border:1px solid #e6edf3">${b._display.startDateForExport} ${b._display.startTimeForExport}</td>
               <td style="padding:8px;border:1px solid #e6edf3">${b._display.endDateForExport} ${b._display.endTimeForExport}</td>
-              <td style="padding:8px;border:1px solid #e6edf3">${b.approvalStatus}</td>
+              <td style="padding:8px;border:1px solid #e6edf3">${getBookingStatusLabel(b)}</td>
             </tr>
           `)
           .join('\n')

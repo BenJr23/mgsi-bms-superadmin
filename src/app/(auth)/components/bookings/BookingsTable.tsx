@@ -8,6 +8,7 @@ export function BookingsTable<T extends {
   room: { name: string }
   building: { name: string }
   submittedBy: { name: string | null; email: string; companyName?: string | null }
+  clientStatus: string
   approvalStatus: 'RESCHEDULED' | 'CONFIRMED'
   _display: { dateRange: string; timeRange: string }
 }>(props: {
@@ -28,7 +29,12 @@ export function BookingsTable<T extends {
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {props.bookings.map((booking) => (
+          {props.bookings.map((booking) => {
+            const statusLabel = booking.clientStatus === 'CANCELLED' ? 'CANCELLED' : booking.approvalStatus
+            const statusVariant =
+              statusLabel === 'CONFIRMED' ? 'success' : statusLabel === 'CANCELLED' ? 'danger' : 'warning'
+
+            return (
             <tr key={booking.id} className="hover:bg-slate-50 transition-colors">
               <td className="px-6 py-4 font-medium text-slate-900 max-w-[150px]">
                 <span className="block truncate" title={booking.bookingReference}>
@@ -53,9 +59,9 @@ export function BookingsTable<T extends {
               </td>
               <td className="px-6 py-4">
                 <Badge
-                  variant={booking.approvalStatus === 'CONFIRMED' ? 'success' : 'warning'}
+                  variant={statusVariant}
                 >
-                  {booking.approvalStatus}
+                  {statusLabel}
                 </Badge>
               </td>
               <td className="px-6 py-4 text-right">
@@ -72,7 +78,8 @@ export function BookingsTable<T extends {
                 </div>
               </td>
             </tr>
-          ))}
+            )
+          })}
         </tbody>
       </table>
     </div>
