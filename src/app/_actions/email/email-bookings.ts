@@ -70,7 +70,7 @@ export async function sendBookingStatusEmail(args: SendBookingEmailArgs): Promis
             ? '#059669'
             : '#d97706'
 
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || '').replace(/\/$/, '')
     const logoUrl = 'https://static.wixstatic.com/media/0f0d2b_a16c66e8204b4a4a9aa7d1c5eb937db7~mv2.png'
     const subject = `Booking ${bookingReference} ${statusHeading}`
     
@@ -79,148 +79,48 @@ export async function sendBookingStatusEmail(args: SendBookingEmailArgs): Promis
     const messagePrefix = ''
 
         const html = `
-            <!DOCTYPE html>
-            <html>
-                <head>
-                    <style>
-                        body {
-                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-                            line-height: 1.6;
-                            color: #333;
-                        }
-                        .container {
-                            max-width: 600px;
-                            margin: 0 auto;
-                            padding: 20px;
-                            background-color: #f9fafb;
-                        }
-                        .header {
-                            background: linear-gradient(135deg, #7c2d12 0%, #b91c1c 100%);
-                            color: white;
-                            padding: 30px;
-                            text-align: center;
-                            border-radius: 8px 8px 0 0;
-                        }
-                        .header h1 {
-                            margin: 0;
-                            font-size: 24px;
-                        }
-                        .header img {
-                            height: 40px;
-                            display: block;
-                            margin: 0 auto 10px;
-                        }
-                        .content {
-                            background: white;
-                            padding: 30px;
-                            border-radius: 0 0 8px 8px;
-                        }
-                        .greeting {
-                            font-size: 16px;
-                            margin-bottom: 20px;
-                        }
-                        .status {
-                            font-weight: 700;
-                        }
-                        .details-box {
-                            background-color: #f3f4f6;
-                            border-left: 4px solid #b91c1c;
-                            padding: 20px;
-                            margin: 20px 0;
-                            border-radius: 4px;
-                        }
-                        .details-box p {
-                            margin: 8px 0;
-                            font-size: 14px;
-                            color: #1f2937;
-                        }
-                        .important {
-                            background-color: #fef2f2;
-                            border: 1px solid #fecaca;
-                            padding: 15px;
-                            border-radius: 4px;
-                            margin: 20px 0;
-                            font-size: 14px;
-                        }
-                        .important strong {
-                            color: #b91c1c;
-                        }
-                        .admin-note {
-                            margin: 20px 0;
-                            padding: 12px;
-                            background: #f0fdf4;
-                            border-left: 4px solid #4ade80;
-                            font-style: italic;
-                            border-radius: 4px;
-                            color: #14532d;
-                        }
-                        .button {
-                            display: inline-block;
-                            padding: 12px 30px;
-                            background-color: #b91c1c;
-                            color: white;
-                            text-decoration: none;
-                            border-radius: 4px;
-                            margin-top: 20px;
-                        }
-                        .footer {
-                            text-align: center;
-                            padding-top: 20px;
-                            border-top: 1px solid #e5e7eb;
-                            font-size: 12px;
-                            color: #666;
-                            margin-top: 24px;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <div class="header">
-                            <img src="${logoUrl}" alt="GreatWork" />
-                            <h1>Booking ${statusHeading}</h1>
-                        </div>
-                        <div class="content">
-                            <div class="greeting">
-                                <p>Hi <strong>${name || 'there'}</strong>,</p>
-                                <p>
-                                    ${messagePrefix}Your booking <strong>${bookingReference}</strong> has been
-                                    <strong class="status" style="color: ${statusColor};">${statusText}</strong>.
-                                </p>
-                            </div>
+            <div style="background-color: #ffffff; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1a1a1a; line-height: 1.6;">
+                <div style="max-width: 460px; margin: 0 auto; text-align: center;">
+                    <img src="${logoUrl}" alt="GreatWork" style="width: 140px; margin-bottom: 40px;" />
 
-                            <div class="details-box">
-                                <p><strong>Location:</strong> ${buildingName} - ${roomName}</p>
-                                <p><strong>Date:</strong> ${dateRange}</p>
-                                <p><strong>Time:</strong> ${timeRange}</p>
-                            </div>
+                    <h1 style="font-size: 24px; font-weight: 600; letter-spacing: -0.5px; margin-bottom: 8px;">
+                        Booking ${statusHeading}
+                    </h1>
+                    <p style="color: #666666; font-size: 16px; margin-bottom: 32px;">
+                        Hi <strong>${name || 'there'}</strong>, your booking <strong>${bookingReference}</strong> has been
+                        <strong style="color: ${statusColor};">${statusText}</strong>.
+                    </p>
 
-                            ${adminMessage ? `<div class="admin-note">${adminMessage}</div>` : ''}
-
-                            <div class="important">
-                                <strong>Notice:</strong>
-                                <p>Rebooking is only possible up to 30 minutes before your scheduled booking time.</p>
-                            </div>
-
-                            <div style="text-align: center;">
-                                <a href="${appUrl}/bookings" class="button">View Your Bookings</a>
-                            </div>
-
-                            <div class="footer">
-                                <p>© 2026 GreatWork Spaces. All rights reserved.</p>
-                                <p>If you didn't expect this email, please contact support.</p>
-                            </div>
-                        </div>
+                    <div style="background-color: #f8f9fa; border-radius: 12px; padding: 24px; border: 1px solid #eaeaea; margin-bottom: 24px; text-align: left;">
+                        <p style="margin: 0 0 8px 0; font-size: 14px; color: #2d333a;"><strong>Location:</strong> ${buildingName} - ${roomName}</p>
+                        <p style="margin: 0 0 8px 0; font-size: 14px; color: #2d333a;"><strong>Date:</strong> ${dateRange}</p>
+                        <p style="margin: 0; font-size: 14px; color: #2d333a;"><strong>Time:</strong> ${timeRange}</p>
                     </div>
-                </body>
-            </html>
+
+                    ${adminMessage ? `<div style="background-color: #f8f9fa; border-radius: 12px; padding: 16px; border: 1px solid #eaeaea; margin-bottom: 24px; text-align: left; color: #2d333a;">${adminMessage}</div>` : ''}
+
+                    <p style="font-size: 14px; color: #888888; margin-bottom: 28px;">
+                        Rebooking is only possible up to <span style="color: #1a1a1a; font-weight: 600;">30 minutes</span> before your scheduled booking time.
+                    </p>
+
+       
+
+                    <hr style="border: 0; border-top: 1px solid #f0f0f0; margin: 40px 0;" />
+
+                    <p style="font-size: 12px; color: #b0b0b0; text-transform: uppercase; letter-spacing: 1px;">
+                        © ${new Date().getFullYear()} GreatWork Team
+                    </p>
+                </div>
+            </div>
         `
 
     const text = `Hi ${name || 'there'},\n\nYour booking ${bookingReference} has been ${statusText}.\n\nDetails:\n- Location: ${buildingName}, ${roomName}\n- Date: ${dateRange}\n- Time: ${timeRange}\n\nNotice: Rebooking is only possible up to 30 minutes before your scheduled booking time.\n\nView details at: ${appUrl}`
 
     try {
         const transporter = await createTransporter()
+        const senderEmail = process.env.FROM_EMAIL || process.env.GMAIL_USER || 'no-reply@example.com'
         await transporter.sendMail({
-            from: process.env.FROM_EMAIL || process.env.GMAIL_USER || 'no-reply@example.com',
+            from: `"GreatWork Spaces Inc." <${senderEmail}>`,
             to,
             subject,
             text,

@@ -50,154 +50,42 @@ export async function sendCompanyCreditAlertEmail(args: CompanyCreditAlertArgs):
     return
   }
 
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || '').replace(/\/$/, '')
+  const logoUrl = 'https://static.wixstatic.com/media/0f0d2b_a16c66e8204b4a4a9aa7d1c5eb937db7~mv2.png'
   const subject = `Credit Alert: ${args.companyName} has ${args.remainingHours.toFixed(2)} hours remaining`
 
   const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <style>
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-            line-height: 1.6;
-            color: #333;
-          }
-          .container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f9fafb;
-          }
-          .header {
-            background: linear-gradient(135deg, #7c2d12 0%, #b91c1c 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-            border-radius: 8px 8px 0 0;
-          }
-          .header h1 {
-            margin: 0;
-            font-size: 24px;
-          }
-          .content {
-            background: white;
-            padding: 30px;
-            border-radius: 0 0 8px 8px;
-          }
-          .greeting {
-            font-size: 16px;
-            margin-bottom: 20px;
-          }
-          .details-box {
-            background-color: #f3f4f6;
-            border-left: 4px solid #b91c1c;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 4px;
-          }
-          .details-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            font-size: 14px;
-          }
-          .details-row:last-child {
-            margin-bottom: 0;
-          }
-          .details-row .label {
-            color: #6b7280;
-          }
-          .details-row .value {
-            color: #1f2937;
-            font-weight: 600;
-          }
-          .details-row.total {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid #d1d5db;
-            font-size: 17px;
-          }
-          .details-row.total .label,
-          .details-row.total .value {
-            color: #b91c1c;
-            font-weight: 700;
-          }
-          .important {
-            background-color: #fef2f2;
-            border: 1px solid #fecaca;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 20px 0;
-            font-size: 14px;
-          }
-          .important strong {
-            color: #b91c1c;
-          }
-          .button {
-            display: inline-block;
-            padding: 12px 30px;
-            background-color: #b91c1c;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            margin-top: 20px;
-          }
-          .footer {
-            text-align: center;
-            padding-top: 20px;
-            border-top: 1px solid #e5e7eb;
-            font-size: 12px;
-            color: #666;
-            margin-top: 24px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>GreatWork Spaces Credit Alert</h1>
-          </div>
-          <div class="content">
-            <div class="greeting">
-              <p>Hi <strong>${args.representativeName || 'Representative'}</strong>,</p>
-              <p>
-                This is an automated notification regarding the credit balance for
-                <strong>${args.companyName}</strong>.
-              </p>
-            </div>
+    <div style="background-color: #ffffff; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1a1a1a; line-height: 1.6;">
+      <div style="max-width: 460px; margin: 0 auto; text-align: center;">
+        <img src="${logoUrl}" alt="GreatWork" style="width: 140px; margin-bottom: 40px;" />
 
-            <div class="details-box">
-              <div class="details-row">
-                <span class="label">Allotted Hours</span>
-                <span class="value">${args.allottedHours.toFixed(2)}</span>
-              </div>
-              <div class="details-row">
-                <span class="label">Used Hours</span>
-                <span class="value">${args.usedHours.toFixed(2)}</span>
-              </div>
-              <div class="details-row total">
-                <span class="label">Remaining Hours</span>
-                <span class="value">${args.remainingHours.toFixed(2)}</span>
-              </div>
-            </div>
+        <h1 style="font-size: 24px; font-weight: 600; letter-spacing: -0.5px; margin-bottom: 8px;">
+          Credit Balance Alert
+        </h1>
+        <p style="color: #666666; font-size: 16px; margin-bottom: 32px;">
+          Hi <strong>${args.representativeName || 'Representative'}</strong>, this is an update for
+          <strong>${args.companyName}</strong>.
+        </p>
 
-            <div class="important">
-              <strong>Important:</strong>
-              <p>
-                Please coordinate with your administrator if additional hours are
-                required to avoid service interruption.
-              </p>
-            </div>
-
-            <div class="footer">
-              <p>© 2026 GreatWork Spaces. All rights reserved.</p>
-            </div>
-          </div>
+        <div style="background-color: #f8f9fa; border-radius: 12px; padding: 24px; border: 1px solid #eaeaea; margin-bottom: 24px; text-align: left;">
+          <p style="margin: 0 0 8px 0; font-size: 14px; color: #2d333a;"><strong>Allotted Hours:</strong> ${args.allottedHours.toFixed(2)}</p>
+          <p style="margin: 0 0 8px 0; font-size: 14px; color: #2d333a;"><strong>Used Hours:</strong> ${args.usedHours.toFixed(2)}</p>
+          <p style="margin: 0; font-size: 14px; color: #2d333a;"><strong>Remaining Hours:</strong> ${args.remainingHours.toFixed(2)}</p>
         </div>
-      </body>
-    </html>
+
+        <p style="font-size: 14px; color: #888888; margin-bottom: 28px;">
+          Please coordinate with your administrator if additional hours are required to avoid service interruption.
+        </p>
+
+
+
+        <hr style="border: 0; border-top: 1px solid #f0f0f0; margin: 40px 0;" />
+
+        <p style="font-size: 12px; color: #b0b0b0; text-transform: uppercase; letter-spacing: 1px;">
+          © ${new Date().getFullYear()} GreatWork Team
+        </p>
+      </div>
+    </div>
   `
 
   const text = `Hi ${args.representativeName || 'Representative'},\n\n` +
@@ -210,6 +98,7 @@ export async function sendCompanyCreditAlertEmail(args: CompanyCreditAlertArgs):
 
   try {
     const transporter = await createTransporter()
+    const senderEmail = process.env.FROM_EMAIL || process.env.GMAIL_USER || 'no-reply@example.com'
     if (EMAIL_DEBUG) {
       console.log('[company-credit-email] sending', {
         to: args.to,
@@ -219,7 +108,7 @@ export async function sendCompanyCreditAlertEmail(args: CompanyCreditAlertArgs):
     }
 
     const info = await transporter.sendMail({
-      from: process.env.FROM_EMAIL || process.env.GMAIL_USER || 'no-reply@example.com',
+      from: `"GreatWork Spaces Inc." <${senderEmail}>`,
       to: args.to,
       subject,
       text,
