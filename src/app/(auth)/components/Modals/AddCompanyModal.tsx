@@ -1,13 +1,14 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
-import { createCompany } from '@/app/_actions/companies'
+import { createCompany, getAvailableRepresentatives } from '@/app/_actions/companies'
 
 interface AddCompanyForm {
   name: string
   allottedCreditHours: number | ''
+  representativeUserId: string
 }
 
 interface AddCompanyFormErrors {
@@ -22,11 +23,26 @@ interface AddCompanyModalProps {
 }
 
 export function AddCompanyModal({ isOpen, onClose, onSuccess }: AddCompanyModalProps) {
-  const [formData, setFormData] = useState<AddCompanyForm>({ name: '', allottedCreditHours: '' })
+  const [formData, setFormData] = useState<AddCompanyForm>({ name: '', allottedCreditHours: '', representativeUserId: '' })
   const [formErrors, setFormErrors] = useState<AddCompanyFormErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [submitSuccess, setSubmitSuccess] = useState('')
+  const [representatives, setRepresentatives] = useState<Array<{ id: string; name: string; email: string }>>([])
+
+  useEffect(() => {
+    const fetchRepresentatives = async () => {
+      if (!isOpen) return
+      const result = await getAvailableRepresentatives()
+      if (result.success && result.data) {
+        setRepresentatives(result.data)
+      } else {
+        setRepresentatives([])
+      }
+    }
+
+    fetchRepresentatives()
+  }, [isOpen])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -50,11 +66,12 @@ export function AddCompanyModal({ isOpen, onClose, onSuccess }: AddCompanyModalP
       const result = await createCompany({
         name: formData.name.trim(),
         allottedCreditHours: Number(formData.allottedCreditHours),
+        representativeUserId: formData.representativeUserId || undefined,
       })
 
       if (result.success) {
         setSubmitSuccess('Company created successfully!')
-        setFormData({ name: '', allottedCreditHours: '' })
+        setFormData({ name: '', allottedCreditHours: '', representativeUserId: '' })
         setFormErrors({})
         
         if (onSuccess) {
@@ -77,7 +94,7 @@ export function AddCompanyModal({ isOpen, onClose, onSuccess }: AddCompanyModalP
 
   const handleClose = () => {
     if (!isSubmitting) {
-      setFormData({ name: '', allottedCreditHours: '' })
+      setFormData({ name: '', allottedCreditHours: '', representativeUserId: '' })
       setFormErrors({})
       setSubmitError('')
       setSubmitSuccess('')
@@ -124,6 +141,24 @@ export function AddCompanyModal({ isOpen, onClose, onSuccess }: AddCompanyModalP
                 }`}
               />
               {formErrors.name && <p className="text-xs text-rose-600 mt-1">{formErrors.name}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Representative <span className="text-slate-400">(optional)</span>
+              </label>
+              <select
+                value={formData.representativeUserId}
+                onChange={(e) => setFormData({ ...formData, representativeUserId: e.target.value })}
+                className="w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent border-slate-300"
+              >
+                <option value="">No representative</option>
+                {representatives.map((rep) => (
+                  <option key={rep.id} value={rep.id}>
+                    {rep.name} ({rep.email})
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>

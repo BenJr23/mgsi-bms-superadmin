@@ -19,7 +19,6 @@ export type CompanyStats = {
     remainingCreditHours: number
     utilizationPercentage: number
     approvedBookingsCount: number
-    pendingBookingsCount: number
     totalBookingsCount: number
     createdAt: string
     updatedAt: string
@@ -62,6 +61,11 @@ interface GetRepresentativeCandidatesResult {
     error?: string
 }
 
+interface DeleteCompanyResult {
+    success: boolean
+    error?: string
+}
+
 const COMPANIES_CACHE_KEY = 'companies:list:stats'
 const COMPANY_DETAIL_CACHE_KEY_PREFIX = 'company:detail:'
 const COMPANY_CREDIT_ALERT_CACHE_KEY_PREFIX = 'company:credit-alert:'
@@ -78,7 +82,7 @@ async function shouldSendLowCreditAlert(companyId: string, remainingHours: numbe
     if (!redis) {
         return true
     }
-
+    
     const cacheKey = getCompanyCreditAlertCacheKey(companyId)
     const marker = remainingHours.toFixed(2)
 
@@ -264,7 +268,6 @@ export async function getCompanies(): Promise<GetCompaniesResult> {
 
         const companiesStats: CompanyStats[] = companies.map((company) => {
             const approvedBookings = company.bookings.filter((b) => b.approvalStatus === 'CONFIRMED')
-            const pendingBookings = company.bookings.filter((b) => b.approvalStatus === 'RESCHEDULED')
 
             const totalCreditHoursUsed = company.usedCreditHours
             const remainingCreditHours = company.allottedCreditHours - totalCreditHoursUsed
@@ -280,7 +283,6 @@ export async function getCompanies(): Promise<GetCompaniesResult> {
                 remainingCreditHours,
                 utilizationPercentage,
                 approvedBookingsCount: approvedBookings.length,
-                pendingBookingsCount: pendingBookings.length,
                 totalBookingsCount: company.bookings.length,
                 createdAt: company.createdAt.toISOString(),
                 updatedAt: company.updatedAt.toISOString(),
@@ -365,7 +367,6 @@ export async function getCompanyDetails(companyId: string): Promise<GetCompanyDe
         }
 
         const approvedBookings = company.bookings.filter((b) => b.approvalStatus === 'CONFIRMED')
-        const pendingBookings = company.bookings.filter((b) => b.approvalStatus === 'RESCHEDULED')
 
         const totalCreditHoursUsed = company.usedCreditHours
         const remainingCreditHours = company.allottedCreditHours - totalCreditHoursUsed
@@ -381,7 +382,6 @@ export async function getCompanyDetails(companyId: string): Promise<GetCompanyDe
             remainingCreditHours,
             utilizationPercentage,
             approvedBookingsCount: approvedBookings.length,
-            pendingBookingsCount: pendingBookings.length,
             totalBookingsCount: company.bookings.length,
             createdAt: company.createdAt.toISOString(),
             updatedAt: company.updatedAt.toISOString(),
@@ -456,6 +456,37 @@ export async function getCompanyRepresentativeCandidates(companyId: string): Pro
     } catch (error) {
         console.error('Get representative candidates error:', error)
         return { success: false, error: 'Failed to fetch representative candidates' }
+    }
+}
+
+export async function getAvailableRepresentatives(): Promise<GetRepresentativeCandidatesResult> {
+    try {
+        const session = await getServerSession()
+        if (!session) {
+            return { success: false, error: 'Unauthorized' }
+        }
+
+        const users = await prisma.user.findMany({
+            where: {
+                deletedAt: null,
+                role: { in: ['CLIENT', 'ADMIN'] },
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+            },
+            orderBy: { name: 'asc' },
+            take: 200,
+        })
+
+        return {
+            success: true,
+            data: users,
+        }
+    } catch (error) {
+        console.error('Get available representatives error:', error)
+        return { success: false, error: 'Failed to fetch representatives' }
     }
 }
 
@@ -592,22 +623,49 @@ export async function createCompany(input: CreateCompanyInput): Promise<CreateCo
             return { success: false, error: 'Company with this name already exists' }
         }
 
-        const representativeUserId = input.representativeUserId?.trim()
-        const newCompany = await prisma.company.create({
-            data: {
-                name: input.name.trim(),
-                allottedCreditHours: input.allottedCreditHours,
-                representativeId: representativeUserId || null,
-            },
-            include: {
-                representative: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
+        const representativeUserId = input.representativeUserId?.trim() || null
+
+        if (representativeUserId) {
+            const candidate = await prisma.user.findFirst({
+                where: {
+                    id: representativeUserId,
+                    deletedAt: null,
+                    role: { in: ['CLIENT', 'ADMIN'] },
+                },
+                select: { id: true },
+            })
+
+            if (!candidate) {
+                return { success: false, error: 'Representative must be an active CLIENT or ADMIN user' }
+            }
+        }
+
+        const newCompany = await prisma.$transaction(async (tx) => {
+            const created = await tx.company.create({
+                data: {
+                    name: input.name.trim(),
+                    allottedCreditHours: input.allottedCreditHours,
+                    representativeId: representativeUserId,
+                },
+                include: {
+                    representative: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                        },
                     },
                 },
-            },
+            })
+
+            if (representativeUserId) {
+                await tx.user.update({
+                    where: { id: representativeUserId },
+                    data: { companyId: created.id },
+                })
+            }
+
+            return created
         })
 
         // Invalidate cache
@@ -624,7 +682,6 @@ export async function createCompany(input: CreateCompanyInput): Promise<CreateCo
                 remainingCreditHours: newCompany.allottedCreditHours,
                 utilizationPercentage: 0,
                 approvedBookingsCount: 0,
-                pendingBookingsCount: 0,
                 totalBookingsCount: 0,
                 createdAt: newCompany.createdAt.toISOString(),
                 updatedAt: newCompany.updatedAt.toISOString(),
@@ -720,7 +777,6 @@ export async function updateCompany(input: UpdateCompanyInput): Promise<UpdateCo
         })
 
         const approvedBookings = updatedCompany.bookings.filter((b) => b.approvalStatus === 'CONFIRMED')
-        const pendingBookings = updatedCompany.bookings.filter((b) => b.approvalStatus === 'RESCHEDULED')
 
         const totalCreditHoursUsed = updatedCompany.usedCreditHours
         const remainingCreditHours = updatedCompany.allottedCreditHours - totalCreditHoursUsed
@@ -742,7 +798,6 @@ export async function updateCompany(input: UpdateCompanyInput): Promise<UpdateCo
                 remainingCreditHours,
                 utilizationPercentage,
                 approvedBookingsCount: approvedBookings.length,
-                pendingBookingsCount: pendingBookings.length,
                 totalBookingsCount: updatedCompany.bookings.length,
                 createdAt: updatedCompany.createdAt.toISOString(),
                 updatedAt: updatedCompany.updatedAt.toISOString(),
@@ -758,5 +813,65 @@ export async function updateCompany(input: UpdateCompanyInput): Promise<UpdateCo
     } catch (error) {
         console.error('Update company error:', error)
         return { success: false, error: 'Failed to update company' }
+    }
+}
+
+export async function deleteCompany(companyId: string): Promise<DeleteCompanyResult> {
+    try {
+        const session = await getServerSession()
+        if (!session) {
+            return { success: false, error: 'Unauthorized' }
+        }
+
+        if (!companyId?.trim()) {
+            return { success: false, error: 'Company ID is required' }
+        }
+
+        const company = await prisma.company.findFirst({
+            where: { id: companyId, deletedAt: null },
+            select: { id: true },
+        })
+
+        if (!company) {
+            return { success: false, error: 'Company not found' }
+        }
+
+        const activeBookingsCount = await prisma.booking.count({
+            where: {
+                companyId,
+                deletedAt: null,
+                isActive: true,
+            },
+        })
+
+        if (activeBookingsCount > 0) {
+            return {
+                success: false,
+                error: 'Cannot delete company while it has active bookings',
+            }
+        }
+
+        await prisma.$transaction(async (tx) => {
+            await tx.company.update({
+                where: { id: companyId },
+                data: {
+                    representativeId: null,
+                    deletedAt: new Date(),
+                },
+            })
+
+            await tx.user.updateMany({
+                where: { companyId },
+                data: { companyId: null },
+            })
+        })
+
+        await invalidateCompaniesCache()
+        await invalidateCompanyDetailCache(companyId)
+
+        return { success: true }
+    } catch (error) {
+        console.error('Delete company error:', error)
+        return { success: false, error: 'Failed to delete company' }
     }
 }
