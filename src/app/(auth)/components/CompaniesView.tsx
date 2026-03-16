@@ -197,7 +197,7 @@ export function CompaniesView() {
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600">Utilization</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600">Bookings</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600">Status</th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600 text-right sticky right-0 bg-slate-50 z-10 shadow-[-1px_0_0_0_#e2e8f0]">Actions</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -206,14 +206,14 @@ export function CompaniesView() {
                   const isNearLimit = company.utilizationPercentage >= 80 && company.utilizationPercentage < 100
 
                   return (
-                    <tr key={company.id} className="group hover:bg-slate-50/70 transition-colors">
+                    <tr key={company.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center">
+                          <div className="h-9 w-9 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center flex-shrink-0">
                             <Building2 className="h-4 w-4 text-slate-600" />
                           </div>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">{company.name}</p>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-900 truncate">{company.name}</p>
                             <p className="text-xs text-slate-500">ID: {company.id.slice(0, 8)}</p>
                           </div>
                         </div>
@@ -237,7 +237,7 @@ export function CompaniesView() {
                         <p className="text-xs text-slate-500">Remaining: {company.remainingCreditHours.toFixed(1)} hrs</p>
                       </td>
 
-                      <td className="px-4 py-3 w-[220px]">
+                      <td className="px-4 py-3 w-[180px]">
                         <div className="space-y-1.5">
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-slate-500">{company.utilizationPercentage}%</span>
@@ -271,7 +271,7 @@ export function CompaniesView() {
                         )}
                       </td>
 
-                      <td className="px-4 py-3 text-right sticky right-0 bg-white group-hover:bg-slate-50/70 transition-colors z-10 shadow-[-1px_0_0_0_#e2e8f0]">
+                      <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <Button
                             type="button"
