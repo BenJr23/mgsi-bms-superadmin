@@ -7,7 +7,7 @@ import {
 import { getBookings as getBookingsImpl } from './bookings/get-bookings'
 import { getBuildings as getBuildingsImpl } from './bookings/get-buildings'
 import { getRoomUnavailableSlots as getRoomUnavailableSlotsImpl } from './bookings/get-room-unavailable-slots'
-import { getRoomsByBuilding as getRoomsByBuildingImpl } from './bookings/get-rooms-by-building'
+import { getRoomsByBuilding as getRoomsByBuildingImpl } from './bookings/getRoomsByBuilding'
 import {
     updateBookingApprovalStatus as updateBookingApprovalStatusImpl,
 } from './bookings/update-booking-approval-status'

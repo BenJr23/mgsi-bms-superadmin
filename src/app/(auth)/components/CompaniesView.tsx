@@ -4,11 +4,12 @@ import React, { useState, useEffect } from 'react'
 import { Card } from './ui/Card'
 import { Badge } from './ui/Badge'
 import { Button } from './ui/Button'
-import { Building2, AlertTriangle, Zap, Plus } from 'lucide-react'
+import { Building2, AlertTriangle, Zap, Plus, Trash2 } from 'lucide-react'
 import { getCompanies, getCompanyUtilizationReport } from '@/app/_actions/companies'
 import type { CompanyStats } from '@/app/_actions/companies'
 import { AddCompanyModal } from './Modals/AddCompanyModal'
 import { EditCompanyModal } from './Modals/EditCompanyModal'
+import { DeleteCompanyModal } from './Modals/DeleteCompanyModal'
 
 export function CompaniesView() {
   const [companies, setCompanies] = useState<CompanyStats[]>([])
@@ -17,6 +18,7 @@ export function CompaniesView() {
   const [report, setReport] = useState<any>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [selectedCompany, setSelectedCompany] = useState<CompanyStats | null>(null)
 
   const fetchData = async () => {
@@ -56,6 +58,16 @@ export function CompaniesView() {
   const closeEditModal = () => {
     setSelectedCompany(null)
     setIsEditModalOpen(false)
+  }
+
+  const openDeleteModal = (company: CompanyStats) => {
+    setSelectedCompany(company)
+    setIsDeleteModalOpen(true)
+  }
+
+  const closeDeleteModal = () => {
+    setSelectedCompany(null)
+    setIsDeleteModalOpen(false)
   }
 
   if (loading) {
@@ -165,7 +177,7 @@ export function CompaniesView() {
         </div>
       )}
 
-      {/* Companies Grid */}
+      {/* Companies Table */}
       {companies.length === 0 ? (
         <Card>
           <div className="text-center py-12">
@@ -174,73 +186,121 @@ export function CompaniesView() {
           </div>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          {companies.map((company) => {
-            const isOverLimit = company.utilizationPercentage >= 100
-            const isNearLimit = company.utilizationPercentage >= 80 && company.utilizationPercentage < 100
-            const borderColor = isOverLimit ? 'border-red-200' : isNearLimit ? 'border-yellow-200' : 'border-slate-200'
-            const bgColor = isOverLimit ? 'bg-red-50' : isNearLimit ? 'bg-yellow-50' : 'bg-white'
+        <Card className="overflow-hidden border border-slate-200">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px]">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr className="text-left">
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600">Company</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600">Representative</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600">Credit Usage</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600">Utilization</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600">Bookings</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600">Status</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {companies.map((company) => {
+                  const isOverLimit = company.utilizationPercentage >= 100
+                  const isNearLimit = company.utilizationPercentage >= 80 && company.utilizationPercentage < 100
 
-            return (
-              <Card key={company.id}>
-                <div className={`p-4 border-l-4 ${borderColor} ${bgColor} rounded-lg`}
-                  style={{
-                    borderLeftColor: isOverLimit ? '#dc2626' : isNearLimit ? '#eab308' : '#cbd5e1'
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-slate-900 truncate">{company.name}</h3>
-                        {isOverLimit && <Badge variant="danger" className="text-xs flex-shrink-0">Over</Badge>}
-                        {isNearLimit && <Badge variant="warning" className="text-xs flex-shrink-0">Near</Badge>}
-                      </div>
-                      <p className="text-xs text-slate-500 mt-1 truncate">
-                        Representative: {company.representative ? `${company.representative.name} (${company.representative.email})` : 'Not assigned'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openEditModal(company)}
-                        className="text-xs"
-                      >
-                        Edit
-                      </Button>
-                    </div>
-                  </div>
+                  return (
+                    <tr key={company.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center">
+                            <Building2 className="h-4 w-4 text-slate-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{company.name}</p>
+                            <p className="text-xs text-slate-500">ID: {company.id.slice(0, 8)}</p>
+                          </div>
+                        </div>
+                      </td>
 
-                  {/* Progress Bar */}
-                  <div className="space-y-1 mb-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-600">
-                        {company.usedCreditHours.toFixed(1)} / {company.allottedCreditHours.toFixed(1)} hrs
-                      </span>
-                      <span className="font-semibold text-slate-900">{company.utilizationPercentage}%</span>
-                    </div>
-                    <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                      <div
-                        className={`h-full transition-all ${
-                          isOverLimit ? 'bg-red-600' : isNearLimit ? 'bg-yellow-500' : 'bg-blue-500'
-                        }`}
-                        style={{ width: `${Math.min(company.utilizationPercentage, 100)}%` }}
-                      />
-                    </div>
-                  </div>
+                      <td className="px-4 py-3">
+                        {company.representative ? (
+                          <div>
+                            <p className="text-sm font-medium text-slate-900">{company.representative.name}</p>
+                            <p className="text-xs text-slate-500">{company.representative.email}</p>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-slate-500">Not assigned</span>
+                        )}
+                      </td>
 
-                  {/* Stats Row */}
-                  <div className="flex items-center justify-between text-xs text-slate-600 pt-2 border-t border-slate-200">
-                    <span>{company.totalBookingsCount} bookings</span>
-                    <span className="text-green-700">✓ {company.approvedBookingsCount}</span>
-                    <span className="text-yellow-700">◐ {company.pendingBookingsCount}</span>
-                  </div>
-                </div>
-              </Card>
-            )
-          })}
-        </div>
+                      <td className="px-4 py-3">
+                        <p className="text-sm font-medium text-slate-900">
+                          {company.usedCreditHours.toFixed(1)} / {company.allottedCreditHours.toFixed(1)} hrs
+                        </p>
+                        <p className="text-xs text-slate-500">Remaining: {company.remainingCreditHours.toFixed(1)} hrs</p>
+                      </td>
+
+                      <td className="px-4 py-3 w-[220px]">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-slate-500">{company.utilizationPercentage}%</span>
+                            <span className="text-slate-700 font-medium">{Math.min(company.utilizationPercentage, 100)}%</span>
+                          </div>
+                          <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full transition-all ${
+                                isOverLimit ? 'bg-red-600' : isNearLimit ? 'bg-yellow-500' : 'bg-blue-600'
+                              }`}
+                              style={{ width: `${Math.min(company.utilizationPercentage, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-slate-700 space-y-1">
+                          <p>Total: <span className="font-semibold text-slate-900">{company.totalBookingsCount}</span></p>
+                          <p>Approved: <span className="font-semibold text-emerald-700">{company.approvedBookingsCount}</span></p>
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-3">
+                        {isOverLimit ? (
+                          <Badge variant="danger" className="text-xs">Over Limit</Badge>
+                        ) : isNearLimit ? (
+                          <Badge variant="warning" className="text-xs">Near Limit</Badge>
+                        ) : (
+                          <Badge className="text-xs">Healthy</Badge>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openEditModal(company)}
+                            className="text-xs"
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="danger"
+                            onClick={() => openDeleteModal(company)}
+                            className="text-xs"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
 
       {/* Add Company Modal */}
@@ -259,6 +319,13 @@ export function CompaniesView() {
           allottedCreditHours: selectedCompany.allottedCreditHours,
           representativeUserId: selectedCompany.representative?.id ?? null,
         } : null}
+      />
+      <DeleteCompanyModal
+        isOpen={isDeleteModalOpen}
+        onClose={closeDeleteModal}
+        onSuccess={fetchData}
+        companyId={selectedCompany?.id}
+        companyName={selectedCompany?.name}
       />
     </div>
   )
