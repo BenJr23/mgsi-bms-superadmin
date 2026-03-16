@@ -44,6 +44,7 @@ export function AuthShell({ children }: AuthShellProps) {
   const userName = sessionUser?.name?.trim() || (userRole === 'SUPERADMIN' ? 'Super Admin' : 'Admin User')
   const userImage = sessionUser?.image || null
 
+  
   const userInitials = useMemo(
     () =>
       userName
