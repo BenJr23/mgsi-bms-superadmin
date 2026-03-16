@@ -72,7 +72,7 @@ const ROLE_OPTIONS: {
 	{
 		value: 'STAFF',
 		label: 'Staff',
-		description: 'Handles day-to-day booking operations.',
+		description: 'Can only view the calendar and room availability.',
 		icon: <Shield className="w-4 h-4" />,
 		activeColor: 'border-amber-400 bg-amber-50 text-amber-700',
 	},
