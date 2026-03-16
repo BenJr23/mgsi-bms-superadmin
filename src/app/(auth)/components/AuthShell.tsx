@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { Bell, ChevronDown, Clock, LogOut, User } from 'lucide-react'
 import { useSession, signOut } from '@/lib/auth-client'
-import { getNotificationCount } from '@/app/_actions/notification'
+import { getNotificationCount, type NotificationBookingItem } from '@/app/_actions/notification'
 import { APP_NAV_ITEMS, Sidebar, type UserRole } from './Sidebar'
 
 type AuthShellProps = {
@@ -34,7 +34,7 @@ export function AuthShell({ children }: AuthShellProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [notifCount, setNotifCount] = useState(0)
-  const [latestBookings, setLatestBookings] = useState<any[]>([])
+  const [latestBookings, setLatestBookings] = useState<NotificationBookingItem[]>([])
   const [navigationTarget, setNavigationTarget] = useState<string | null>(null)
   const { data: session } = useSession()
 
