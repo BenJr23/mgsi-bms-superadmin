@@ -173,6 +173,7 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserResu
       userEmail: newUser.email,
       userName: newUser.name,
       password: generatedPassword,
+      emailType: 'create',
     })
 
     if (!emailSent) {
@@ -507,7 +508,7 @@ export async function reactivateUser(userId: string): Promise<ReactivateUserResu
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, deletedAt: true },
+      select: { id: true, deletedAt: true, email: true, name: true },
     })
 
     if (!user) {
@@ -518,12 +519,52 @@ export async function reactivateUser(userId: string): Promise<ReactivateUserResu
       return { success: false, error: 'User account is already active' }
     }
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        deletedAt: null,
-      },
+    const generatedPasswordForReactivation = generateSecurePassword()
+    const hashedPasswordForReactivation = await hashPassword(generatedPasswordForReactivation)
+
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          deletedAt: null,
+          passwordVerified: false,
+        },
+      })
+
+      const updatedAccounts = await tx.account.updateMany({
+        where: {
+          userId,
+          providerId: 'credential',
+        },
+        data: {
+          accountId: user.email,
+          password: hashedPasswordForReactivation,
+          deletedAt: null,
+        },
+      })
+
+      if (updatedAccounts.count === 0) {
+        await tx.account.create({
+          data: {
+            userId,
+            providerId: 'credential',
+            accountId: user.email,
+            password: hashedPasswordForReactivation,
+          },
+        })
+      }
     })
+
+    const emailSent = await sendCredentialsEmail({
+      userEmail: user.email,
+      userName: user.name,
+      password: generatedPasswordForReactivation,
+      emailType: 'reactivate',
+    })
+
+    if (!emailSent) {
+      console.warn(`Email failed to send for reactivated user ${user.email}, but account was reactivated`)
+    }
 
     // Invalidate cache after successful user reactivation
     await invalidateUsersCache()
@@ -608,6 +649,7 @@ export async function resetUserPassword(userId: string): Promise<ResetUserPasswo
       userEmail: user.email,
       userName: user.name,
       password: newPassword,
+      emailType: 'reset',
     })
 
     if (!emailSent) {
