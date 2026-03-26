@@ -569,17 +569,31 @@ export async function resetUserPassword(userId: string): Promise<ResetUserPasswo
     // Hash the new password
     const hashedPassword = await hashPassword(newPassword)
 
-    // Update the account with new hashed password and user's passwordVerified status
+    // Update existing credential account, or create one if missing,
+    // then mark the user as needing password verification.
     await prisma.$transaction(async (tx) => {
-      await tx.account.updateMany({
+      const updatedAccounts = await tx.account.updateMany({
         where: {
           userId,
           providerId: 'credential',
         },
         data: {
+          accountId: user.email,
           password: hashedPassword,
+          deletedAt: null,
         },
       })
+
+      if (updatedAccounts.count === 0) {
+        await tx.account.create({
+          data: {
+            userId,
+            providerId: 'credential',
+            accountId: user.email,
+            password: hashedPassword,
+          },
+        })
+      }
 
       await tx.user.update({
         where: { id: userId },
