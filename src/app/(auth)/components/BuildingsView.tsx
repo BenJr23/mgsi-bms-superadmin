@@ -112,10 +112,10 @@ export function BuildingsView() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Buildings</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Branch</h1>
           <p className="text-slate-500">Manage your properties and facilities.</p>
         </div>
-        <div className="text-center text-slate-500">Loading buildings...</div>
+        <div className="text-center text-slate-500">Loading branches...</div>
       </div>
     )
   }
@@ -124,7 +124,7 @@ export function BuildingsView() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Buildings</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Branch</h1>
           <p className="text-slate-500">Manage your properties and facilities.</p>
         </div>
         <div className="p-4 bg-rose-50 border border-rose-200 rounded-md">
@@ -138,12 +138,12 @@ export function BuildingsView() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Buildings</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Branch</h1>
           <p className="text-slate-500">
             Manage your properties and facilities.
           </p>
         </div>
-        <Button onClick={openModal}>+ Add Building</Button>
+        <Button onClick={openModal}>+ Add Branch</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -239,7 +239,7 @@ export function BuildingsView() {
           ))
         ) : (
           <div className="col-span-full text-center py-12">
-            <p className="text-slate-500">No buildings found</p>
+            <p className="text-slate-500">No branches found</p>
           </div>
         )}
 
@@ -251,7 +251,7 @@ export function BuildingsView() {
           <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-4">
             <Building className="w-6 h-6" />
           </div>
-          <span className="font-medium">Add New Building</span>
+          <span className="font-medium">Add New Branch</span>
         </button>
       </div>
 

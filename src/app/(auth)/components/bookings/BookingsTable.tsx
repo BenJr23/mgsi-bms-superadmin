@@ -42,11 +42,17 @@ export function BookingsTable<T extends {
                 </span>
               </td>
               <td className="px-6 py-4 text-slate-600">
-                <div className="text-slate-900 font-medium">
-                  {booking.submittedBy.name || booking.submittedBy.email}
-                </div>
-                {booking.submittedBy.companyName && (
-                  <div className="text-xs text-slate-500">{booking.submittedBy.companyName}</div>
+                {booking.submittedBy.companyName ? (
+                  <>
+                    <div className="text-slate-900 font-medium">{booking.submittedBy.companyName}</div>
+                    <div className="text-xs text-slate-500">
+                      {booking.submittedBy.name || booking.submittedBy.email}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-slate-900 font-medium">
+                    {booking.submittedBy.name || booking.submittedBy.email}
+                  </div>
                 )}
               </td>
               <td className="px-6 py-4">

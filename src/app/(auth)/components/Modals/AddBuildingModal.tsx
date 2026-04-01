@@ -274,8 +274,8 @@ export function AddBuildingModal({ isOpen, onClose, onSuccess }: AddBuildingModa
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Add New Building"
-      description="Fill in the details below to register a new building."
+      title="Add New Branch"
+      description="Fill in the details below to register a new branch."
       size="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -299,7 +299,7 @@ export function AddBuildingModal({ isOpen, onClose, onSuccess }: AddBuildingModa
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">
-              Building Name <span className="text-rose-500">*</span>
+              Branch Name <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
@@ -317,7 +317,7 @@ export function AddBuildingModal({ isOpen, onClose, onSuccess }: AddBuildingModa
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">
-              Building Code <span className="text-rose-500">*</span>
+              Branch Code <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
@@ -385,7 +385,7 @@ export function AddBuildingModal({ isOpen, onClose, onSuccess }: AddBuildingModa
           </label>
           <textarea
             rows={3}
-            placeholder="Brief description of the building..."
+            placeholder="Brief description of the branch..."
             value={form.description}
             onChange={(e) => field('description', e.target.value)}
             className={`${inputClass()} resize-none`}

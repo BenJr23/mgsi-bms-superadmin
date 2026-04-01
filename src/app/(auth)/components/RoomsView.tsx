@@ -232,7 +232,7 @@ export function RoomsView() {
             onChange={(e) => setSelectedBuilding(e.target.value)}
             className="px-4 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-full sm:w-auto"
           >
-            <option value="">All Buildings</option>
+            <option value="">All Branches</option>
             {buildings.map((building) => (
               <option key={building.id} value={building.id}>
                 {building.buildingName}
@@ -246,7 +246,7 @@ export function RoomsView() {
             <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
               <tr>
                 <th className="px-6 py-3">Room Name</th>
-                <th className="px-6 py-3">Building</th>
+                <th className="px-6 py-3">Branch</th>
                 <th className="px-6 py-3">Capacity</th>
                 <th className="px-6 py-3">Amenities</th>
                 <th className="px-6 py-3">Status</th>
@@ -384,7 +384,7 @@ export function RoomsView() {
                 </div>
                 <div className="space-y-2 text-sm mb-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Building:</span>
+                    <span className="text-slate-500">Branch:</span>
                     <span className="text-slate-900">{room.building.buildingName}</span>
                   </div>
                   <div className="flex justify-between items-center">

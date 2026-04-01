@@ -102,7 +102,7 @@ export function ViewBookingModal({ isOpen, onClose, details }: ViewBookingModalP
 						<Field label={details.isWalkIn ? 'Walk-in Client' : 'Client'} value={details.submittedByName} icon={<UserRound className="w-3.5 h-3.5" />} />
 						<Field label={details.isWalkIn ? 'Walk-in Email' : 'Email'} value={details.submittedByEmail} icon={<Mail className="w-3.5 h-3.5" />} />
 						<Field label="Company" value={details.clientCompany || 'None'} icon={<Building2 className="w-3.5 h-3.5" />} />
-						<Field label="Building" value={details.buildingName} icon={<Building2 className="w-3.5 h-3.5" />} />
+						<Field label="Branch" value={details.buildingName} icon={<Building2 className="w-3.5 h-3.5" />} />
 						<Field label="Room" value={details.roomName} icon={<Building2 className="w-3.5 h-3.5" />} />
 						<Field label="Attendees" value={details.attendeeCount ?? '-'} icon={<Users className="w-3.5 h-3.5" />} />
 						<Field label="Date" value={details.dateRange} icon={<CalendarCheck2 className="w-3.5 h-3.5" />} />

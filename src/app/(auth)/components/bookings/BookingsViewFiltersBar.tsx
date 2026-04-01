@@ -81,13 +81,13 @@ export function BookingsViewFiltersBar(props: {
             </div>
 
             <div className="mt-3 pt-2 border-t border-slate-100">
-              <div className="text-sm text-slate-600 mb-2">Building</div>
+              <div className="text-sm text-slate-600 mb-2">Branch</div>
               <select
                 value={props.buildingFilter}
                 onChange={(e) => props.onBuildingFilterChange(e.target.value)}
                 className="w-full text-sm border border-slate-300 rounded px-2 py-1"
               >
-                <option value="ALL">All Buildings</option>
+                <option value="ALL">All Branches</option>
                 {props.availableBuildings.map((building) => (
                   <option key={building.id} value={building.id}>
                     {building.name}

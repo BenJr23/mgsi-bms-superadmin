@@ -155,7 +155,7 @@ export function ReportsView() {
 
     autoTable(doc, {
       startY: finalY2 + 18,
-      head: [['Room', 'Building', 'Bookings']],
+      head: [['Room', 'Branch', 'Bookings']],
       body: roomData,
       theme: 'grid',
       headStyles: { fillColor: [15, 23, 42] },
@@ -418,11 +418,11 @@ export function ReportsView() {
       </div>
 
       <Card className="p-4 sm:p-6">
-        <h3 className="font-semibold text-slate-900 mb-4 text-sm sm:text-base">Most Used Buildings</h3>
+        <h3 className="font-semibold text-slate-900 mb-4 text-sm sm:text-base">Most Used Branches</h3>
         {loading ? (
           <div className="h-32 animate-pulse bg-slate-100 rounded" />
         ) : (reportsData?.topBuildings?.length ?? 0) === 0 ? (
-          <p className="text-sm text-slate-500">No building usage data available.</p>
+          <p className="text-sm text-slate-500">No branch usage data available.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {(reportsData?.topBuildings ?? []).map((b) => (

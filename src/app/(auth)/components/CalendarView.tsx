@@ -136,7 +136,7 @@ export function CalendarView() {
                             onChange={(e) => setSelectedBuildingId(e.target.value)}
                             className="text-sm font-medium text-slate-700 bg-transparent border-none focus:ring-0 cursor-pointer outline-none"
                         >
-                            <option value="all">All Buildings</option>
+                            <option value="all">All Branches</option>
                             {buildings.map((building) => (
                                 <option key={building.id} value={building.id}>
                                     {building.name}

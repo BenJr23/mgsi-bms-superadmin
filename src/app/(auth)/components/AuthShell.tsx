@@ -17,7 +17,7 @@ const SHELL_HIDDEN_PATHS = ['/reset-password']
 function getPageTitle(pathname: string): string {
   if (pathname === '/dashboard') return 'Dashboard'
   if (pathname === '/bookings') return 'Bookings'
-  if (pathname === '/buildings') return 'Buildings'
+  if (pathname === '/buildings') return 'Branch'
   if (pathname === '/rooms') return 'Rooms'
   if (pathname === '/calendar') return 'Calendar'
   if (pathname === '/reports') return 'Reports'
@@ -175,7 +175,7 @@ export function AuthShell({ children }: AuthShellProps) {
                                   {new Date(booking.createdAt).toLocaleDateString()}
                                 </span>
                               </div>
-                              <p className="text-xs text-slate-500 truncate">Requested {booking.room?.roomName || 'Room'} in {booking.building?.buildingName || 'Building'}</p>
+                              <p className="text-xs text-slate-500 truncate">Requested {booking.room?.roomName || 'Room'} in {booking.building?.buildingName || 'Branch'}</p>
                             </button>
                           ))
                         ) : (

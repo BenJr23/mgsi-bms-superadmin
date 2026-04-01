@@ -33,7 +33,7 @@ export function DeleteBuildingModal({
 
 	const handleDelete = async () => {
 		if (!buildingId) {
-			setSubmitError('Building not found.')
+			setSubmitError('Branch not found.')
 			return
 		}
 
@@ -47,10 +47,10 @@ export function DeleteBuildingModal({
 				onClose()
 				onSuccess?.()
 			} else {
-				setSubmitError(result.error || 'Failed to delete building.')
+				setSubmitError(result.error || 'Failed to delete branch.')
 			}
 		} catch {
-			setSubmitError('An unexpected error occurred while deleting building.')
+			setSubmitError('An unexpected error occurred while deleting branch.')
 		} finally {
 			setIsSubmitting(false)
 		}
@@ -60,7 +60,7 @@ export function DeleteBuildingModal({
 		<Modal
 			isOpen={isOpen}
 			onClose={onClose}
-			title="Delete Building"
+			title="Delete Branch"
 			description="This action cannot be undone."
 			size="sm"
 		>
@@ -70,14 +70,14 @@ export function DeleteBuildingModal({
 					<p className="text-sm text-rose-700">
 						Are you sure you want to delete{' '}
 						<span className="font-semibold text-rose-800">
-							{buildingName || 'this building'}
+							{buildingName || 'this branch'}
 						</span>
 						?
 					</p>
 				</div>
 
 				<p className="text-xs text-slate-500">
-					Deletion is blocked when this building still has related rooms that are
+					Deletion is blocked when this branch still has related rooms that are
 					not deleted.
 				</p>
 
@@ -102,7 +102,7 @@ export function DeleteBuildingModal({
 						onClick={handleDelete}
 						disabled={isSubmitting}
 					>
-						{isSubmitting ? 'Deleting...' : 'Delete Building'}
+						{isSubmitting ? 'Deleting...' : 'Delete Branch'}
 					</Button>
 				</div>
 			</div>

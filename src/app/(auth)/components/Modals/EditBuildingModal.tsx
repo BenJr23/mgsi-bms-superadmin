@@ -311,8 +311,8 @@ export function EditBuildingModal({
       <Modal
         isOpen={isOpen}
         onClose={handleClose}
-        title="Edit Building"
-        description="Loading building details..."
+        title="Edit Branch"
+        description="Loading branch details..."
         size="lg"
       >
         <div className="flex items-center justify-center py-8">
@@ -326,8 +326,8 @@ export function EditBuildingModal({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Edit Building"
-      description="Update the building details below."
+      title="Edit Branch"
+      description="Update the branch details below."
       size="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -351,7 +351,7 @@ export function EditBuildingModal({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">
-              Building Name <span className="text-rose-500">*</span>
+              Branch Name <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
@@ -370,7 +370,7 @@ export function EditBuildingModal({
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">
-              Building Code <span className="text-rose-500">*</span>
+              Branch Code <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
@@ -441,7 +441,7 @@ export function EditBuildingModal({
           </label>
           <textarea
             rows={3}
-            placeholder="Brief description of the building..."
+            placeholder="Brief description of the branch..."
             value={form.description}
             onChange={(e) => field('description', e.target.value)}
             className={`${inputClass()} resize-none`}

@@ -208,7 +208,7 @@ export function BookingsClient() {
 
   const exportCSV = useCallback(
     (items: BookingRow[], month: 'ALL' | string = 'ALL') => {
-      const headers = ['Reference', 'Client', 'Company', 'Building', 'Room', 'Start Date', 'Start Time', 'End Date', 'End Time', 'Status']
+      const headers = ['Reference', 'Client', 'Company', 'Branch', 'Room', 'Start Date', 'Start Time', 'End Date', 'End Time', 'Status']
       const monthParts = getMonthParts(month)
       const filtered = !monthParts
         ? items
@@ -319,7 +319,7 @@ export function BookingsClient() {
                 <th>Reference</th>
                 <th>Client</th>
                 <th>Company</th>
-                <th>Building</th>
+                <th>Branch</th>
                 <th>Room</th>
                 <th>Start</th>
                 <th>End</th>

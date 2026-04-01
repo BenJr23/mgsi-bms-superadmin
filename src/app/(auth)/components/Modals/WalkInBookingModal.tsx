@@ -491,7 +491,7 @@ export function WalkInBookingModal({
       }
     }
 
-    if (!form.buildingId) e.buildingId = 'Please select a building.'
+    if (!form.buildingId) e.buildingId = 'Please select a branch.'
     if (!form.roomId) e.roomId = 'Please select a room.'
     if (!form.dateStart) e.dateStart = 'Start date is required.'
     if (form.dateStart && form.dateStart < today)
@@ -861,7 +861,7 @@ export function WalkInBookingModal({
               <label className="text-sm font-medium text-slate-700 block mb-1.5">
                 <span className="flex items-center gap-1.5">
                   <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                  Building <span className="text-rose-500">*</span>
+                  Branch <span className="text-rose-500">*</span>
                 </span>
               </label>
               <select
@@ -870,7 +870,7 @@ export function WalkInBookingModal({
                 disabled={loadingBuildings}
                 className={inputClass(errors.buildingId)}
               >
-                <option value="">Select building…</option>
+                <option value="">Select branch…</option>
                 {buildings.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.buildingName}
@@ -894,7 +894,7 @@ export function WalkInBookingModal({
                 className={`${inputClass(errors.roomId)} ${!form.buildingId ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <option value="">
-                  {form.buildingId ? 'Select room…' : 'Select a building first'}
+                  {form.buildingId ? 'Select room…' : 'Select a branch first'}
                 </option>
                 {rooms.map((r) => (
                   <option key={r.id} value={r.id}>

@@ -41,7 +41,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   },
   {
     id: 'buildings',
-    label: 'Buildings',
+    label: 'Branch',
     href: '/buildings',
     icon: Building2,
     roles: ['ADMIN', 'SUPERADMIN']
