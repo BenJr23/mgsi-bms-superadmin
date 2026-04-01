@@ -24,16 +24,11 @@ export async function GET(request: Request): Promise<Response> {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const startOfCurrentMonth = new Date()
-    startOfCurrentMonth.setDate(1)
-    startOfCurrentMonth.setHours(0, 0, 0, 0)
+    const now = new Date()
 
     const result = await prisma.company.updateMany({
         where: {
             deletedAt: null,
-            updatedAt: {
-                lt: startOfCurrentMonth,
-            },
             usedCreditHours: {
                 not: 0,
             },
@@ -46,6 +41,6 @@ export async function GET(request: Request): Promise<Response> {
     return NextResponse.json({
         success: true,
         resetCount: result.count,
-        executedAt: new Date().toISOString(),
+        executedAt: now.toISOString(),
     })
 }

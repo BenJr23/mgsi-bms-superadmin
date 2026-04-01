@@ -91,3 +91,4 @@ export function BookingsTable<T extends {
     </div>
   )
 }
+

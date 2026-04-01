@@ -6,10 +6,36 @@ export async function sendCredentialsEmail(input: {
   userEmail: string
   userName: string
   password: string
+  emailType?: 'create' | 'reset' | 'reactivate'
 }): Promise<boolean> {
   try {
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || '').replace(/\/$/, '')
     const logoUrl = 'https://static.wixstatic.com/media/0f0d2b_a16c66e8204b4a4a9aa7d1c5eb937db7~mv2.png'
+    const emailType = input.emailType ?? 'create'
+
+    const subjectByType: Record<'create' | 'reset' | 'reactivate', string> = {
+      create: 'GreatWork Spaces - Your Account Credentials',
+      reset: 'GreatWork Spaces - Password Reset Credentials',
+      reactivate: 'GreatWork Spaces - Reactivated Account Credentials',
+    }
+
+    const headingByType: Record<'create' | 'reset' | 'reactivate', string> = {
+      create: 'Welcome to GreatWork Spaces',
+      reset: 'Your Password Has Been Reset',
+      reactivate: 'Your Account Has Been Reactivated',
+    }
+
+    const introByType: Record<'create' | 'reset' | 'reactivate', string> = {
+      create: `Hi <strong>${input.userName}</strong>, your account has been created successfully.`,
+      reset: `Hi <strong>${input.userName}</strong>, a new temporary password has been generated for your account.`,
+      reactivate: `Hi <strong>${input.userName}</strong>, your account has been reactivated and new credentials are ready.`,
+    }
+
+    const textIntroByType: Record<'create' | 'reset' | 'reactivate', string> = {
+      create: 'Your account has been successfully created. Below are your login credentials:',
+      reset: 'A new temporary password has been generated for your account. Use the credentials below to sign in:',
+      reactivate: 'Your account has been reactivated. Use the credentials below to sign in:',
+    }
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -24,17 +50,17 @@ export async function sendCredentialsEmail(input: {
     await transporter.sendMail({
       from: `"GreatWork Spaces Inc." <${senderEmail}>`,
       to: input.userEmail,
-      subject: 'GreatWork Spaces - Your Account Credentials',
+      subject: subjectByType[emailType],
       html: `
         <div style="background-color: #ffffff; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1a1a1a; line-height: 1.6;">
           <div style="max-width: 460px; margin: 0 auto; text-align: center;">
             <img src="${logoUrl}" alt="GreatWork" style="width: 140px; margin-bottom: 40px;" />
 
             <h1 style="font-size: 24px; font-weight: 600; letter-spacing: -0.5px; margin-bottom: 8px;">
-              Welcome to GreatWork Spaces
+              ${headingByType[emailType]}
             </h1>
             <p style="color: #666666; font-size: 16px; margin-bottom: 32px;">
-              Hi <strong>${input.userName}</strong>, your account has been created successfully.
+              ${introByType[emailType]}
             </p>
 
             <div style="background-color: #f8f9fa; border-radius: 12px; padding: 24px; border: 1px solid #eaeaea; margin-bottom: 24px; text-align: left;">
@@ -56,11 +82,11 @@ export async function sendCredentialsEmail(input: {
         </div>
       `,
       text: `
-GreatWork Spaces - Your Account Credentials
+    ${subjectByType[emailType]}
 
 Hi ${input.userName},
 
-Your account has been successfully created. Below are your login credentials:
+    ${textIntroByType[emailType]}
 
 Email Address: ${input.userEmail}
 Temporary Password: ${input.password}
