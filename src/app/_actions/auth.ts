@@ -7,6 +7,7 @@ import { hashPassword } from 'better-auth/crypto';
 import { redis } from '@/lib/redist';
 
 
+
 const PROFILE_CACHE_TTL_SECONDS = 120;
 
 function getProfileCacheKey(userId: string): string {
