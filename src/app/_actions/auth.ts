@@ -452,6 +452,7 @@ export async function getProfilePageDataCached() {
                     role: 'ADMIN' | 'SUPERADMIN';
                     image: string | null;
                     phoneNumber: string;
+                    companyId: string | null;
                     companyName: string;
                     createdAt: string | null;
                     lastLogin: string | null;
@@ -475,7 +476,7 @@ export async function getProfilePageDataCached() {
                     role: true,
                     image: true,
                     phoneNumber: true,
-                    company: { select: { name: true } },
+                    company: { select: { id: true, name: true } },
                     createdAt: true,
                 },
             }),
@@ -497,6 +498,7 @@ export async function getProfilePageDataCached() {
             role: profile.role === 'SUPERADMIN' ? 'SUPERADMIN' as const : 'ADMIN' as const,
             image: profile.image,
             phoneNumber: profile.phoneNumber ?? '',
+            companyId: profile.company?.id ?? null,
             companyName: profile.company?.name ?? '',
             createdAt: profile.createdAt?.toISOString() ?? null,
             lastLogin: latestSession?.createdAt?.toISOString() ?? null,

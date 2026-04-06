@@ -1,10 +1,19 @@
 import React from 'react'
 import { getProfilePageDataCached } from '@/app/_actions/auth'
+import { getCompanies } from '@/app/_actions/companies'
 import { ProfileView } from '../components/ProfileView'
 
 export default async function ProfilePage() {
-  const result = await getProfilePageDataCached()
+  const [profileResult, companiesResult] = await Promise.all([
+    getProfilePageDataCached(),
+    getCompanies(),
+  ])
+
+  const result = profileResult
   const profileData = result.success ? result.data : undefined
+  const companyOptions = companiesResult.success && companiesResult.data
+    ? companiesResult.data.map((company) => ({ id: company.id, name: company.name }))
+    : []
 
   const fallbackRole: 'ADMIN' | 'SUPERADMIN' = 'ADMIN'
   const fallbackName = 'Admin User'
@@ -17,7 +26,8 @@ export default async function ProfilePage() {
       userRole={profileData?.role ?? fallbackRole}
       userImage={profileData?.image ?? null}
       userPhone={profileData?.phoneNumber ?? ''}
-      userCompany={profileData?.companyName ?? ''}
+      userCompanyId={profileData?.companyId ?? null}
+      availableCompanies={companyOptions}
       userCreatedAt={profileData?.createdAt ?? null}
       lastLogin={profileData?.lastLogin ?? null}
     />
