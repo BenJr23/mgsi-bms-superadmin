@@ -39,7 +39,6 @@ type ProfileViewProps = {
 };
 
 export function ProfileView({ userName, userEmail, userRole, userImage, userPhone, userCompanyId, availableCompanies, userCreatedAt, lastLogin, onProfileUpdate }: ProfileViewProps) {
-  const isSuperAdmin = userRole === 'SUPERADMIN';
   const [isPasswordUpdating, setIsPasswordUpdating] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
@@ -119,36 +118,15 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
       
       // Extract digits only from the phone (remove +63 and spaces), get last 10 digits
       const phoneDigitsOnly = formData.phone.replace(/\D/g, '').slice(-10);
-      
-      if (!formData.name.trim()) {
-        setPersonalInfoError('Name is required.');
-        return;
-      }
-      
-      if (phoneDigitsOnly.length !== 10 || phoneDigitsOnly[0] !== '9') {
+
+      if (!validatePhilippinePhone(phoneDigitsOnly)) {
         setPersonalInfoError('Please enter a valid Philippine phone number.');
         return;
       }
 
-      const trimmedEmail = formData.email.trim();
-      if (!trimmedEmail) {
-        setPersonalInfoError('Email is required.');
-        return;
-      }
-
-      if (isSuperAdmin) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(trimmedEmail)) {
-          setPersonalInfoError('Please enter a valid email address.');
-          return;
-        }
-      }
-
       const result = await updateUserProfile({
-        name: formData.name,
+        name: userName,
         phoneNumber: `+63${phoneDigitsOnly}`,
-        companyId: formData.companyId || undefined,
-        email: isSuperAdmin ? trimmedEmail : undefined,
       });
 
       if (!result.success) {
@@ -161,10 +139,7 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
       // Notify parent of profile update
       if (onProfileUpdate) {
         onProfileUpdate({
-          name: formData.name,
           phoneNumber: `+63${phoneDigitsOnly}`,
-          companyId: formData.companyId || undefined,
-          email: isSuperAdmin ? trimmedEmail : undefined,
         });
       }
       
@@ -305,10 +280,7 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
   };
 
   const hasPersonalInfoChanges =
-    formData.name !== userName ||
-    formData.phone !== formatPhilippinePhone(userPhone) ||
-    formData.companyId !== (userCompanyId ?? '') ||
-    (isSuperAdmin && formData.email !== userEmail);
+    formData.phone !== formatPhilippinePhone(userPhone);
 
   const sortedCompanies = useMemo(
     () => [...availableCompanies].sort((a, b) => a.name.localeCompare(b.name)),
@@ -373,10 +345,6 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
               <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
               <span>Joined {formatJoinDate(userCreatedAt)}</span>
             </div>
-            <div className="flex items-center gap-1">
-              <Shield className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span>2FA Enabled</span>
-            </div>
           </div>
         </div>
       </Card>
@@ -423,15 +391,9 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    name: e.target.value
-                  })
-                  }
-                  disabled={!isPersonalInfoEditing}
+                  readOnly
                   className={`w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-900 focus:border-transparent ${
-                    isPersonalInfoEditing ? '' : 'bg-slate-50 cursor-not-allowed text-slate-600'
+                    'bg-slate-50 cursor-not-allowed text-slate-600'
                   }`} />
 
               </div>
@@ -455,32 +417,7 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
                     className={`w-full pl-20 pr-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-900 focus:border-transparent ${
                       isPersonalInfoEditing ? '' : 'bg-slate-50 cursor-not-allowed text-slate-600'
                     }`} />
-
                 </div>
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-slate-700">
-                  Company Name
-                </label>
-                <select
-                  value={formData.companyId}
-                  onChange={(e) => setFormData({ ...formData, companyId: e.target.value })}
-                  disabled={!isPersonalInfoEditing}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-red-900 focus:border-transparent ${
-                    isPersonalInfoEditing ? 'border-slate-300 bg-white text-slate-900' : 'border-slate-200 bg-slate-50 cursor-not-allowed text-slate-600'
-                  }`}
-                >
-                  <option value="">No company assigned</option>
-                  {sortedCompanies.map((company) => (
-                    <option key={company.id} value={company.id}>
-                      {company.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-slate-500">
-                  Select a company from the list while editing personal information.
-                </p>
               </div>
 
               <div className="space-y-2 md:col-span-2">
@@ -492,23 +429,13 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
                   <input
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    readOnly={!isPersonalInfoEditing || !isSuperAdmin}
+                    readOnly
                     className={`w-full pl-9 pr-10 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-red-900 focus:border-transparent ${
-                      isPersonalInfoEditing && isSuperAdmin
-                        ? 'border-slate-300 bg-white text-slate-900'
-                        : 'border-slate-200 bg-slate-50 text-slate-500 cursor-not-allowed'
+                      'border-slate-200 bg-slate-50 text-slate-500 cursor-not-allowed'
                     }`} />
 
-                  {(!isPersonalInfoEditing || !isSuperAdmin) && (
-                    <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                  )}
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                 </div>
-                <p className="text-xs text-slate-500">
-                  {isSuperAdmin
-                    ? 'As SUPERADMIN, you can update your email while editing personal information.'
-                    : 'Contact system administrator to change your email address.'}
-                </p>
               </div>
             </div>
 
@@ -620,21 +547,6 @@ export function ProfileView({ userName, userEmail, userRole, userImage, userPhon
                 <span className="text-sm font-medium text-slate-900">
                   {formatLastLogin(lastLogin)}
                 </span>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="bg-slate-50 border-slate-200">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-white rounded-lg shadow-sm text-red-900">
-                <Shield className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="font-medium text-slate-900">Two-Factor Auth</h4>
-                <p className="text-xs text-slate-500 mt-1">
-                  Extra layer of security to the account is active.
-                </p>
-                
               </div>
             </div>
           </Card>
