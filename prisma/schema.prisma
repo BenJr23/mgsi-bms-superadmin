@@ -25,6 +25,7 @@ model User {
   deletedAt            DateTime?
   companyId            String?
   accounts             Account[]
+  auditLogs            AuditLog[]  @relation("UserAuditLogs")
   submittedBookings    Booking[]   @relation("SubmittedBookings")
   updatedBookings      Booking[]   @relation("UpdatedBookings")
   createdBuildings     Building[]
@@ -216,6 +217,32 @@ model Rejection {
   @@map("rejections")
 }
 
+model AuditLog {
+  id          String      @id @default(uuid())
+  logNumber   String      @unique
+  action      AuditAction
+  status      AuditStatus
+  module      String
+  entityType  String
+  entityId    String?
+  targetLabel String?
+  actorId     String
+  changes     Json?
+  summary     String?
+  ipAddress   String?
+  userAgent   String?
+  requestId   String?
+  occurredAt  DateTime    @default(now())
+  actor       User        @relation("UserAuditLogs", fields: [actorId], references: [id])
+
+  @@index([occurredAt])
+  @@index([actorId, occurredAt])
+  @@index([module, occurredAt])
+  @@index([entityType, entityId, occurredAt])
+  @@index([action, status, occurredAt])
+  @@map("audit_logs")
+}
+
 enum UserRole {
   CLIENT
   ADMIN
@@ -260,4 +287,15 @@ enum RejectionType {
   INVALID_REQUEST
   CONTRACT_EXPIRED
   OTHER
+}
+
+enum AuditAction {
+  CREATE
+  EDIT
+  DELETE
+}
+
+enum AuditStatus {
+  SUCCESS
+  FAILED
 }

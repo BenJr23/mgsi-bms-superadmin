@@ -4,6 +4,8 @@ import { getServerSession } from '@/lib/get-server'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redist'
 import { sendCompanyCreditAlertEmail } from './email/email-company'
+import { headers } from 'next/headers'
+import { createAuditChange, getRequestMetadata, persistAuditLog } from './audit-log-helpers'
 
 type CompanyRepresentative = {
     id: string
@@ -606,6 +608,12 @@ export async function createCompany(input: CreateCompanyInput): Promise<CreateCo
             return { success: false, error: 'Unauthorized' }
         }
 
+        if (!session.user?.id) {
+            return { success: false, error: 'Unauthorized' }
+        }
+
+        const requestHeaders = await headers()
+
         if (!input.name?.trim()) {
             return { success: false, error: 'Company name is required' }
         }
@@ -672,6 +680,26 @@ export async function createCompany(input: CreateCompanyInput): Promise<CreateCo
         await invalidateCompaniesCache()
         await notifyRepresentativeIfCreditsLow(newCompany.id)
 
+        const { ipAddress, userAgent, requestId } = getRequestMetadata(requestHeaders)
+        await persistAuditLog({
+            action: 'CREATE',
+            status: 'SUCCESS',
+            module: 'Companies',
+            entityType: 'Company',
+            actorId: session.user.id,
+            entityId: newCompany.id,
+            targetLabel: newCompany.name,
+            summary: `Created company ${newCompany.name}`,
+            changes: [
+                createAuditChange('name', null, newCompany.name),
+                createAuditChange('allottedCreditHours', null, newCompany.allottedCreditHours),
+                createAuditChange('representativeId', null, representativeUserId),
+            ],
+            ipAddress,
+            userAgent,
+            requestId,
+        })
+
         return {
             success: true,
             data: {
@@ -707,6 +735,12 @@ export async function updateCompany(input: UpdateCompanyInput): Promise<UpdateCo
             return { success: false, error: 'Unauthorized' }
         }
 
+        if (!session.user?.id) {
+            return { success: false, error: 'Unauthorized' }
+        }
+
+        const requestHeaders = await headers()
+
         if (!input.id?.trim()) {
             return { success: false, error: 'Company ID is required' }
         }
@@ -717,6 +751,23 @@ export async function updateCompany(input: UpdateCompanyInput): Promise<UpdateCo
 
         if (input.allottedCreditHours < 0) {
             return { success: false, error: 'Allotted credit hours cannot be negative' }
+        }
+
+        const currentCompany = await prisma.company.findFirst({
+            where: {
+                id: input.id,
+                deletedAt: null,
+            },
+            select: {
+                id: true,
+                name: true,
+                allottedCreditHours: true,
+                representativeId: true,
+            },
+        })
+
+        if (!currentCompany) {
+            return { success: false, error: 'Company not found' }
         }
 
         const existingCompany = await prisma.company.findFirst({
@@ -788,6 +839,30 @@ export async function updateCompany(input: UpdateCompanyInput): Promise<UpdateCo
         await invalidateCompanyDetailCache(updatedCompany.id)
         await notifyRepresentativeIfCreditsLow(updatedCompany.id)
 
+        const { ipAddress, userAgent, requestId } = getRequestMetadata(requestHeaders)
+        const changes = [
+            createAuditChange('name', currentCompany.name, updatedCompany.name),
+            createAuditChange('allottedCreditHours', currentCompany.allottedCreditHours, updatedCompany.allottedCreditHours),
+            createAuditChange('representativeId', currentCompany.representativeId, representativeId),
+        ].filter((change) => change.before !== change.after)
+
+        if (changes.length > 0) {
+            await persistAuditLog({
+                action: 'EDIT',
+                status: 'SUCCESS',
+                module: 'Companies',
+                entityType: 'Company',
+                actorId: session.user.id,
+                entityId: updatedCompany.id,
+                targetLabel: updatedCompany.name,
+                summary: `Updated company ${updatedCompany.name}`,
+                changes,
+                ipAddress,
+                userAgent,
+                requestId,
+            })
+        }
+
         return {
             success: true,
             data: {
@@ -823,13 +898,19 @@ export async function deleteCompany(companyId: string): Promise<DeleteCompanyRes
             return { success: false, error: 'Unauthorized' }
         }
 
+        if (!session.user?.id) {
+            return { success: false, error: 'Unauthorized' }
+        }
+
+        const requestHeaders = await headers()
+
         if (!companyId?.trim()) {
             return { success: false, error: 'Company ID is required' }
         }
 
         const company = await prisma.company.findFirst({
             where: { id: companyId, deletedAt: null },
-            select: { id: true },
+            select: { id: true, name: true, representativeId: true, deletedAt: true },
         })
 
         if (!company) {
@@ -851,12 +932,14 @@ export async function deleteCompany(companyId: string): Promise<DeleteCompanyRes
             }
         }
 
+        const deletedAt = new Date()
+
         await prisma.$transaction(async (tx) => {
             await tx.company.update({
                 where: { id: companyId },
                 data: {
                     representativeId: null,
-                    deletedAt: new Date(),
+                    deletedAt,
                 },
             })
 
@@ -868,6 +951,26 @@ export async function deleteCompany(companyId: string): Promise<DeleteCompanyRes
 
         await invalidateCompaniesCache()
         await invalidateCompanyDetailCache(companyId)
+
+        const { ipAddress, userAgent, requestId } = getRequestMetadata(requestHeaders)
+
+        await persistAuditLog({
+            action: 'DELETE',
+            status: 'SUCCESS',
+            module: 'Companies',
+            entityType: 'Company',
+            actorId: session.user.id,
+            entityId: companyId,
+            targetLabel: company.name,
+            summary: `Soft deleted company ${company.name}`,
+            changes: [
+                createAuditChange('representativeId', company.representativeId, null),
+                createAuditChange('deletedAt', company.deletedAt, deletedAt),
+            ],
+            ipAddress,
+            userAgent,
+            requestId,
+        })
 
         return { success: true }
     } catch (error) {

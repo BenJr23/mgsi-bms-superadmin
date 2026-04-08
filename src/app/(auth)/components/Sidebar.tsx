@@ -41,8 +41,8 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   },
   {
     id: 'buildings',
-    label: 'Branch',
-    href: '/buildings',
+    label: 'Branches',
+    href: '/branches',
     icon: Building2,
     roles: ['ADMIN', 'SUPERADMIN']
   },
@@ -79,6 +79,13 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
     label: 'Companies',
     href: '/companies',
     icon: Briefcase,
+    roles: ['SUPERADMIN']
+  },
+  {
+    id: 'audit-logs',
+    label: 'Audit Logs',
+    href: '/audit-logs',
+    icon: BarChart3,
     roles: ['SUPERADMIN']
   }
 ]

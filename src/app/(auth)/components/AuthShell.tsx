@@ -17,7 +17,7 @@ const SHELL_HIDDEN_PATHS = ['/reset-password']
 function getPageTitle(pathname: string): string {
   if (pathname === '/dashboard') return 'Dashboard'
   if (pathname === '/bookings') return 'Bookings'
-  if (pathname === '/buildings') return 'Branch'
+  if (pathname === '/branches') return 'Branches'
   if (pathname === '/rooms') return 'Rooms'
   if (pathname === '/calendar') return 'Calendar'
   if (pathname === '/reports') return 'Reports'

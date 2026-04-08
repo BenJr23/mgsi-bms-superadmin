@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { BuildingStatus } from '@/generated/prisma/client'
 import { getServerSession } from '@/lib/get-server'
 import { redis } from '@/lib/redist'
+import { headers } from 'next/headers'
+import { createAuditChange, getRequestMetadata, persistAuditLog } from './audit-log-helpers'
 
 const BUILDINGS_CACHE_TTL_SECONDS = 300
 const BUILDINGS_CACHE_VERSION_KEY = 'buildings:list:version'
@@ -83,6 +85,7 @@ export async function createBuilding(
 ): Promise<CreateBuildingResult> {
   try {
     const session = await getServerSession()
+    const requestHeaders = await headers()
     const userId = session?.user?.id
 
     // Validate required fields
@@ -125,6 +128,29 @@ export async function createBuilding(
     })
 
     await invalidateBuildingAndRoomCaches()
+
+    const { ipAddress, userAgent, requestId } = getRequestMetadata(requestHeaders)
+    await persistAuditLog({
+      action: 'CREATE',
+      status: 'SUCCESS',
+      module: 'Buildings',
+      entityType: 'Building',
+      actorId: userId,
+      entityId: building.id,
+      targetLabel: building.buildingName,
+      summary: `Created building ${building.buildingName}`,
+      changes: [
+        createAuditChange('buildingName', null, building.buildingName),
+        createAuditChange('buildingCode', null, building.buildingCode),
+        createAuditChange('address', null, building.address),
+        createAuditChange('description', null, building.description),
+        createAuditChange('imageUrl', null, building.imageUrl),
+        createAuditChange('status', null, building.status),
+      ],
+      ipAddress,
+      userAgent,
+      requestId,
+    })
 
     return {
       success: true,
@@ -323,6 +349,7 @@ export async function updateBuilding(
 ): Promise<UpdateBuildingResult> {
   try {
     const session = await getServerSession()
+    const requestHeaders = await headers()
 
     if (!session?.user?.id) {
       return { success: false, error: 'User authentication required.' }
@@ -379,6 +406,33 @@ export async function updateBuilding(
     })
 
     await invalidateBuildingAndRoomCaches()
+
+    const { ipAddress, userAgent, requestId } = getRequestMetadata(requestHeaders)
+    const changes = [
+      createAuditChange('buildingName', building.buildingName, updatedBuilding.buildingName),
+      createAuditChange('buildingCode', building.buildingCode, updatedBuilding.buildingCode),
+      createAuditChange('address', building.address, updatedBuilding.address),
+      createAuditChange('description', building.description, updatedBuilding.description),
+      createAuditChange('imageUrl', building.imageUrl, updatedBuilding.imageUrl),
+      createAuditChange('status', building.status, updatedBuilding.status),
+    ].filter((change) => change.before !== change.after)
+
+    if (changes.length > 0) {
+      await persistAuditLog({
+        action: 'EDIT',
+        status: 'SUCCESS',
+        module: 'Buildings',
+        entityType: 'Building',
+        actorId: session.user.id,
+        entityId: updatedBuilding.id,
+        targetLabel: updatedBuilding.buildingName,
+        summary: `Updated building ${updatedBuilding.buildingName}`,
+        changes,
+        ipAddress,
+        userAgent,
+        requestId,
+      })
+    }
 
     return {
       success: true,
@@ -576,6 +630,7 @@ export async function deleteBuilding(
 ): Promise<DeleteBuildingResult> {
   try {
     const session = await getServerSession()
+    const requestHeaders = await headers()
 
     if (!session?.user?.id) {
       return { success: false, error: 'Not authenticated.' }
@@ -592,6 +647,8 @@ export async function deleteBuilding(
       },
       select: {
         id: true,
+        buildingName: true,
+        deletedAt: true,
       },
     })
 
@@ -614,14 +671,32 @@ export async function deleteBuilding(
       }
     }
 
+    const deletedAt = new Date()
+
     await prisma.building.update({
       where: { id: buildingId },
       data: {
-        deletedAt: new Date(),
+        deletedAt,
       },
     })
 
     await invalidateBuildingAndRoomCaches()
+
+    const { ipAddress, userAgent, requestId } = getRequestMetadata(requestHeaders)
+    await persistAuditLog({
+      action: 'DELETE',
+      status: 'SUCCESS',
+      module: 'Buildings',
+      entityType: 'Building',
+      actorId: session.user.id,
+      entityId: buildingId,
+      targetLabel: building.buildingName,
+      summary: `Soft deleted building ${building.buildingName}`,
+      changes: [createAuditChange('deletedAt', building.deletedAt, deletedAt)],
+      ipAddress,
+      userAgent,
+      requestId,
+    })
 
     return { success: true }
   } catch (error: unknown) {

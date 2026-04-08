@@ -3,6 +3,8 @@
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from '@/lib/get-server'
 import { redis } from '@/lib/redist'
+import { headers } from 'next/headers'
+import { createAuditChange, getRequestMetadata, persistAuditLog } from './audit-log-helpers'
 
 const ROOMS_CACHE_TTL_SECONDS = 300
 const ROOMS_CACHE_VERSION_KEY = 'rooms:list:version'
@@ -81,6 +83,7 @@ export async function createRoom(
 ): Promise<CreateRoomResult> {
   try {
     const session = await getServerSession()
+    const requestHeaders = await headers()
 
     if (!session?.user?.id) {
       return { success: false, error: 'Not authenticated.' }
@@ -127,6 +130,31 @@ export async function createRoom(
     })
 
     await invalidateRoomAndBuildingCaches()
+
+    const { ipAddress, userAgent, requestId } = getRequestMetadata(requestHeaders)
+    await persistAuditLog({
+      action: 'CREATE',
+      status: 'SUCCESS',
+      module: 'Rooms',
+      entityType: 'Room',
+      actorId: session.user.id,
+      entityId: room.id,
+      targetLabel: room.roomName,
+      summary: `Created room ${room.roomName}`,
+      changes: [
+        createAuditChange('roomName', null, room.roomName),
+        createAuditChange('roomCode', null, room.roomCode),
+        createAuditChange('buildingId', null, room.buildingId),
+        createAuditChange('capacity', null, room.capacity),
+        createAuditChange('status', null, room.status),
+        createAuditChange('description', null, room.description),
+        createAuditChange('imageUrl', null, room.imageUrl),
+        createAuditChange('amenities', null, room.amenities),
+      ],
+      ipAddress,
+      userAgent,
+      requestId,
+    })
 
     return {
       success: true,
@@ -440,6 +468,7 @@ export async function updateRoom(
 ): Promise<UpdateRoomResult> {
   try {
     const session = await getServerSession()
+    const requestHeaders = await headers()
 
     if (!session?.user?.id) {
       return { success: false, error: 'Not authenticated.' }
@@ -463,6 +492,17 @@ export async function updateRoom(
       where: {
         id: roomId,
         deletedAt: null,
+      },
+      select: {
+        id: true,
+        roomName: true,
+        roomCode: true,
+        buildingId: true,
+        capacity: true,
+        status: true,
+        description: true,
+        imageUrl: true,
+        amenities: true,
       },
     })
 
@@ -498,6 +538,35 @@ export async function updateRoom(
     })
 
     await invalidateRoomAndBuildingCaches()
+
+    const { ipAddress, userAgent, requestId } = getRequestMetadata(requestHeaders)
+    const changes = [
+      createAuditChange('roomName', room.roomName, updatedRoom.roomName),
+      createAuditChange('roomCode', room.roomCode, updatedRoom.roomCode),
+      createAuditChange('buildingId', room.buildingId, updatedRoom.buildingId),
+      createAuditChange('capacity', room.capacity, updatedRoom.capacity),
+      createAuditChange('status', room.status, updatedRoom.status),
+      createAuditChange('description', room.description, updatedRoom.description),
+      createAuditChange('imageUrl', room.imageUrl, updatedRoom.imageUrl),
+      createAuditChange('amenities', room.amenities, updatedRoom.amenities),
+    ].filter((change) => change.before !== change.after)
+
+    if (changes.length > 0) {
+      await persistAuditLog({
+        action: 'EDIT',
+        status: 'SUCCESS',
+        module: 'Rooms',
+        entityType: 'Room',
+        actorId: session.user.id,
+        entityId: updatedRoom.id,
+        targetLabel: updatedRoom.roomName,
+        summary: `Updated room ${updatedRoom.roomName}`,
+        changes,
+        ipAddress,
+        userAgent,
+        requestId,
+      })
+    }
 
     return {
       success: true,
@@ -600,6 +669,7 @@ export async function uploadRoomImage(
 export async function deleteRoom(roomId: string): Promise<DeleteRoomResult> {
   try {
     const session = await getServerSession()
+    const requestHeaders = await headers()
 
     if (!session?.user?.id) {
       return { success: false, error: 'Not authenticated.' }
@@ -616,6 +686,8 @@ export async function deleteRoom(roomId: string): Promise<DeleteRoomResult> {
       },
       select: {
         id: true,
+        roomName: true,
+        deletedAt: true,
       },
     })
 
@@ -623,14 +695,32 @@ export async function deleteRoom(roomId: string): Promise<DeleteRoomResult> {
       return { success: false, error: 'Room not found.' }
     }
 
+    const deletedAt = new Date()
+
     await prisma.room.update({
       where: { id: roomId },
       data: {
-        deletedAt: new Date(),
+        deletedAt,
       },
     })
 
     await invalidateRoomAndBuildingCaches()
+
+    const { ipAddress, userAgent, requestId } = getRequestMetadata(requestHeaders)
+    await persistAuditLog({
+      action: 'DELETE',
+      status: 'SUCCESS',
+      module: 'Rooms',
+      entityType: 'Room',
+      actorId: session.user.id,
+      entityId: roomId,
+      targetLabel: room.roomName,
+      summary: `Soft deleted room ${room.roomName}`,
+      changes: [createAuditChange('deletedAt', room.deletedAt, deletedAt)],
+      ipAddress,
+      userAgent,
+      requestId,
+    })
 
     return { success: true }
   } catch (error: unknown) {

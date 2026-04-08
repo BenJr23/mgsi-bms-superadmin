@@ -18,15 +18,15 @@ Built with Next.js App Router, Better Auth, Prisma + PostgreSQL, Tailwind CSS, a
 
 - Role-aware admin UI (`ADMIN`, `SUPERADMIN`)
 - Route-based dashboard pages:
-	- `/dashboard`
-	- `/bookings`
-	- `/buildings`
-	- `/rooms`
-	- `/calendar`
-	- `/reports`
-	- `/users` (superadmin only)
-	- `/profile`
-	- `/settings`
+  - `/dashboard`
+  - `/bookings`
+  - `/branches`
+  - `/rooms`
+  - `/calendar`
+  - `/reports`
+  - `/users` (superadmin only)
+  - `/profile`
+  - `/settings`
 - Booking approval and walk-in booking flows
 - Email-based OTP password reset flow
 - CSV/PDF export for bookings/reports
@@ -101,13 +101,13 @@ TRUSTED_ORIGINS="http://localhost:3000"
 npm install
 ```
 
-2. Generate Prisma client:
+1. Generate Prisma client:
 
 ```bash
 npx prisma generate
 ```
 
-3. Run database migrations:
+1. Run database migrations:
 
 ```bash
 npx prisma migrate deploy
@@ -119,13 +119,13 @@ For local schema iteration, you can use:
 npx prisma migrate dev
 ```
 
-4. Start dev server:
+1. Start dev server:
 
 ```bash
 npm run dev
 ```
 
-5. Open:
+1. Open:
 
 `http://localhost:3000`
 
@@ -140,7 +140,7 @@ npm run dev
 
 - `src/app/(auth)` — authenticated pages + shared shell layout
 - `src/app/(public)` — public pages (signin/landing)
-- `src/app/_actions` — server actions (auth, bookings, rooms, buildings, etc.)
+- `src/app/_actions` — server actions (auth, bookings, rooms, branches, etc.)
 - `src/lib` — auth/prisma/redis utilities
 - `prisma` — schema + migrations
 

@@ -7,6 +7,7 @@ import { hashPassword } from 'better-auth/crypto'
 import { sendCredentialsEmail } from './email/email-user'
 import { redis } from '@/lib/redist'
 import { Prisma } from '@/generated/prisma/client'
+import { createAuditChange, getRequestMetadata, persistAuditLog } from './audit-log-helpers'
 
 interface CreateUserInput {
   name: string
@@ -95,9 +96,10 @@ function generateSecurePassword(): string {
 
 export async function createUser(input: CreateUserInput): Promise<CreateUserResult> {
   try {
+    const requestHeaders = await headers()
     // Get session using better-auth api
     const session = await auth.api.getSession({
-      headers: await headers(),
+      headers: requestHeaders,
     })
 
     if (!session?.user || !session.user.id) {
@@ -155,6 +157,30 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserResu
       },
     })
 
+    const { ipAddress, userAgent, requestId } = getRequestMetadata(requestHeaders)
+
+    await persistAuditLog({
+      action: 'CREATE',
+      status: 'SUCCESS',
+      module: 'Users',
+      entityType: 'User',
+      actorId: session.user.id,
+      entityId: updatedUser.id,
+      targetLabel: updatedUser.email,
+      summary: `Created user ${updatedUser.email}`,
+      changes: [
+        createAuditChange('name', null, input.name),
+        createAuditChange('email', null, input.email),
+        createAuditChange('role', null, input.role),
+        createAuditChange('companyId', null, input.companyId || null),
+        createAuditChange('phoneNumber', null, input.phoneNumber || null),
+        createAuditChange('contractEndDate', null, input.contractEndDate || null),
+      ],
+      ipAddress,
+      userAgent,
+      requestId,
+    })
+
     // Hash the password using better-auth crypto
     const hashedPassword = await hashPassword(generatedPassword)
 
@@ -203,7 +229,7 @@ function generateUsersCacheKey(page: number, pageSize: number, searchQuery?: str
 // Invalidate all users-related cache
 async function invalidateUsersCache(): Promise<void> {
   if (!redis) return
-  
+
   try {
     // Get all keys matching users pattern
     const keys = await redis.keys('users:*')
@@ -253,11 +279,11 @@ export async function getUsers(input: GetUsersInput = {}): Promise<ListUsersResu
       },
       ...(searchQuery
         ? {
-            OR: [
-              { name: { contains: searchQuery, mode: 'insensitive' as const } },
-              { email: { contains: searchQuery, mode: 'insensitive' as const } },
-            ],
-          }
+          OR: [
+            { name: { contains: searchQuery, mode: 'insensitive' as const } },
+            { email: { contains: searchQuery, mode: 'insensitive' as const } },
+          ],
+        }
         : {}),
     }
 
@@ -356,8 +382,9 @@ export async function getUsers(input: GetUsersInput = {}): Promise<ListUsersResu
 
 export async function updateUser(input: UpdateUserInput): Promise<UpdateUserResult> {
   try {
+    const requestHeaders = await headers()
     const session = await auth.api.getSession({
-      headers: await headers(),
+      headers: requestHeaders,
     })
 
     if (!session?.user || !session.user.id) {
@@ -370,7 +397,16 @@ export async function updateUser(input: UpdateUserInput): Promise<UpdateUserResu
 
     const existingUser = await prisma.user.findUnique({
       where: { id: input.id },
-      select: { id: true, email: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        image: true,
+        phoneNumber: true,
+        contractEndDate: true,
+        companyId: true,
+      },
     })
 
     if (!existingUser) {
@@ -416,6 +452,39 @@ export async function updateUser(input: UpdateUserInput): Promise<UpdateUserResu
       }
     })
 
+    const { ipAddress, userAgent, requestId } = getRequestMetadata(requestHeaders)
+
+    const changes = [
+      createAuditChange('name', existingUser.name, input.name),
+      createAuditChange('email', existingUser.email, input.email),
+      createAuditChange('role', existingUser.role, input.role),
+      createAuditChange('image', existingUser.image, input.image || null),
+      createAuditChange('phoneNumber', existingUser.phoneNumber, input.phoneNumber || null),
+      createAuditChange(
+        'contractEndDate',
+        existingUser.contractEndDate,
+        input.contractEndDate ? new Date(input.contractEndDate) : null,
+      ),
+      createAuditChange('companyId', existingUser.companyId, input.companyId || null),
+    ].filter((change) => change.before !== change.after)
+
+    if (changes.length > 0) {
+      await persistAuditLog({
+        action: 'EDIT',
+        status: 'SUCCESS',
+        module: 'Users',
+        entityType: 'User',
+        actorId: session.user.id,
+        entityId: input.id,
+        targetLabel: input.email,
+        summary: `Updated user ${input.email}`,
+        changes,
+        ipAddress,
+        userAgent,
+        requestId,
+      })
+    }
+
     // Invalidate cache after successful user update
     await invalidateUsersCache()
 
@@ -434,8 +503,9 @@ interface DeleteUserResult {
 
 export async function deleteUser(userId: string): Promise<DeleteUserResult> {
   try {
+    const requestHeaders = await headers()
     const session = await auth.api.getSession({
-      headers: await headers(),
+      headers: requestHeaders,
     })
 
     if (!session?.user || !session.user.id) {
@@ -452,7 +522,7 @@ export async function deleteUser(userId: string): Promise<DeleteUserResult> {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true },
+      select: { id: true, email: true, deletedAt: true },
     })
 
     if (!user) {
@@ -464,6 +534,23 @@ export async function deleteUser(userId: string): Promise<DeleteUserResult> {
       data: {
         deletedAt: new Date(),
       },
+    })
+
+    const { ipAddress, userAgent, requestId } = getRequestMetadata(requestHeaders)
+
+    await persistAuditLog({
+      action: 'DELETE',
+      status: 'SUCCESS',
+      module: 'Users',
+      entityType: 'User',
+      actorId: session.user.id,
+      entityId: userId,
+      targetLabel: user.email,
+      summary: `Soft deleted user ${user.email}`,
+      changes: [createAuditChange('deletedAt', user.deletedAt, new Date())],
+      ipAddress,
+      userAgent,
+      requestId,
     })
 
     // Invalidate cache after successful user deletion
@@ -490,8 +577,9 @@ interface ReactivateUserResult {
 
 export async function reactivateUser(userId: string): Promise<ReactivateUserResult> {
   try {
+    const requestHeaders = await headers()
     const session = await auth.api.getSession({
-      headers: await headers(),
+      headers: requestHeaders,
     })
 
     if (!session?.user || !session.user.id) {
@@ -508,7 +596,7 @@ export async function reactivateUser(userId: string): Promise<ReactivateUserResu
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, deletedAt: true, email: true, name: true },
+      select: { id: true, deletedAt: true, passwordVerified: true, email: true, name: true },
     })
 
     if (!user) {
@@ -555,6 +643,26 @@ export async function reactivateUser(userId: string): Promise<ReactivateUserResu
       }
     })
 
+    const { ipAddress, userAgent, requestId } = getRequestMetadata(requestHeaders)
+
+    await persistAuditLog({
+      action: 'EDIT',
+      status: 'SUCCESS',
+      module: 'Users',
+      entityType: 'User',
+      actorId: session.user.id,
+      entityId: user.id,
+      targetLabel: user.email,
+      summary: `Reactivated user ${user.email}`,
+      changes: [
+        createAuditChange('deletedAt', user.deletedAt, null),
+        createAuditChange('passwordVerified', user.passwordVerified, false),
+      ],
+      ipAddress,
+      userAgent,
+      requestId,
+    })
+
     const emailSent = await sendCredentialsEmail({
       userEmail: user.email,
       userName: user.name,
@@ -579,8 +687,9 @@ export async function reactivateUser(userId: string): Promise<ReactivateUserResu
 
 export async function resetUserPassword(userId: string): Promise<ResetUserPasswordResult> {
   try {
+    const requestHeaders = await headers()
     const session = await auth.api.getSession({
-      headers: await headers(),
+      headers: requestHeaders,
     })
 
     if (!session?.user || !session.user.id) {
@@ -642,6 +751,25 @@ export async function resetUserPassword(userId: string): Promise<ResetUserPasswo
           passwordVerified: false,
         },
       })
+    })
+
+    const { ipAddress, userAgent, requestId } = getRequestMetadata(requestHeaders)
+
+    await persistAuditLog({
+      action: 'EDIT',
+      status: 'SUCCESS',
+      module: 'Users',
+      entityType: 'User',
+      actorId: session.user.id,
+      entityId: user.id,
+      targetLabel: user.email,
+      summary: `Reset password for user ${user.email}`,
+      changes: [
+        createAuditChange('passwordVerified', true, false),
+      ],
+      ipAddress,
+      userAgent,
+      requestId,
     })
 
     // Send credentials email with new password
