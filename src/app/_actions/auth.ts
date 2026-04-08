@@ -193,6 +193,7 @@ export async function verifyOTP(email: string, otp: string) {
     }
 }
 
+
 export async function verifyPasswordResetOTP(email: string, otp: string) {
     try {
         if (!email || !otp) {
