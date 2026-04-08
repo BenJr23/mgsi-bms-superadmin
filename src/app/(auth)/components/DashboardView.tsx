@@ -123,7 +123,7 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
         <Card className="p-5 border-slate-200 shadow-sm bg-white hover:shadow-md transition-shadow duration-200 rounded-xl">
           <div className="flex justify-between items-start">
             <div className="space-y-1">
-              <p className="text-sm font-medium text-slate-500">Rescheduled Approvals</p>
+              <p className="text-sm font-medium text-slate-500">Reschedules</p>
               <h3 className="text-3xl font-bold tracking-tight text-slate-900">{stats.pendingBookings}</h3>
             </div>
             <div className="p-2.5 bg-amber-50 rounded-lg ring-1 ring-amber-100/50">
@@ -135,7 +135,7 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
         <Card className="p-5 border-slate-200 shadow-sm bg-white hover:shadow-md transition-shadow duration-200 rounded-xl">
           <div className="flex justify-between items-start">
             <div className="space-y-1">
-              <p className="text-sm font-medium text-slate-500">Active Facilities</p>
+              <p className="text-sm font-medium text-slate-500">Total Branches</p>
               <h3 className="text-3xl font-bold tracking-tight text-slate-900">{stats.activeBuildings}</h3>
             </div>
             <div className="p-2.5 bg-blue-50 rounded-lg ring-1 ring-blue-100/50">
@@ -159,7 +159,7 @@ export function DashboardView({ onViewAllBookings }: DashboardViewProps) {
         <Card className="p-5 border-slate-200 shadow-sm bg-white hover:shadow-md transition-shadow duration-200 rounded-xl">
           <div className="flex justify-between items-start">
             <div className="space-y-1">
-              <p className="text-sm font-medium text-slate-500">System Occupancy</p>
+              <p className="text-sm font-medium text-slate-500">Weekly Room Occupancy</p>
               <h3 className="text-3xl font-bold tracking-tight text-slate-900">{stats.occupancyRate}%</h3>
             </div>
             <div className="p-2.5 bg-emerald-50 rounded-lg ring-1 ring-emerald-100/50">

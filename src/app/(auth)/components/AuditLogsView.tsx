@@ -235,8 +235,8 @@ export function AuditLogsView() {
                                 <th className="px-6 py-3">Action</th>
                                 <th className="px-6 py-3">Status</th>
                                 <th className="px-6 py-3">Module / Target</th>
-                                <th className="px-6 py-3">What Changed</th>
                                 <th className="px-6 py-3">Timestamp</th>
+                                <th className="px-6 py-3">What Changed</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -259,6 +259,7 @@ export function AuditLogsView() {
                                         <p className="font-medium text-slate-900">{log.module}</p>
                                         <p className="text-xs text-slate-500">{log.target}</p>
                                     </td>
+                                    <td className="px-6 py-4 text-slate-600">{formatTimestamp(log.timestamp)}</td>
                                     <td className="px-6 py-4">
                                         <button
                                             type="button"
@@ -268,7 +269,6 @@ export function AuditLogsView() {
                                             View Changes
                                         </button>
                                     </td>
-                                    <td className="px-6 py-4 text-slate-600">{formatTimestamp(log.timestamp)}</td>
                                 </tr>
                             ))}
 
