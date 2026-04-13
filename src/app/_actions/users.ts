@@ -674,6 +674,7 @@ export async function reactivateUser(userId: string): Promise<ReactivateUserResu
       console.warn(`Email failed to send for reactivated user ${user.email}, but account was reactivated`)
     }
 
+    
     // Invalidate cache after successful user reactivation
     await invalidateUsersCache()
 
