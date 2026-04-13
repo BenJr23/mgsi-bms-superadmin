@@ -1,7 +1,9 @@
 import { ReactNode } from "react";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { getServerSession } from "@/lib/get-server";
 import { hasAllowedRole } from "@/lib/auth-utils";
+import { auth } from "@/lib/auth";
 
 type PublicLayoutProps = {
     children: ReactNode;
@@ -15,7 +17,8 @@ export default async function PublicLayout({ children }: PublicLayoutProps) {
             redirect("/dashboard");
         }
 
-        redirect("/api/auth/sign-out?next=/sign-in");
+        await auth.api.signOut({ headers: await headers() });
+        redirect("/sign-in");
     }
 
     return <>{children}</>;
