@@ -109,6 +109,7 @@ export async function forgotPassword(email: string) {
             },
         });
 
+        
 // Send the Email
         await transporter.sendMail({
             from: `"GreatWork" <${process.env.GMAIL_USER}>`,
