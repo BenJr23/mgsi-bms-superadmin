@@ -7,6 +7,47 @@ import { invalidateBookingsCache } from './cache'
 import { hasScheduleConflict } from './conflicts'
 import { getBlockedWeekendDate } from './date-time'
 import type { CreateWalkInBookingInput, CreateWalkInBookingResult } from './types'
+import type { Prisma } from '@/generated/prisma/client'
+
+function getWalkInBookingPrefix(buildingCode: string, bookingDate: Date): string {
+    const year = bookingDate.getFullYear()
+    const month = bookingDate.getMonth() + 1
+    const day = bookingDate.getDate()
+
+    return `${buildingCode}-${year}-${month}-${day}-`
+}
+
+async function generateWalkInBookingReference(
+    tx: Prisma.TransactionClient,
+    buildingCode: string,
+    bookingDate: Date
+): Promise<string> {
+    const prefix = getWalkInBookingPrefix(buildingCode, bookingDate)
+
+    const lastBooking = await tx.booking.findFirst({
+        where: {
+            bookingReference: {
+                startsWith: prefix,
+            },
+        },
+        orderBy: {
+            bookingReference: 'desc',
+        },
+        select: {
+            bookingReference: true,
+        },
+    })
+
+    let nextSeries = 1
+    if (lastBooking?.bookingReference) {
+        const lastSeries = Number.parseInt(lastBooking.bookingReference.slice(-4), 10)
+        if (Number.isFinite(lastSeries)) {
+            nextSeries = lastSeries + 1
+        }
+    }
+
+    return `${prefix}${String(nextSeries).padStart(4, '0')}`
+}
 
 export async function createWalkInBooking(input: CreateWalkInBookingInput): Promise<CreateWalkInBookingResult> {
     try {
@@ -73,7 +114,7 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
         const [building, room, overlappingBookings] = await Promise.all([
             prisma.building.findFirst({
                 where: { id: buildingId, deletedAt: null },
-                select: { id: true, buildingName: true },
+                select: { id: true, buildingName: true, buildingCode: true },
             }),
             prisma.room.findFirst({
                 where: { id: roomId, buildingId, deletedAt: null },
@@ -127,53 +168,55 @@ export async function createWalkInBooking(input: CreateWalkInBookingInput): Prom
             }
         }
 
-        const bookingRef = `WALK-${Date.now()}`
-
         const normalizedEmail = email.toLowerCase().trim()
-        const walkInCustomer = await prisma.walkInCustomer.upsert({
-            where: { email: normalizedEmail },
-            update: {
-                name: name.trim(),
-                companyName: companyName?.trim() || null,
-                phoneNumber: phoneNumber?.trim() || null,
-                deletedAt: null,
-            },
-            create: {
-                email: normalizedEmail,
-                name: name.trim(),
-                companyName: companyName?.trim() || null,
-                phoneNumber: phoneNumber?.trim() || null,
-            },
-            select: { id: true },
-        })
-
-        const newBooking = await prisma.booking.create({
-            data: {
-                bookingReference: bookingRef,
-                submittedById: session.user.id,
-                walkInCustomerId: walkInCustomer.id,
-                buildingId,
-                roomId,
-                startDate,
-                endDate,
-                dailyTimeStart: bookingType === 'DAILY' ? dailyTimeStart : null,
-                dailyTimeEnd: bookingType === 'DAILY' ? dailyTimeEnd : null,
-                bookingType,
-                clientStatus: 'SUBMITTED',
-                approvalStatus: 'CONFIRMED',
-                submittedAt: new Date(),
-                updatedById: session.user.id,
-                attendeeCount: attendeeCount ?? null,
-                message: message?.trim() || null,
-                isActive: true,
-            },
-            include: {
-                submittedBy: {
-                    select: { email: true, name: true },
+        const newBooking = await prisma.$transaction(async (tx) => {
+            const walkInCustomer = await tx.walkInCustomer.upsert({
+                where: { email: normalizedEmail },
+                update: {
+                    name: name.trim(),
+                    companyName: companyName?.trim() || null,
+                    phoneNumber: phoneNumber?.trim() || null,
+                    deletedAt: null,
                 },
-                building: { select: { buildingName: true } },
-                room: { select: { roomName: true } },
-            },
+                create: {
+                    email: normalizedEmail,
+                    name: name.trim(),
+                    companyName: companyName?.trim() || null,
+                    phoneNumber: phoneNumber?.trim() || null,
+                },
+                select: { id: true },
+            })
+
+            const bookingReference = await generateWalkInBookingReference(tx, building.buildingCode, startDate)
+
+            return tx.booking.create({
+                data: {
+                    bookingReference,
+                    submittedById: session.user.id,
+                    walkInCustomerId: walkInCustomer.id,
+                    buildingId,
+                    roomId,
+                    startDate,
+                    endDate,
+                    dailyTimeStart: bookingType === 'DAILY' ? dailyTimeStart : null,
+                    dailyTimeEnd: bookingType === 'DAILY' ? dailyTimeEnd : null,
+                    bookingType,
+                    clientStatus: 'SUBMITTED',
+                    approvalStatus: 'CONFIRMED',
+                    submittedAt: new Date(),
+                    updatedById: session.user.id,
+                    attendeeCount: attendeeCount ?? null,
+                    message: message?.trim() || null,
+                    isActive: true,
+                },
+                include: {
+                    submittedBy: {
+                        select: { email: true, name: true },
+                    },
+                    building: { select: { buildingName: true } },
+                    room: { select: { roomName: true } },
+                },
+            })
         })
 
         await invalidateCompaniesStatsCache()
