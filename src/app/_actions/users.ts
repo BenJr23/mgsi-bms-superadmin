@@ -663,6 +663,7 @@ export async function reactivateUser(userId: string): Promise<ReactivateUserResu
       requestId,
     })
 
+    
     const emailSent = await sendCredentialsEmail({
       userEmail: user.email,
       userName: user.name,
