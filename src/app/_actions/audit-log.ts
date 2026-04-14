@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import {
     persistAuditLog,
     normalizeAuditValue,
+    getRequestMetadata,
     type AuditLogPayload,
     type AuditActionType,
     type AuditLogChange,
@@ -71,6 +72,49 @@ function parseChanges(raw: unknown): AuditLogChange[] {
 
 export async function createAuditLog(payload: AuditLogPayload): Promise<void> {
     await persistAuditLog(payload)
+}
+
+export async function logUnauthorizedAccessAttempt(input: {
+    actorId: string
+    role?: string | null
+    route?: string
+    module?: string
+    reason?: string
+}): Promise<void> {
+    try {
+        const requestHeaders = await headers()
+        const { ipAddress, userAgent, requestId } = getRequestMetadata(requestHeaders)
+        const deniedRoute = input.route || '/(auth)'
+
+        await persistAuditLog({
+            action: 'EDIT',
+            status: 'FAILED',
+            module: input.module || 'Authentication',
+            entityType: 'RouteAccess',
+            actorId: input.actorId,
+            entityId: deniedRoute,
+            targetLabel: deniedRoute,
+            summary: input.reason || `Unauthorized access attempt to ${deniedRoute}`,
+            changes: [
+                {
+                    field: 'role',
+                    before: normalizeAuditValue(input.role),
+                    after: 'ADMIN|SUPERADMIN required',
+                },
+                {
+                    field: 'result',
+                    before: 'access requested',
+                    after: 'redirected to sign-in',
+                },
+            ],
+            ipAddress,
+            userAgent,
+            requestId,
+        })
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error logging unauthorized access'
+        console.error('Error logging unauthorized access attempt:', message)
+    }
 }
 
 export async function getAuditLogs(input: GetAuditLogsInput = {}): Promise<GetAuditLogsResult> {
