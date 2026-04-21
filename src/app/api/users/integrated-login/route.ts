@@ -40,12 +40,32 @@ function buildUnauthorizedResponse(): NextResponse {
     return NextResponse.json({ success: false, error: 'Invalid credentials' }, { status: 401 })
 }
 
+function isAuthorized(request: Request): boolean {
+    const secret = process.env.BMS_SECRET_KEY
+
+    if (!secret) {
+        return false
+    }
+
+    const authorization = request.headers.get('authorization')
+    const bearerToken = authorization?.startsWith('Bearer ')
+        ? authorization.slice('Bearer '.length)
+        : null
+    const headerToken = request.headers.get('x-bms-secret-key')
+
+    return bearerToken === secret || headerToken === secret
+}
+
 export async function POST(request: Request): Promise<Response> {
     if (!TOKEN_SECRET) {
         return NextResponse.json(
             { success: false, error: 'BMS_SECRET_KEY is not configured' },
             { status: 500 }
         )
+    }
+
+    if (!isAuthorized(request)) {
+        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
     let body: IntegratedLoginBody
