@@ -666,15 +666,15 @@ export async function uploadProfilePicture(formData: FormData) {
         }
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const supabaseApiSecretKey = process.env.SUPABASE_API_SECRET_KEY;
 
-        if (!supabaseUrl || !supabaseServiceKey) {
+        if (!supabaseUrl || !supabaseApiSecretKey) {
             return { error: 'Supabase configuration missing', success: false };
         }
 
-        // Initialize Supabase client with service role key (for server-side operations)
+        // Initialize Supabase client with API secret key (for server-side operations)
         const { createClient } = await import('@supabase/supabase-js');
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        const supabase = createClient(supabaseUrl, supabaseApiSecretKey);
 
         // Get current user image to delete old one
         const currentUser = await prisma.user.findUnique({

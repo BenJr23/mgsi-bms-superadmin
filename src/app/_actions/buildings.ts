@@ -581,14 +581,14 @@ export async function uploadBuildingImage(
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const supabaseApiSecretKey = process.env.SUPABASE_API_SECRET_KEY
 
-    if (!supabaseUrl || !supabaseServiceKey) {
+    if (!supabaseUrl || !supabaseApiSecretKey) {
       return { success: false, error: 'Supabase configuration missing.' }
     }
 
     const { createClient } = await import('@supabase/supabase-js')
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const supabase = createClient(supabaseUrl, supabaseApiSecretKey)
 
     const fileExt = file.type.split('/')[1]
     const fileName = `buildings/${session.user.id}/building-${Date.now()}.${fileExt}`
